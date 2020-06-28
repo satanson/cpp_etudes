@@ -1,0 +1,8 @@
+*.bak
+*.backup
+*.back
+.*.swp
+*.log
+build
+.idea
+cmake-build-debug
