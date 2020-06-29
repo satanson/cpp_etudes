@@ -6,3 +6,4 @@
 build
 .idea
 cmake-build-debug
+debug-build

@@ -4,11 +4,92 @@
 
 #include <gtest/gtest.h>
 #include <concurrent/list.hh>
+#include <thread>
+#include <vector>
+#include <functional>
+#include <random>
+
 namespace com {
 namespace grakra {
 namespace concurrent {
-class TestList : public ::testing::Test {
 
+//typedef void(*ThreadFunc)(MichaelList &, size_t, int);
+//typedef void(*CheckFunc)(MichaelList &);
+
+using ThreadFunc= std::function<void(MichaelList &, size_t, int)>;
+using CheckFunc = std::function<void(MichaelList &)>;
+
+ThreadFunc generate_thread_func(size_t rounds, size_t thread_nr, size_t key_nr) {
+  auto f = [=](MichaelList &list, size_t n, int start) {
+    std::vector<int> keys;
+    keys.reserve(key_nr);
+    for (auto i = 0; i < key_nr; ++i) {
+      keys.push_back(start + i * thread_nr);
+    }
+    std::random_shuffle(keys.begin(), keys.end());
+    for (auto r = 0; r < rounds; ++r) {
+      for (auto k: keys) {
+        int32_t value = 0;
+        auto node = std::make_unique<NodeType>(k, k * k);
+        if (list.Search(k, value)) {
+          ASSERT_TRUE(list.Remove(k));
+        }
+        ASSERT_TRUE(list.Insert(node.release()));
+        ASSERT_TRUE(list.Search(k, value));
+        ASSERT_EQ(value, k * k);
+        ASSERT_TRUE(list.Remove(k));
+
+        node = std::make_unique<NodeType>(k, k * k - 1);
+        ASSERT_TRUE(list.Insert(node.release()));
+        node = std::make_unique<NodeType>(k, k * k + 1);
+        ASSERT_FALSE(list.Insert(node.get()));
+        ASSERT_TRUE(list.Search(k, value));
+        ASSERT_EQ(value, k * k - 1);
+        ASSERT_TRUE(list.Remove(k));
+        ASSERT_FALSE(list.Search(k, value));
+        ASSERT_TRUE(list.Insert(node.release()));
+        ASSERT_TRUE(list.Search(k, value));
+        ASSERT_EQ(value, k * k + 1);
+        ASSERT_TRUE(list.Remove(k));
+        ASSERT_FALSE(list.Remove(k));
+        ASSERT_FALSE(list.Search(k, value));
+        node = std::make_unique<NodeType>(k, k);
+
+        ASSERT_TRUE(list.Insert(node.release()));
+      }
+    }
+  };
+  return f;
+}
+
+CheckFunc generate_check_func(size_t thread_nr, size_t key_nr) {
+  auto f = [=](MichaelList &list) {
+    int32_t value;
+    for (int32_t key = 0; key < thread_nr * key_nr; ++key) {
+      ASSERT_TRUE(list.Search(key, value));
+      ASSERT_EQ(value, key);
+      ASSERT_TRUE(list.Remove(key));
+    }
+    ASSERT_TRUE(list.IsEmpty());
+  };
+  return f;
+}
+
+class TestList : public ::testing::Test {
+ public:
+  void multi_thread_run(
+      MichaelList &list, size_t thread_nr, ThreadFunc thread_func, CheckFunc check_func) {
+    assert(thread_nr > 0);
+    std::vector<std::thread> threads;
+    threads.reserve(thread_nr);
+    for (auto i = 0; i < thread_nr; ++i) {
+      threads.push_back(std::thread(thread_func, std::ref(list), thread_nr, i));
+    }
+    for (auto &thread: threads) {
+      thread.join();
+    }
+    check_func(list);
+  }
 };
 
 TEST_F(TestList, testSimple) {
@@ -60,6 +141,58 @@ TEST_F(TestList, testSingleThread) {
     }
   }
   GTEST_LOG_(INFO) << list.ToString();
+}
+TEST_F(TestList, testMultiThreadAccessDifferentKeys) {
+  MichaelList list;
+  auto thread_nr = 100;
+  auto key_nr = 10;
+  auto thread_func = generate_thread_func(100, thread_nr, key_nr);
+  auto check_func = generate_check_func(thread_nr, key_nr);
+  this->multi_thread_run(list, thread_nr, thread_func, check_func);
+}
+
+TEST_F(TestList, testMultiThreadAccessSameKey) {
+  MichaelList list;
+  auto thread_nr = 2;
+  auto rounds = 1000;
+  auto thread_func = [=](MichaelList &list, size_t thread_nr, int start) {
+    auto key = int32_t(10);
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<size_t> rand(0, 2);
+    for (auto r = 0; r < rounds; ++r) {
+      auto i = rand(gen);
+      //GTEST_LOG_(INFO)<<"thread#"<<start<<": round#"<<r<<": "<<i;
+      //std::this_thread::sleep_for(std::chrono::milliseconds(1));
+      switch (i) {
+        case 0: {
+          auto node = std::make_unique<NodeType>(key, key * key);
+          list.Insert(node.release());
+          break;
+        }
+        case 1: {
+          list.Remove(key);
+          break;
+        }
+        case 2: {
+          int32_t value = 0;
+          list.Search(key, value);
+        }
+      }
+    }
+    auto node = std::make_unique<NodeType>(key, key * key);
+    list.Insert(node.release());
+  };
+  auto check_func = [=](MichaelList &list) {
+    auto key = int32_t(10);
+    auto value = int32_t(0);
+    GTEST_LOG_(INFO) << list.ToString();
+    ASSERT_TRUE(list.Search(key, value));
+    ASSERT_EQ(value, key * key);
+    ASSERT_TRUE(list.Remove(key));
+    ASSERT_FALSE(list.Search(key, value));
+  };
+  this->multi_thread_run(list, thread_nr, thread_func, check_func);
 }
 
 } // concurrent

@@ -29,7 +29,8 @@ class MichaelList {
   thread_local static MarkPtrType cmark_next_ctag;
  public:
   MichaelList() : head(MarkPtrType(nullptr)) {}
-  ~MichaelList();
+  ~MichaelList() { Clear(); };
+  void Clear();
   bool Insert(MarkPtrType *head, NodeType *node);
   bool Insert(NodeType *node) { return Insert(&this->head, node); }
   bool Remove(MarkPtrType *head, int32_t key);

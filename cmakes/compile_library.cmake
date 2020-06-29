@@ -3,7 +3,7 @@ macro(COMPILE_LIBRARY)
     cmake_parse_arguments(
             ARG
             "STATIC;SHARED"
-            ""
+            "LIBS"
             ""
             ${ARGN})
 
@@ -23,6 +23,9 @@ macro(COMPILE_LIBRARY)
         if (EXISTS ${d}/CMakeLists.txt)
             add_subdirectory(${d})
             list(APPEND modules_deps ${d})
+            get_filename_component(lib ${d} NAME_WE)
+            list(APPEND ${ARG_LIBS} ${lib})
+            set(${ARG_LIBS} ${${ARG_LIBS}} PARENT_SCOPE)
         endif ()
     endforeach ()
     add_custom_target(modules DEPENDS ${modules_deps})
