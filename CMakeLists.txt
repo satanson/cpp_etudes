@@ -7,6 +7,26 @@ enable_language(CXX)
 enable_language(C)
 enable_language(ASM)
 
+
+execute_process(COMMAND which ccache OUTPUT_VARIABLE ccache_path)
+message(STATUS "ccache: ${ccache_path}")
+
+if (EXISTS ${ccache_path})
+  message(STATUS "ccache_path:exist")
+endif()
+
+if (ccache_path)
+  option(CCACHE_ENABLE "enable ccache" ON)
+else()
+  option(CCACHE_ENABLE "enable ccache" OFF)
+endif()
+
+if (CCACHE_ENABLE)
+  message(STATUS "ccache enabled")
+  set_property(GLOBAL PROPERTY RULE_LAUNCH_COMPILE ccache)
+  set_property(GLOBAL PROPERTY RULE_LAUNCH_LINK ccache)
+endif()
+
 include_directories(${PROJECT_SOURCE_DIR})
 include_directories(${PROJECT_SOURCE_DIR}/include)
 include_directories(SYSTEM ${PROJECT_SOURCE_DIR}/third-party/gtest-1.7.0/fused-src)
