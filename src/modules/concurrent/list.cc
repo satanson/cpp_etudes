@@ -10,9 +10,9 @@ namespace concurrent {
 
 using MarkPtrType = com::grakra::concurrent::MarkPtrType;
 
-thread_local MarkPtrType *MichaelList::prev(nullptr);
-thread_local MarkPtrType MichaelList::pmark_curr_ptag(nullptr);
-thread_local MarkPtrType MichaelList::cmark_next_ctag(nullptr);
+thread_local MarkPtrType *prev = nullptr;
+thread_local MarkPtrType pmark_curr_ptag = MarkPtrType(nullptr);
+thread_local MarkPtrType cmark_next_ctag = MarkPtrType(nullptr);
 
 bool MichaelList::IsEmpty() {
   return this->head.get() == nullptr;
@@ -94,12 +94,16 @@ bool MichaelList::Remove(MarkPtrType *head, int32_t key) {
       return false;
     }
     auto curr = list_next(pmark_curr_ptag);
+    auto curr_old = cmark_next_ctag;
+    curr_old.unmark_delete();
     auto curr_new = MarkPtrType(list_next(cmark_next_ctag), 1, cmark_next_ctag.get_tag() + 1);
-    if (!curr->loc.compare_exchange_strong(cmark_next_ctag.ptr, curr_new.ptr)) {
+    if (!curr->loc.compare_exchange_strong(curr_old.ptr, curr_new.ptr)) {
       continue;
     }
+    auto prev_old = pmark_curr_ptag;
+    prev_old.unmark_delete();
     auto prev_new = MarkPtrType(list_next(cmark_next_ctag), 0, pmark_curr_ptag.get_tag() + 1);
-    if (prev->loc.compare_exchange_strong(pmark_curr_ptag.ptr, prev_new.ptr)) {
+    if (prev->loc.compare_exchange_strong(prev_old.ptr, prev_new.ptr)) {
       if (__builtin_expect(list_next(pmark_curr_ptag) != nullptr, 1)) {
         delete list_node(list_next(pmark_curr_ptag));
       }

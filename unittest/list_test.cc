@@ -16,8 +16,10 @@ namespace concurrent {
 //typedef void(*ThreadFunc)(MichaelList &, size_t, int);
 //typedef void(*CheckFunc)(MichaelList &);
 
-using ThreadFunc= std::function<void(MichaelList &, size_t, int)>;
+using ThreadFunc = std::function<void(MichaelList &, size_t, int)>;
 using CheckFunc = std::function<void(MichaelList &)>;
+typedef void(*SameKeyThreadFunc)(std::shared_ptr<MichaelList>, int32_t, size_t);
+typedef void(*SameKeyCheckFunc)(std::shared_ptr<MichaelList>, int32_t);
 
 ThreadFunc generate_thread_func(size_t rounds, size_t thread_nr, size_t key_nr) {
   auto f = [=](MichaelList &list, size_t n, int start) {
@@ -90,6 +92,25 @@ class TestList : public ::testing::Test {
     }
     check_func(list);
   }
+
+  void multi_thread_run_same_key(
+      std::shared_ptr<MichaelList> list,
+      size_t thread_nr,
+      size_t rounds,
+      int32_t key,
+      SameKeyThreadFunc thread_func,
+      SameKeyCheckFunc check_func) {
+
+    std::vector<std::thread> threads;
+    threads.reserve(thread_nr);
+    for (auto i = 0; i < thread_nr; ++i) {
+      threads.push_back(std::thread(thread_func, list, key, rounds));
+    }
+    for (auto &thread: threads) {
+      thread.join();
+    }
+    check_func(list, key);
+  }
 };
 
 TEST_F(TestList, testSimple) {
@@ -151,50 +172,75 @@ TEST_F(TestList, testMultiThreadAccessDifferentKeys) {
   this->multi_thread_run(list, thread_nr, thread_func, check_func);
 }
 
-TEST_F(TestList, testMultiThreadAccessSameKey) {
-  MichaelList list;
-  auto thread_nr = 2;
-  auto rounds = 1000;
-  auto thread_func = [=](MichaelList &list, size_t thread_nr, int start) {
-    auto key = int32_t(10);
-    std::random_device rd;
-    std::mt19937 gen(rd());
-    std::uniform_int_distribution<size_t> rand(0, 2);
-    for (auto r = 0; r < rounds; ++r) {
-      auto i = rand(gen);
-      //GTEST_LOG_(INFO)<<"thread#"<<start<<": round#"<<r<<": "<<i;
-      //std::this_thread::sleep_for(std::chrono::milliseconds(1));
-      switch (i) {
-        case 0: {
-          auto node = std::make_unique<NodeType>(key, key * key);
-          list.Insert(node.release());
-          break;
-        }
-        case 1: {
-          list.Remove(key);
-          break;
-        }
-        case 2: {
-          int32_t value = 0;
-          list.Search(key, value);
-        }
+void same_key_thread_func(std::shared_ptr<MichaelList> list, int32_t key, size_t rounds) {
+  std::random_device rd;
+  std::mt19937 gen(rd());
+  std::uniform_int_distribution<size_t> rand(0, 2);
+  for (auto r = 0; r < rounds; ++r) {
+    auto i = rand(gen);
+    //GTEST_LOG_(INFO)<<"thread#"<<start<<": round#"<<r<<": "<<i;
+    //std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    switch (i) {
+      case 0: {
+        auto node = std::make_unique<NodeType>(key, key * key);
+        list->Insert(node.release());
+        break;
+      }
+      case 1: {
+        list->Remove(key);
+        break;
+      }
+      case 2: {
+        int32_t value = 0;
+        list->Search(key, value);
       }
     }
-    auto node = std::make_unique<NodeType>(key, key * key);
-    list.Insert(node.release());
-  };
-  auto check_func = [=](MichaelList &list) {
-    auto key = int32_t(10);
-    auto value = int32_t(0);
-    GTEST_LOG_(INFO) << list.ToString();
-    ASSERT_TRUE(list.Search(key, value));
-    ASSERT_EQ(value, key * key);
-    ASSERT_TRUE(list.Remove(key));
-    ASSERT_FALSE(list.Search(key, value));
-  };
-  this->multi_thread_run(list, thread_nr, thread_func, check_func);
+  }
+  auto node = std::make_unique<NodeType>(key, key * key);
+  list->Insert(node.release());
+  GTEST_LOG_(INFO)<<"thread#"<<std::this_thread::get_id()<<" exit!!!";
 }
 
+void same_key_check_func(std::shared_ptr<MichaelList> list, int32_t key) {
+  auto value = int32_t(0);
+  GTEST_LOG_(INFO) << list->ToString();
+  ASSERT_TRUE(list->Search(key, value));
+  ASSERT_EQ(value, key * key);
+  ASSERT_TRUE(list->Remove(key));
+  ASSERT_FALSE(list->Search(key, value));
+}
+// FAIL: writing into de-allocated object cause __malloc_arena_thread_freeres crashes in glibc when pthread clean thread
+// local storage before exit.
+TEST_F(TestList, testMultiThreadAccessSameKey) {
+  auto list = std::make_shared<MichaelList>();
+  auto thread_nr = 2;
+  auto rounds = 1000;
+  auto key = int32_t(10);
+  this->multi_thread_run_same_key(list, thread_nr, rounds, key, same_key_thread_func, same_key_check_func);
+}
+thread_local MarkPtrType *p = nullptr;
+thread_local MarkPtrType *q = nullptr;
+// access de-allocated object cause crashes in __malloc_arena_thread_freeres of glibc
+// MichaelList::Remove has the same issue
+TEST_F(TestList, testThreadLocal){
+  std::vector<std::thread> threads;
+  threads.reserve(2);
+  for (int i=0; i<2;i++) {
+    threads.push_back(std::thread([]() {
+      GTEST_LOG_(INFO) << p;
+      for (int n=0; n<10000;++n) {
+        auto p0 = std::make_unique<NodeType>(1, 1);
+        p = &p0->next;
+        delete p0.release();
+        *p = MarkPtrType(0, 1, 0);
+        q = list_next(*p);
+      }
+    }));
+  }
+  for (auto& thd:threads){
+    thd.join();
+  }
+}
 } // concurrent
 } // grakra
 } // com

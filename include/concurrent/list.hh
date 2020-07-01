@@ -24,12 +24,12 @@ struct NodeType {
 class MichaelList {
  private:
   MarkPtrType head;
-  thread_local static MarkPtrType *prev;
-  thread_local static MarkPtrType pmark_curr_ptag;
-  thread_local static MarkPtrType cmark_next_ctag;
+  //thread_local static MarkPtrType *prev;
+  //thread_local static MarkPtrType pmark_curr_ptag;
+  //thread_local static MarkPtrType cmark_next_ctag;
  public:
   MichaelList() : head(MarkPtrType(nullptr)) {}
-  ~MichaelList() { Clear(); };
+  ~MichaelList() { /*Clear();*/ }
   void Clear();
   bool Insert(MarkPtrType *head, NodeType *node);
   bool Insert(NodeType *node) { return Insert(&this->head, node); }
