@@ -24,7 +24,6 @@ namespace concurrent {
 union MarkPtrType {
  public:
   void *ptr;
-  std::atomic<void *> loc;
   struct {
     uint16_t mark :1;
     const uint64_t p: 46;

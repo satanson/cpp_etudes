@@ -75,20 +75,21 @@ void MichaelList::Clear() {
   }
 }
 
-bool MichaelList::Insert(MarkPtrType *head, NodeType *node) {
+bool MichaelList::Insert(MarkPtrType *head, NodeType *node, NodeType **exist_node) {
   while (true) {
-    if (Find(head, node->key)) {
+    if (Find(head, node->key, exist_node)) {
       return false;
     }
     node->next = MarkPtrType(list_next(pmark_curr_ptag), 0, 0);
     auto prev_old = MarkPtrType(list_next(pmark_curr_ptag), 0, pmark_curr_ptag.get_tag());
     auto prev_new = MarkPtrType(&node->next, 0, pmark_curr_ptag.get_tag() + 1);
-    if (prev->loc.compare_exchange_strong(prev_old.ptr, prev_new.ptr)) {
+    if (atomic_ptr(prev->ptr)->compare_exchange_strong(
+        prev_old.ptr, prev_new.ptr, std::memory_order_acq_rel)) {
       return true;
     }
   }
 }
-bool MichaelList::Remove(MarkPtrType *head, int32_t key) {
+bool MichaelList::Remove(MarkPtrType *head, uint32_t key) {
   while (true) {
     if (!Find(head, key)) {
       return false;
@@ -97,13 +98,14 @@ bool MichaelList::Remove(MarkPtrType *head, int32_t key) {
     auto curr_old = cmark_next_ctag;
     curr_old.unmark_delete();
     auto curr_new = MarkPtrType(list_next(cmark_next_ctag), 1, cmark_next_ctag.get_tag() + 1);
-    if (!curr->loc.compare_exchange_strong(curr_old.ptr, curr_new.ptr)) {
+    if (atomic_ptr(curr->ptr)->compare_exchange_strong(
+        curr_old.ptr, curr_new.ptr, std::memory_order_acq_rel)) {
       continue;
     }
     auto prev_old = pmark_curr_ptag;
     prev_old.unmark_delete();
     auto prev_new = MarkPtrType(list_next(cmark_next_ctag), 0, pmark_curr_ptag.get_tag() + 1);
-    if (prev->loc.compare_exchange_strong(prev_old.ptr, prev_new.ptr)) {
+    if (atomic_ptr(prev->ptr)->compare_exchange_strong(prev_old.ptr, prev_new.ptr)) {
       if (__builtin_expect(list_next(pmark_curr_ptag) != nullptr, 1)) {
         delete list_node(list_next(pmark_curr_ptag));
       }
@@ -114,7 +116,7 @@ bool MichaelList::Remove(MarkPtrType *head, int32_t key) {
   }
 }
 
-bool MichaelList::Search(MarkPtrType *head, int32_t key, int32_t &value) {
+bool MichaelList::Search(MarkPtrType *head, uint32_t key, uint32_t &value) {
   if (!Find(head, key)) {
     return false;
   }
@@ -123,7 +125,7 @@ bool MichaelList::Search(MarkPtrType *head, int32_t key, int32_t &value) {
   return !list_next(pmark_curr_ptag)->is_mark_delete();
 }
 
-bool MichaelList::Find(MarkPtrType *head, int32_t key) {
+bool MichaelList::Find(MarkPtrType *head, uint32_t key, NodeType **node) {
   assert(head != nullptr);
   try_again:
   prev = head;
@@ -141,13 +143,17 @@ bool MichaelList::Find(MarkPtrType *head, int32_t key) {
     }
     if (!cmark_next_ctag.is_mark_delete()) {
       if (ckey >= key) {
-        return ckey == key;
+        auto exists = ckey == key;
+        if (exists && node != nullptr) {
+          *node = list_node(list_next(pmark_curr_ptag));
+        }
+        return exists;
       }
       // advance prev
       prev = list_next(pmark_curr_ptag);
     } else {
       auto prev_new = MarkPtrType(cmark_next_ctag.get(), 0, pmark_curr_ptag.get_tag() + 1);
-      if (prev->loc.compare_exchange_strong(prev_old.ptr, prev_new.ptr)) {
+      if (atomic_ptr(prev->ptr)->compare_exchange_strong(prev_old.ptr, prev_new.ptr, std::memory_order_acq_rel)) {
         if (__builtin_expect(list_next(pmark_curr_ptag) != nullptr, 1)) {
           delete list_node(list_next(pmark_curr_ptag));
         }

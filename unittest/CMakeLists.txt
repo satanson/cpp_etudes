@@ -4,6 +4,8 @@ set(TESTS
         gtest_demo.cc
         mark_ptr_type_test.cc
         list_test.cc
+        util_test.cc
+        hash_test.cc
         )
 foreach (src ${TESTS})
     get_filename_component(exe ${src} NAME_WE)

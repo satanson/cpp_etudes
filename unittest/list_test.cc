@@ -18,8 +18,8 @@ namespace concurrent {
 
 using ThreadFunc = std::function<void(MichaelList &, size_t, int)>;
 using CheckFunc = std::function<void(MichaelList &)>;
-typedef void(*SameKeyThreadFunc)(std::shared_ptr<MichaelList>, int32_t, size_t);
-typedef void(*SameKeyCheckFunc)(std::shared_ptr<MichaelList>, int32_t);
+typedef void(*SameKeyThreadFunc)(std::shared_ptr<MichaelList>, uint32_t, size_t);
+typedef void(*SameKeyCheckFunc)(std::shared_ptr<MichaelList>, uint32_t);
 
 ThreadFunc generate_thread_func(size_t rounds, size_t thread_nr, size_t key_nr) {
   auto f = [=](MichaelList &list, size_t n, int start) {
@@ -31,7 +31,7 @@ ThreadFunc generate_thread_func(size_t rounds, size_t thread_nr, size_t key_nr) 
     std::random_shuffle(keys.begin(), keys.end());
     for (auto r = 0; r < rounds; ++r) {
       for (auto k: keys) {
-        int32_t value = 0;
+        uint32_t value = 0;
         auto node = std::make_unique<NodeType>(k, k * k);
         if (list.Search(k, value)) {
           ASSERT_TRUE(list.Remove(k));
@@ -66,8 +66,8 @@ ThreadFunc generate_thread_func(size_t rounds, size_t thread_nr, size_t key_nr) 
 
 CheckFunc generate_check_func(size_t thread_nr, size_t key_nr) {
   auto f = [=](MichaelList &list) {
-    int32_t value;
-    for (int32_t key = 0; key < thread_nr * key_nr; ++key) {
+    uint32_t value;
+    for (uint32_t key = 0; key < thread_nr * key_nr; ++key) {
       ASSERT_TRUE(list.Search(key, value));
       ASSERT_EQ(value, key);
       ASSERT_TRUE(list.Remove(key));
@@ -97,7 +97,7 @@ class TestList : public ::testing::Test {
       std::shared_ptr<MichaelList> list,
       size_t thread_nr,
       size_t rounds,
-      int32_t key,
+      uint32_t key,
       SameKeyThreadFunc thread_func,
       SameKeyCheckFunc check_func) {
 
@@ -145,7 +145,7 @@ TEST_F(TestList, testSingleThread) {
     }
   }
   GTEST_LOG_(INFO) << list.ToString();
-  int32_t value;
+  uint32_t value;
   for (int i = 0; i < 20; ++i) {
     ASSERT_TRUE(list.Search(i, value));
     ASSERT_EQ(value, i * i);
@@ -172,7 +172,7 @@ TEST_F(TestList, testMultiThreadAccessDifferentKeys) {
   this->multi_thread_run(list, thread_nr, thread_func, check_func);
 }
 
-void same_key_thread_func(std::shared_ptr<MichaelList> list, int32_t key, size_t rounds) {
+void same_key_thread_func(std::shared_ptr<MichaelList> list, uint32_t key, size_t rounds) {
   std::random_device rd;
   std::mt19937 gen(rd());
   std::uniform_int_distribution<size_t> rand(0, 2);
@@ -191,7 +191,7 @@ void same_key_thread_func(std::shared_ptr<MichaelList> list, int32_t key, size_t
         break;
       }
       case 2: {
-        int32_t value = 0;
+        uint32_t value = 0;
         list->Search(key, value);
       }
     }
@@ -201,8 +201,8 @@ void same_key_thread_func(std::shared_ptr<MichaelList> list, int32_t key, size_t
   GTEST_LOG_(INFO)<<"thread#"<<std::this_thread::get_id()<<" exit!!!";
 }
 
-void same_key_check_func(std::shared_ptr<MichaelList> list, int32_t key) {
-  auto value = int32_t(0);
+void same_key_check_func(std::shared_ptr<MichaelList> list, uint32_t key) {
+  auto value = uint32_t(0);
   GTEST_LOG_(INFO) << list->ToString();
   ASSERT_TRUE(list->Search(key, value));
   ASSERT_EQ(value, key * key);
@@ -215,7 +215,7 @@ TEST_F(TestList, testMultiThreadAccessSameKey) {
   auto list = std::make_shared<MichaelList>();
   auto thread_nr = 2;
   auto rounds = 1000;
-  auto key = int32_t(10);
+  auto key = uint32_t(10);
   this->multi_thread_run_same_key(list, thread_nr, rounds, key, same_key_thread_func, same_key_check_func);
 }
 thread_local MarkPtrType *p = nullptr;
