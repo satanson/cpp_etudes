@@ -40,7 +40,14 @@ class Hash {
  public:
   Hash(size_t expect_max_size, size_t load_factor);
   ~Hash();
-  MichaelList &GetList() { return this->list; }
+  MichaelList &get_list() { return this->list; }
+  size_t get_expect_max_size() { return this->expect_max_size; }
+  size_t get_level_nr() { return this->level_nr; }
+  size_t get_load_factor() { return this->load_factor; }
+  size_t get_max_slot_nr() { return this->max_slot_nr; }
+  uint32_t get_slot_nr() { return this->slot_nr.load(std::memory_order_relaxed); }
+  size_t get_size() { return this->size.load(std::memory_order_relaxed); }
+
   bool Put(uint32_t key, uint32_t value);
   bool Get(uint32_t key, uint32_t &value);
  private:

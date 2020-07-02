@@ -165,8 +165,10 @@ bool Hash::Put(uint32_t key, uint32_t value) {
   if (!list.Insert(head, node)) {
     delete node;
     return false;
+  } else {
+    this->size.fetch_add(1, std::memory_order_relaxed);
+    return true;
   }
-  return true;
 }
 
 bool Hash::Get(uint32_t key, uint32_t &value) {
