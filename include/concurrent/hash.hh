@@ -54,6 +54,14 @@ class Hash {
   Hash(Hash const &) = delete;
   Hash &operator=(Hash const &) = delete;
   uint32_t get_slot_idx(uint32_t key);
+  MarkPtrType **get_slot(size_t slot_i, bool create_if_not_exists);
+  MarkPtrType **get_or_create_slot(size_t slot_i) {
+    return get_slot(slot_i, true);
+  }
+  MarkPtrType **get_slot_if_exists(size_t slot_i) {
+    return get_slot(slot_i, false);
+  }
+  void free_slots();
   void maybe_resize();
   MarkPtrType *ensure_slot_exists(uint32_t slot_i);
 };
