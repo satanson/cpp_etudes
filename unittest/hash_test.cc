@@ -37,10 +37,42 @@ TEST_F(TestHash, testSingleThread) {
     // GTEST_LOG_(INFO) << "GET: key=" << key << ", value=" << value;
   }
 }
-
-TEST_F(TestHash, testing){
-
+TEST_F(TestHash, testConstExpr) {
+  GTEST_LOG_(INFO) << "SLOT_INDEX_OFFSET=" << SLOT_INDEX_SHIFT;
 }
+TEST_F(TestHash, testHashResizing) {
+  auto f = [](size_t nr, size_t factor) {
+    Hash hash(nr, factor);
+    GTEST_LOG_(INFO)
+        << "expect_max_size=" << hash.get_expect_max_size()
+        << ", load_factor=" << hash.get_load_factor()
+        << ", max_slot_nr=" << hash.get_max_slot_nr()
+        << ", level_nr=" << hash.get_level_nr();
+
+    uint32_t max_key = hash.get_expect_max_size() + 10;
+    size_t count = 0;
+    for (auto key = uint32_t(0); key < max_key; ++key) {
+      ++count;
+      if (count % SLOT_INDEX_NR == 0) {
+        GTEST_LOG_(INFO) << "Put " << count << " keys";
+      }
+      ASSERT_TRUE(hash.Put(key, 2 * key + 1));
+    }
+
+    uint32_t value = 0;
+    for (auto key = uint32_t(0); key < max_key; ++key) {
+      ASSERT_TRUE(hash.Get(key, value));
+      ASSERT_EQ(value, 2 * key + 1);
+    }
+  };
+  f(SLOT_INDEX_NR - 1, 1);
+  f(SLOT_INDEX_NR, 1);
+  f(SLOT_INDEX_NR + 1, 1);
+  f(SLOT_INDEX_NR * SLOT_INDEX_NR, 1);
+  f((SLOT_INDEX_NR + 1) * SLOT_INDEX_NR, 1);
+  //f(SLOT_INDEX_NR * SLOT_INDEX_NR * SLOT_INDEX_NR, 1);
+}
+
 } // namespace concurrent
 } // namespace grakra
 } // namespace com

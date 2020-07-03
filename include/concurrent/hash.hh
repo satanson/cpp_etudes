@@ -18,7 +18,7 @@ namespace concurrent {
 #define CLEAR_MSB(n) ((n) & (((typeof(n))1) << (sizeof(n) - 1 - __builtin_clz(n))))
 #define PARENT_SLOT(n) CLEAR_MSB(n)
 
-constexpr size_t SLOT_INDEX_SHIFT = 12 - LOG2(sizeof(void *) / 8);
+constexpr size_t SLOT_INDEX_SHIFT = 12 - LOG2(sizeof(void *));
 constexpr size_t SLOT_INDEX_NR = 1 << SLOT_INDEX_SHIFT;
 constexpr size_t SLOT_INDEX_MASK = SLOT_INDEX_NR - 1;
 constexpr size_t HASH_SIZE_LIMIT = UINT32_MAX >> 1;

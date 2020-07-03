@@ -25,11 +25,16 @@ union MarkPtrType {
  public:
   void *ptr;
   struct {
-    uint16_t mark :1;
+    uint16_t mark: 1;
     const uint64_t p: 46;
     const uint16_t sign: 1;
     uint16_t tag: 16;
   };
+
+  MarkPtrType() : ptr(nullptr) {
+    this->mark = 0;
+    this->tag = 0;
+  }
 
   explicit MarkPtrType(void *ptr) : ptr(ptr) {
     this->mark = 0;

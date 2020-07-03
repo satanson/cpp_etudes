@@ -25,12 +25,9 @@ struct NodeType {
 class MichaelList {
  private:
   MarkPtrType head;
-  //thread_local static MarkPtrType *prev;
-  //thread_local static MarkPtrType pmark_curr_ptag;
-  //thread_local static MarkPtrType cmark_next_ctag;
  public:
   MichaelList() : head(MarkPtrType(nullptr)) {}
-  ~MichaelList() { /*Clear();*/ }
+  ~MichaelList() { Clear(); }
   void Clear();
   bool Insert(MarkPtrType *head, NodeType *node, NodeType **exist_node = nullptr);
   bool Insert(NodeType *node, NodeType **exist_node = nullptr) { return Insert(&this->head, node, exist_node); }
@@ -38,13 +35,19 @@ class MichaelList {
   bool Remove(uint32_t key) { return Remove(&this->head, key); }
   bool Search(MarkPtrType *head, uint32_t key, uint32_t &value);
   bool Search(uint32_t key, uint32_t &value) { return Search(&this->head, key, value); }
-  bool Find(MarkPtrType *head, uint32_t key, NodeType **node = nullptr);
   void Unshift(NodeType *node);
   void Push(NodeType *node);
   NodeType *Shift();
   NodeType *Pop();
   bool IsEmpty();
   std::string ToString();
+ private:
+  bool find(
+      MarkPtrType *head,
+      MarkPtrType *&prev,
+      MarkPtrType &pmark_curr_ptags,
+      MarkPtrType &cmark_next_ctags,
+      uint32_t key, NodeType **node = nullptr);
 };
 
 }

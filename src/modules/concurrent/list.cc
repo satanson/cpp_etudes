@@ -10,10 +10,6 @@ namespace concurrent {
 
 using MarkPtrType = com::grakra::concurrent::MarkPtrType;
 
-thread_local MarkPtrType *prev = nullptr;
-thread_local MarkPtrType pmark_curr_ptag = MarkPtrType(nullptr);
-thread_local MarkPtrType cmark_next_ctag = MarkPtrType(nullptr);
-
 bool MichaelList::IsEmpty() {
   return this->head.get() == nullptr;
 }
@@ -75,30 +71,47 @@ void MichaelList::Clear() {
   }
 }
 
-bool MichaelList::Insert(MarkPtrType *head, NodeType *node, NodeType **exist_node) {
+bool MichaelList::Insert(
+    MarkPtrType *head,
+    NodeType *node,
+    NodeType **exist_node) {
+  MarkPtrType *prev = head;
+  MarkPtrType pmark_curr_ptag;
+  MarkPtrType cmark_next_ctag;
   while (true) {
-    if (Find(head, node->key, exist_node)) {
+    if (
+        find(head, prev, pmark_curr_ptag, cmark_next_ctag, node
+            ->key, exist_node)) {
       return false;
     }
-    node->next = MarkPtrType(list_next(pmark_curr_ptag), 0, 0);
+    node->
+        next = MarkPtrType(list_next(pmark_curr_ptag), 0, 0);
     auto prev_old = MarkPtrType(list_next(pmark_curr_ptag), 0, pmark_curr_ptag.get_tag());
     auto prev_new = MarkPtrType(&node->next, 0, pmark_curr_ptag.get_tag() + 1);
-    if (atomic_ptr(prev->ptr)->compare_exchange_strong(
-        prev_old.ptr, prev_new.ptr, std::memory_order_acq_rel)) {
+    if (atomic_ptr(prev->ptr)->
+        compare_exchange_strong(
+        prev_old
+            .ptr, prev_new.ptr, std::memory_order_acq_rel)) {
       return true;
     }
   }
 }
-bool MichaelList::Remove(MarkPtrType *head, uint32_t key) {
+
+bool MichaelList::Remove(
+    MarkPtrType *head,
+    uint32_t key) {
+  MarkPtrType *prev = nullptr;
+  MarkPtrType pmark_curr_ptag;
+  MarkPtrType cmark_next_ctag;
   while (true) {
-    if (!Find(head, key)) {
+    if (!find(head, prev, pmark_curr_ptag, cmark_next_ctag, key)) {
       return false;
     }
     auto curr = list_next(pmark_curr_ptag);
     auto curr_old = cmark_next_ctag;
     curr_old.unmark_delete();
     auto curr_new = MarkPtrType(list_next(cmark_next_ctag), 1, cmark_next_ctag.get_tag() + 1);
-    if (atomic_ptr(curr->ptr)->compare_exchange_strong(
+    if (!atomic_ptr(curr->ptr)->compare_exchange_strong(
         curr_old.ptr, curr_new.ptr, std::memory_order_acq_rel)) {
       continue;
     }
@@ -110,14 +123,17 @@ bool MichaelList::Remove(MarkPtrType *head, uint32_t key) {
         delete list_node(list_next(pmark_curr_ptag));
       }
     } else {
-      Find(head, key);
+      find(head, prev, pmark_curr_ptag, cmark_next_ctag, key);
     }
     return true;
   }
 }
 
 bool MichaelList::Search(MarkPtrType *head, uint32_t key, uint32_t &value) {
-  if (!Find(head, key)) {
+  MarkPtrType *prev = head;
+  MarkPtrType pmark_curr_ptag;
+  MarkPtrType cmark_next_ctag;
+  if (!find(head, prev, pmark_curr_ptag, cmark_next_ctag, key)) {
     return false;
   }
   auto node = list_node(list_next(pmark_curr_ptag));
@@ -125,9 +141,13 @@ bool MichaelList::Search(MarkPtrType *head, uint32_t key, uint32_t &value) {
   return !list_next(pmark_curr_ptag)->is_mark_delete();
 }
 
-bool MichaelList::Find(MarkPtrType *head, uint32_t key, NodeType **node) {
-  assert(head != nullptr);
-  try_again:
+bool MichaelList::find(
+    MarkPtrType *head,
+    MarkPtrType *&prev,
+    MarkPtrType &pmark_curr_ptag,
+    MarkPtrType &cmark_next_ctag,
+    uint32_t key,
+    NodeType **node) {
   prev = head;
   pmark_curr_ptag = *prev;
   while (true) {
@@ -139,7 +159,9 @@ bool MichaelList::Find(MarkPtrType *head, uint32_t key, NodeType **node) {
     // read prev again, if prev is mutated or marked, then retry from scratch.
     auto prev_old = MarkPtrType(pmark_curr_ptag.get(), 0, pmark_curr_ptag.get_tag());
     if (!prev->equal_to(prev_old)) {
-      goto try_again;
+      prev = head;
+      pmark_curr_ptag = *prev;
+      continue;
     }
     if (!cmark_next_ctag.is_mark_delete()) {
       if (ckey >= key) {
@@ -160,7 +182,9 @@ bool MichaelList::Find(MarkPtrType *head, uint32_t key, NodeType **node) {
         // now prev->get_tag() == pmark_curr_ptag.get_tag()+1
         cmark_next_ctag.set_tag(pmark_curr_ptag.get_tag() + 1);
       } else {
-        goto try_again;
+        prev = head;
+        pmark_curr_ptag = *prev;
+        continue;
       }
     }
     // advance pmark_curr_ptag, so pmark_curr_ptag keep consistent with *prev
