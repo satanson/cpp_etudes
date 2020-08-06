@@ -68,9 +68,9 @@ TEST_F(TestHash, testHashResizing) {
   f(SLOT_INDEX_NR - 1, 1);
   f(SLOT_INDEX_NR, 1);
   f(SLOT_INDEX_NR + 1, 1);
-  f(SLOT_INDEX_NR * SLOT_INDEX_NR, 1);
-  f((SLOT_INDEX_NR + 1) * SLOT_INDEX_NR, 1);
-  //f(SLOT_INDEX_NR * SLOT_INDEX_NR * SLOT_INDEX_NR, 1);
+  f(SLOT_INDEX_NR * 100, 1);
+  // f((SLOT_INDEX_NR + 1) * SLOT_INDEX_NR, 1);
+  // f(SLOT_INDEX_NR * SLOT_INDEX_NR * SLOT_INDEX_NR, 1);
 }
 
 } // namespace concurrent
