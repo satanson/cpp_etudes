@@ -7,6 +7,8 @@ enable_language(CXX)
 enable_language(C)
 enable_language(ASM)
 
+set(CMAKE_CXX_FLAGS_DEBUG  "${CMAKE_CXX_FLAGS_DEBUG} -O3 -std=c++17")
+set(CMAKE_CXX_FLAGS_RELEASE  "${CMAKE_CXX_FLAGS_RELEASE} -O3 -std=c++17")
 
 execute_process(COMMAND which ccache OUTPUT_VARIABLE ccache_path)
 message(STATUS "ccache: ${ccache_path}")

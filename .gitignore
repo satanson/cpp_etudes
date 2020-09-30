@@ -8,3 +8,4 @@ build
 cmake-build-debug
 debug-build
 build_debug
+debug

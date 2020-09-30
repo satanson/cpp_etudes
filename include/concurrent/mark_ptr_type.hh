@@ -11,7 +11,7 @@
 namespace com {
 namespace grakra {
 namespace concurrent {
-
+#define typeof __typeof__
 #define list_node_(ptr, type, member) ({\
   typeof(ptr) __mptr = (ptr); \
   (type*)(((char*)__mptr) - __builtin_offsetof(type, member));\

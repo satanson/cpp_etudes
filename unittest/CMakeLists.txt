@@ -6,6 +6,8 @@ set(TESTS
         list_test.cc
         util_test.cc
         hash_test.cc
+        misc_test.cc
+        decimal_microbm_test.cc
         )
 foreach (src ${TESTS})
     get_filename_component(exe ${src} NAME_WE)
