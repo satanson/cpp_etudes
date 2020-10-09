@@ -101,7 +101,7 @@ static void BM_CKDecimal_Add_AdjustScale(benchmark::State &state) {
 }
 
 static void BM_CKDecimal_Add_AdjustScale_CheckOverflow(benchmark::State &state) {
-  CKDecimalOp<true, true, false, false> addOp;
+  CKDecimalOp<true, true, true, true> addOp;
   for (auto _ : state)
     batch_compute(batch_size, lhs.data(), rhs.data(), result.data(),
                   [&](auto x, auto y) { return addOp.add(x, y, static_cast<int128_t>(100)); });
@@ -115,7 +115,7 @@ static void BM_CKDecimal_Add(benchmark::State &state) {
 }
 
 static void BM_CKDecimal_Add_CheckOverflow(benchmark::State &state) {
-  CKDecimalOp<false, true, true, false> addOp;
+  CKDecimalOp<false, true, true, true> addOp;
   for (auto _ : state)
     batch_compute(batch_size, lhs.data(), rhs.data(), result.data(),
                   [&](auto x, auto y) { return addOp.add(x, y, static_cast<int128_t>(100)); });
@@ -135,7 +135,7 @@ static void BM_CKDecimal_Mul(benchmark::State &state) {
 }
 
 static void BM_CKDecimal_Mul_CheckOverflow(benchmark::State &state) {
-  CKDecimalOp<false, true, true, false> mulOp;
+  CKDecimalOp<false, true, true, true> mulOp;
   for (auto _ : state)
     batch_compute(batch_size, lhs.data(), rhs.data(), result.data(),
                   [&](int128_t x, int128_t y) { return mulOp.mul(x, y); });
@@ -216,7 +216,7 @@ BENCHMARK(BM_Int128_Div2);
 BENCHMARK(BM_DorisDecimal_Div);
 BENCHMARK(BM_CKDecimal_DecimalDivDecimal);
 BENCHMARK(BM_CKDecimal_NonDecimalDivDecimal);
-BENCHMARK(BM_CKDecimal_DecimalDivDecimal_CheckOverflow);
 BENCHMARK(BM_CKDecimal_NonDecimalDivDecimal_CheckOverflow);
+BENCHMARK(BM_CKDecimal_DecimalDivDecimal_CheckOverflow);
 
 BENCHMARK_MAIN();

@@ -2,13 +2,28 @@ cmake_minimum_required(VERSION 2.8.12)
 set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmakes ${CMAKE_MODULE_PATH})
 
 project(cpp_etudes)
-
 enable_language(CXX)
 enable_language(C)
 enable_language(ASM)
 
 set(CMAKE_CXX_FLAGS_DEBUG  "${CMAKE_CXX_FLAGS_DEBUG} -O3 -std=c++17")
 set(CMAKE_CXX_FLAGS_RELEASE  "${CMAKE_CXX_FLAGS_RELEASE} -O3 -std=c++17")
+
+option(LLVM_ENABLE "llvm enable" OFF)
+if (LLVM_ENABLE)
+  set(CMAKE_CXX_COMPILER "/usr/bin/clang++" CACHE FILEPATH "c++ compiler" FORCE)
+  set(CMAKE_C_COMPILER  "/usr/bin/clang" CACHE FILEPATH "c compiler" FORCE)
+  execute_process(COMMAND llvm-config --cxxflags OUTPUT_VARIABLE llvm_cxxflags)
+  execute_process(COMMAND llvm-config --link-static --ldflags --system-libs --libs core OUTPUT_VARIABLE llvm_ldflags)
+  string(REGEX REPLACE "[\r\n]+" " " llvm_cxxflags ${llvm_cxxflags})
+  string(REGEX REPLACE "[\r\n]+" " " llvm_ldflags ${llvm_ldflags})
+  message(STATUS "llvm_cxxflags: ${llvm_cxxflags}")
+  message(STATUS "llvm_ldflags: ${llvm_ldflags}")
+  set(CMAKE_CXX_FLAGS_DEBUG  "${CMAKE_CXX_FLAGS_DEBUG} ${llvm_cxxflags} ${llvm_ldflags} -O3 -std=c++17")
+  set(CMAKE_CXX_FLAGS_RELEASE  "${CMAKE_CXX_FLAGS_RELEASE} ${llvm_cxxflags} ${llvm_ldflags} -O3 -std=c++17")
+  #set(CMAKE_STATIC_LINKER_FLAGS "${CMAKE_STATIC_LINKER_FLAGS} ${llvm_ldflags}")
+endif()
+
 
 execute_process(COMMAND which ccache OUTPUT_VARIABLE ccache_path)
 message(STATUS "ccache: ${ccache_path}")

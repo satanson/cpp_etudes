@@ -190,7 +190,17 @@ struct CKDecimalOp {
     return (a * b) / b != a;
   }
 
-  int128_t add(int128_t a, int128_t b, int128_t scale) const {
+  inline bool mulOverflow_nodiv(__int128 x, __int128 y, __int128 &res) {
+    res = static_cast<unsigned __int128>(x) * static_cast<unsigned __int128>(y);    /// Avoid signed integer overflow.
+    if (!x || !y)
+      return false;
+
+    unsigned __int128 a = (x > 0) ? x : -x;
+    unsigned __int128 b = (y > 0) ? y : -y;
+    return (a * b) + b != a;
+  }
+
+  int128_t add(int128_t a, int128_t b, int128_t scale) {
     int128_t res;
 
     if constexpr (check_overflow) {
