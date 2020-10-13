@@ -6,8 +6,10 @@ enable_language(CXX)
 enable_language(C)
 enable_language(ASM)
 
-set(CMAKE_CXX_FLAGS_DEBUG  "${CMAKE_CXX_FLAGS_DEBUG} -O3 -std=c++17")
-set(CMAKE_CXX_FLAGS_RELEASE  "${CMAKE_CXX_FLAGS_RELEASE} -O3 -std=c++17")
+set(CMAKE_CXX_FLAGS_DEBUG  "${CMAKE_CXX_FLAGS_DEBUG} -msse4.1 -msse4.2 -mpopcnt -mavx2 -O3 -std=c++2a")
+set(CMAKE_CXX_FLAGS_RELEASE  "${CMAKE_CXX_FLAGS_RELEASE} -msse4.1 -msse4.2 -mpopcnt -mavx2 -O3 -std=c++2a")
+#set(CMAKE_CXX_FLAGS_DEBUG  "${CMAKE_CXX_FLAGS_DEBUG} -O3 -std=c++17")
+#set(CMAKE_CXX_FLAGS_RELEASE  "${CMAKE_CXX_FLAGS_RELEASE} -O3 -std=c++17")
 
 option(LLVM_ENABLE "llvm enable" OFF)
 if (LLVM_ENABLE)

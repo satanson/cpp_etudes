@@ -1,5 +1,6 @@
 message(STATUS "link_libs=${link_libs}")
 set(MAINS
+        gen_decimal.cc
         )
 foreach (src ${MAINS})
     get_filename_component(exe ${src} NAME_WE)

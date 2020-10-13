@@ -67,7 +67,10 @@ struct PrepareData {
 
     std::random_device rd;
     std::mt19937 gen(rd());
+    /*
     std::uniform_int_distribution<int64_t> rand(INT64_MIN, INT64_MAX);
+
+
     for (int i = 0; i < batch_size; ++i) {
       int64_t hi = rand(gen);
       int64_t lo = rand(gen);
@@ -77,6 +80,25 @@ struct PrepareData {
         lo = rand(gen);
         rhs[i] = (static_cast<int128_t>(hi) << 64) + lo;
       } while (rhs[i] == zero);
+    }
+    */
+
+    std::uniform_int_distribution<int64_t> ip_rand(-99999, 99999);
+    std::uniform_int_distribution<int64_t> fp_rand(0, 99);
+    for (auto i = 0; i < batch_size; ++i) {
+      auto gen_int128=[&]()->int128_t {
+        auto a = ip_rand(gen);
+        auto b = fp_rand(gen);
+        while (a == 0 && b == 0) {
+          a = ip_rand(gen);
+          b = fp_rand(gen);
+        }
+        if (b < 0) { b = -b; }
+        auto positive = static_cast<int128_t>(a < 0 ? -1 : 1);
+        return (static_cast<int128_t>(a) * 100 + b) * positive;
+      };
+      lhs[i] = gen_int128();
+      rhs[i] = gen_int128();
     }
   }
 } _;

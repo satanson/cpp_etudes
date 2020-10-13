@@ -22,7 +22,7 @@ void push_back_vec1(std::vector<T> &v, Args &&...args) {
 struct MyInt {
   int value;
   explicit MyInt(int value) : value(value) {}
-  MyInt operator+(MyInt const &rhs){
+  MyInt operator+(MyInt const &rhs) {
     return MyInt((this->value + 1) * rhs.value);
   }
 };
@@ -48,13 +48,55 @@ TEST_F(TestCpp17, testA) {
     std::cout << a << ", ";
   }
   std::cout << std::endl;
-  std::cout <<add0(MyInt(1),MyInt(2),MyInt(3)).value<<std::endl;
-  std::cout <<add1(MyInt(1),MyInt(2),MyInt(3)).value<<std::endl;
+  std::cout << add0(MyInt(1), MyInt(2), MyInt(3)).value << std::endl;
+  std::cout << add1(MyInt(1), MyInt(2), MyInt(3)).value << std::endl;
   std::tie();
   auto a = __is_empty(int);
 }
-template <auto value> constexpr const auto Const = value;
+
+TEST_F(TestCpp17, testLongLong) {
+  std::cout << sizeof(__int128) << std::endl;
+}
+namespace common {
+template<typename T>
+inline bool mulOverflow(T x, T y, T &res) {
+  std::cout << "call generic mulOverflow"<<std::endl;
+  return __builtin_mul_overflow(x, y, &res);
+}
+
+template<>
+inline bool mulOverflow(int x, int y, int &res) {
+  return __builtin_smul_overflow(x, y, &res);
+}
+
+template<>
+inline bool mulOverflow(long x, long y, long &res) {
+  return __builtin_smull_overflow(x, y, &res);
+}
+
+template<>
+inline bool mulOverflow(long long x, long long y, long long &res) {
+  return __builtin_smulll_overflow(x, y, &res);
+}
+
+/*
+template<>
+inline bool mulOverflow(__int128 x, __int128 y, __int128 &res) {
+  std::cout << "call __int128 mulOverflow"<<std::endl;
+  res = static_cast<unsigned __int128>(x) * static_cast<unsigned __int128>(y);    /// Avoid signed integer overflow.
+  if (!x || !y)
+    return false;
+
+  unsigned __int128 a = (x > 0) ? x : -x;
+  unsigned __int128 b = (y > 0) ? y : -y;
+  return (a * b) / b != a;
+}
+ */
+}
+
+template<auto value> constexpr const auto Const = value;
 constexpr const auto pi = Const<3>;
+
 int main(int argc, char **argv) {
   ::testing::InitGoogleTest(&argc, argv);
   RUN_ALL_TESTS();

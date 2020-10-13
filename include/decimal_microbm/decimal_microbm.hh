@@ -3,7 +3,7 @@
 //
 
 #ifndef CPP_ETUDES_DECIMAL_MICROBM_HH
-#define CPP_ETUDES_DECIMAL_MICROBM_TEST_HH
+#define CPP_ETUDES_DECIMAL_MICROBM_HH
 
 #include <cstddef>
 #include <cstdint>
