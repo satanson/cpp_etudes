@@ -1,31 +1,87 @@
 cmake_minimum_required(VERSION 2.8.12)
 set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmakes ${CMAKE_MODULE_PATH})
 
-project(cpp_etudes)
-enable_language(CXX)
-enable_language(C)
-enable_language(ASM)
+project(cpp_lang_etudes)
+#enable_language(CXX)
+#enable_language(C)
+#enable_language(ASM)
 
-set(CMAKE_CXX_FLAGS_DEBUG  "${CMAKE_CXX_FLAGS_DEBUG} -msse4.1 -msse4.2 -mpopcnt -mavx2 -O3 -std=c++2a")
-set(CMAKE_CXX_FLAGS_RELEASE  "${CMAKE_CXX_FLAGS_RELEASE} -msse4.1 -msse4.2 -mpopcnt -mavx2 -O3 -std=c++2a")
-#set(CMAKE_CXX_FLAGS_DEBUG  "${CMAKE_CXX_FLAGS_DEBUG} -O3 -std=c++17")
-#set(CMAKE_CXX_FLAGS_RELEASE  "${CMAKE_CXX_FLAGS_RELEASE} -O3 -std=c++17")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse4.1 -msse4.2 -mavx2 -mpopcnt -O3 -std=c++2a")
+#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17")
 
-option(LLVM_ENABLE "llvm enable" OFF)
+include(cmakes/arch.cmake)
+include(cmakes/target.cmake)
+include(cmakes/tools.cmake)
+include(cmakes/analysis.cmake)
+#include(cmakes/cpu_features.cmake)
+option(LLVM_ENABLE "llvm enable" ON)
 if (LLVM_ENABLE)
-  set(CMAKE_CXX_COMPILER "/usr/bin/clang++" CACHE FILEPATH "c++ compiler" FORCE)
-  set(CMAKE_C_COMPILER  "/usr/bin/clang" CACHE FILEPATH "c compiler" FORCE)
-  execute_process(COMMAND llvm-config --cxxflags OUTPUT_VARIABLE llvm_cxxflags)
-  execute_process(COMMAND llvm-config --link-static --ldflags --system-libs --libs core OUTPUT_VARIABLE llvm_ldflags)
-  string(REGEX REPLACE "[\r\n]+" " " llvm_cxxflags ${llvm_cxxflags})
-  string(REGEX REPLACE "[\r\n]+" " " llvm_ldflags ${llvm_ldflags})
-  message(STATUS "llvm_cxxflags: ${llvm_cxxflags}")
-  message(STATUS "llvm_ldflags: ${llvm_ldflags}")
-  set(CMAKE_CXX_FLAGS_DEBUG  "${CMAKE_CXX_FLAGS_DEBUG} ${llvm_cxxflags} ${llvm_ldflags} -O3 -std=c++17")
-  set(CMAKE_CXX_FLAGS_RELEASE  "${CMAKE_CXX_FLAGS_RELEASE} ${llvm_cxxflags} ${llvm_ldflags} -O3 -std=c++17")
-  #set(CMAKE_STATIC_LINKER_FLAGS "${CMAKE_STATIC_LINKER_FLAGS} ${llvm_ldflags}")
-endif()
+  # clang: warning: argument unused during compilation: '-specs=/usr/share/dpkg/no-pie-compile.specs' [-Wunused-command-line-argument]
+  set (COMMON_WARNING_FLAGS "${COMMON_WARNING_FLAGS} -Wno-unused-command-line-argument")
+  # generate ranges for fast "addr2line" search
+  if (NOT CMAKE_BUILD_TYPE_UC STREQUAL "RELEASE")
+    set(COMPILER_FLAGS "${COMPILER_FLAGS} -gdwarf-aranges")
+  endif ()
 
+  set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${_CXX_STANDARD} -fsized-deallocation")
+
+  set (CMAKE_BUILD_COLOR_MAKEFILE          ON)
+  set (CMAKE_CXX_FLAGS                     "${CMAKE_CXX_FLAGS} ${COMPILER_FLAGS} ${PLATFORM_EXTRA_CXX_FLAG} ${COMMON_WARNING_FLAGS} ${CXX_WARNING_FLAGS}")
+  set (CMAKE_CXX_FLAGS_RELWITHDEBINFO      "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} -O3 ${CMAKE_CXX_FLAGS_ADD}")
+  set (CMAKE_CXX_FLAGS_DEBUG               "${CMAKE_CXX_FLAGS_DEBUG} -O0 -g3 -ggdb3 -fno-inline ${CMAKE_CXX_FLAGS_ADD}")
+
+  set (CMAKE_C_FLAGS                       "${CMAKE_C_FLAGS} ${COMPILER_FLAGS} ${COMMON_WARNING_FLAGS} ${CMAKE_C_FLAGS_ADD}")
+  set (CMAKE_C_FLAGS_RELWITHDEBINFO        "${CMAKE_C_FLAGS_RELWITHDEBINFO} -O3 ${CMAKE_C_FLAGS_ADD}")
+  set (CMAKE_C_FLAGS_DEBUG                 "${CMAKE_C_FLAGS_DEBUG} -O0 -g3 -ggdb3 -fno-inline ${CMAKE_C_FLAGS_ADD}")
+
+  if (OS_DARWIN)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,-U,_inside_main")
+  endif()
+
+  # Display absolute paths in error messages. Otherwise KDevelop fails to navigate to correct file and opens a new file instead.
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fdiagnostics-absolute-paths")
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fdiagnostics-absolute-paths")
+
+  if (NOT ENABLE_TESTS AND NOT SANITIZE)
+    # https://clang.llvm.org/docs/ThinLTO.html
+    # Applies to clang only.
+    # Disabled when building with tests or sanitizers.
+    option(ENABLE_THINLTO "Clang-specific link time optimization" ON)
+  endif()
+
+  # We cannot afford to use LTO when compiling unit tests, and it's not enough
+  # to only supply -fno-lto at the final linking stage. So we disable it
+  # completely.
+  if (ENABLE_THINLTO AND NOT ENABLE_TESTS AND NOT SANITIZE)
+    # Link time optimization
+    set (CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS_RELWITHDEBINFO} -flto=thin")
+    set (CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} -flto=thin")
+    set (CMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO "${CMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO} -flto=thin")
+  elseif (ENABLE_THINLTO)
+    message (${RECONFIGURE_MESSAGE_LEVEL} "Cannot enable ThinLTO")
+  endif ()
+
+  # Always prefer llvm tools when using clang. For instance, we cannot use GNU ar when llvm LTO is enabled
+  find_program (LLVM_AR_PATH NAMES "llvm-ar" "llvm-ar-10" "llvm-ar-9" "llvm-ar-8")
+
+  if (LLVM_AR_PATH)
+    message(STATUS "Using llvm-ar: ${LLVM_AR_PATH}.")
+    set (CMAKE_AR ${LLVM_AR_PATH})
+  else ()
+    message(WARNING "Cannot find llvm-ar. System ar will be used instead. It does not work with ThinLTO.")
+  endif ()
+
+  find_program (LLVM_RANLIB_PATH NAMES "llvm-ranlib" "llvm-ranlib-10" "llvm-ranlib-9" "llvm-ranlib-8")
+
+  if (LLVM_RANLIB_PATH)
+    message(STATUS "Using llvm-ranlib: ${LLVM_RANLIB_PATH}.")
+    set (CMAKE_RANLIB ${LLVM_RANLIB_PATH})
+  else ()
+    message(WARNING "Cannot find llvm-ranlib. System ranlib will be used instead. It does not work with ThinLTO.")
+  endif ()
+  include (cmakes/llvm.cmake)
+endif()
 
 execute_process(COMMAND which ccache OUTPUT_VARIABLE ccache_path)
 message(STATUS "ccache: ${ccache_path}")
