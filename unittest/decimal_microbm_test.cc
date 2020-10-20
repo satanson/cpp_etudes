@@ -3,7 +3,7 @@
 //
 
 #include <gtest/gtest.h>
-#include <decimal_microbm/decimal_microbm.hh>
+#include <include/decimal/decimal.hh>
 
 namespace test {
 class DecimalMicroBMTest : public testing::Test {

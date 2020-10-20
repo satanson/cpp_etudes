@@ -3,105 +3,17 @@
 //
 
 #include <benchmark/benchmark.h>
-#include <decimal_microbm/decimal_microbm.hh>
+#include <include/decimal/decimal.hh>
 #include <random>
 #include <iostream>
 #include <cstring>
 #include <include/util/defer.hh>
 
-size_t batch_size = 8192;
-int128_t zero = static_cast<int128_t>(0);
-std::vector<int128_t> lhs;
-std::vector<int128_t> rhs;
-std::vector<int128_t> result;
-
-struct PrepareData {
-  PrepareData() {
-    auto batch_size_env_value = getenv("batch_size");
-    if (batch_size_env_value != nullptr) {
-      batch_size = strtoul(batch_size_env_value, nullptr, 10);
-      if (batch_size <= 0) {
-        batch_size = 8192;
-      }
-    } else {
-      batch_size = 8192;
-    }
-
-    auto fill_zero_env_value = getenv("fill_zero");
-    auto fill_zero = false;
-    if (fill_zero_env_value != nullptr && strncasecmp(fill_zero_env_value, "true", 4)==0) {
-      fill_zero = true;
-    }
-
-    auto fill_max_env_value = getenv("fill_max");
-    auto fill_max = false;
-    if (fill_max_env_value != nullptr && strncasecmp(fill_max_env_value, "true", 4)==0) {
-      fill_max = true;
-    }
-
-    std::cout << std::boolalpha << "prepare data: batch_size=" << batch_size
-              << ", fill_zero=" << fill_zero
-              << ", fill_max=" << fill_max
-              << std::endl;
-
-    DEFER([]() {
-      std::cout << "prepare data: Done" << std::endl;
-    })
-
-    lhs.resize(batch_size, zero);
-    rhs.resize(batch_size, zero);
-    result.resize(batch_size, zero);
-
-    if (fill_zero) {
-      return;
-    }
-
-    auto max_decimal = DorisDecimalOp::MAX_DECIMAL_VALUE;
-    if (fill_max) {
-      lhs.resize(0);
-      rhs.resize(0);
-      lhs.resize(batch_size, max_decimal);
-      rhs.resize(batch_size, max_decimal);
-      return;
-    }
-
-    std::random_device rd;
-    std::mt19937 gen(rd());
-    /*
-    std::uniform_int_distribution<int64_t> rand(INT64_MIN, INT64_MAX);
-
-
-    for (int i = 0; i < batch_size; ++i) {
-      int64_t hi = rand(gen);
-      int64_t lo = rand(gen);
-      lhs[i] = (static_cast<int128_t>(hi) << 64) + lo;
-      do {
-        hi = rand(gen);
-        lo = rand(gen);
-        rhs[i] = (static_cast<int128_t>(hi) << 64) + lo;
-      } while (rhs[i] == zero);
-    }
-    */
-
-    std::uniform_int_distribution<int64_t> ip_rand(-99999, 99999);
-    std::uniform_int_distribution<int64_t> fp_rand(0, 99);
-    for (auto i = 0; i < batch_size; ++i) {
-      auto gen_int128=[&]()->int128_t {
-        auto a = ip_rand(gen);
-        auto b = fp_rand(gen);
-        while (a == 0 && b == 0) {
-          a = ip_rand(gen);
-          b = fp_rand(gen);
-        }
-        if (b < 0) { b = -b; }
-        auto positive = static_cast<int128_t>(a < 0 ? -1 : 1);
-        return (static_cast<int128_t>(a) * 100 + b) * positive;
-      };
-      lhs[i] = gen_int128();
-      rhs[i] = gen_int128();
-    }
-  }
-} _;
+PrepareData data;
+size_t batch_size = data.batch_size;
+std::vector<int128_t> &lhs = data.lhs;
+std::vector<int128_t> &rhs = data.rhs;
+std::vector<int128_t> &result = data.result;
 
 static void BM_Int128_Add(benchmark::State &state) {
   for (auto _ : state)

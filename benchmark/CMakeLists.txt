@@ -2,6 +2,7 @@ message(STATUS "link_libs=${link_libs}")
 set(BENCHMARKS
         basic_usage.cc
         vectorized_bm.cc
+        doris_benchmark.cc
         )
 foreach (src ${BENCHMARKS})
     get_filename_component(exe ${src} NAME_WE)

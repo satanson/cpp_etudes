@@ -9,6 +9,7 @@ set(TESTS
         misc_test.cc
         decimal_microbm_test.cc
         test_c++17.cc
+        test_decimal.cc
         )
 foreach (src ${TESTS})
     get_filename_component(exe ${src} NAME_WE)

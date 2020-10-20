@@ -1,6 +1,10 @@
 message(STATUS "link_libs=${link_libs}")
 set(MAINS
         gen_decimal.cc
+        decimal_add_sub_mul_div.cc
+        asm_add.cc
+        div_mod.cc
+        string_insert.cc
         )
 foreach (src ${MAINS})
     get_filename_component(exe ${src} NAME_WE)
