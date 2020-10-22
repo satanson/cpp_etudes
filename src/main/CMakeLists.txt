@@ -1,5 +1,6 @@
 message(STATUS "link_libs=${link_libs}")
 set(MAINS
+        playground.cc
         gen_decimal.cc
         decimal_add_sub_mul_div.cc
         asm_add.cc

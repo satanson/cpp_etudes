@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 2.8.12)
 set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmakes ${CMAKE_MODULE_PATH})
 
-project(cpp_lang_etudes)
+project(cpp_etudes)
 #enable_language(CXX)
 #enable_language(C)
 #enable_language(ASM)
@@ -14,7 +14,7 @@ include(cmakes/target.cmake)
 include(cmakes/tools.cmake)
 include(cmakes/analysis.cmake)
 #include(cmakes/cpu_features.cmake)
-option(LLVM_ENABLE "llvm enable" ON)
+option(LLVM_ENABLE "llvm enable" OFF)
 if (LLVM_ENABLE)
   # clang: warning: argument unused during compilation: '-specs=/usr/share/dpkg/no-pie-compile.specs' [-Wunused-command-line-argument]
   set (COMMON_WARNING_FLAGS "${COMMON_WARNING_FLAGS} -Wno-unused-command-line-argument")
