@@ -90,6 +90,15 @@ TEST_F(MiscTest, testRValueReference) {
   print0(1,2,4,5,"abc");
 }
 
+TEST_F(MiscTest, floatAdd) {
+  float a = 0.3f;
+  float b = 0;
+  for (int i=0; i< 1000'0000;++i){
+    b+=a;
+  }
+  std::cout<<b<<std::endl;
+}
+
 int main(int argc, char **argv) {
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();

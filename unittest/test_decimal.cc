@@ -21,7 +21,7 @@ class TestDecimal : public testing::Test {
   static inline void compareAdd(int128_t a, int128_t b) {
     DorisDecimalOp op;
     auto r0 = op.add(a, b);
-    auto r1 = op.add1(a, b);
+    auto r1 = op.add2(a, b);
     if (r0 != r1) {
       std::cout << "a=" << ToHexString(a) << std::endl;
       std::cout << "b=" << ToHexString(b) << std::endl;

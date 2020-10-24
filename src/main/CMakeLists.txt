@@ -6,6 +6,7 @@ set(MAINS
         asm_add.cc
         div_mod.cc
         string_insert.cc
+        atomic_fetch_add_strength_test.cc
         )
 foreach (src ${MAINS})
     get_filename_component(exe ${src} NAME_WE)

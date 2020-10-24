@@ -42,9 +42,89 @@ TEST_F(TestStringFunctions, compare_utf8_length3) {
   });
 }
 
+TEST_F(TestStringFunctions, substr_ascii) {
+  StringVector s;
+  s.append("123456789");
+  StringVector d;
+
+  std::vector<std::tuple<int, int, std::string>> cases = {
+      {1, 2, std::string("12")},
+      {1, 0, std::string()},
+      {2, 100, std::string("23456789")},
+      {9, 1, std::string("9")},
+      {9, 100, std::string("9")},
+      {10, 1, std::string()},
+      {-9, 1, "1"},
+      {-9, 9, "123456789"},
+      {-9, 10, "123456789"},
+      {-4, 1, "6"},
+      {-4, 4, "6789"},
+      {-4, 5, "6789"},
+      {-1, 1, "9"},
+      {-1, 2, "9"}
+  };
+  for (auto &e:cases) {
+    auto[offset, len, expect] = e;
+    StringFunctions::substr<true, true>(s, d, offset, len);
+    ASSERT_EQ(d.get_last_slice().to_string(), expect);
+  }
+
+  for (auto &e:cases) {
+    auto[offset, len, expect] = e;
+    std::cout << "offset=" << offset << ", len=" << len << ", expect=" << expect << std::endl;
+    StringFunctions::substr<false, true>(s, d, offset, len);
+    ASSERT_EQ(d.get_last_slice().to_string(), expect);
+  }
+}
+
+TEST_F(TestStringFunctions, substr_zh) {
+  StringVector s;
+  s.append("");
+  StringVector d;
+
+  std::vector<std::tuple<int, int, std::string>> cases = {
+      {1, 2, std::string("12")},
+      {1, 0, std::string()},
+      {2, 100, std::string("23456789")},
+      {9, 1, std::string("9")},
+      {9, 100, std::string("9")},
+      {10, 1, std::string()},
+      {-9, 1, "1"},
+      {-9, 9, "123456789"},
+      {-9, 10, "123456789"},
+      {-4, 1, "6"},
+      {-4, 4, "6789"},
+      {-4, 5, "6789"},
+      {-1, 1, "9"},
+      {-1, 2, "9"}
+  };
+  for (auto &e:cases) {
+    auto[offset, len, expect] = e;
+    StringFunctions::substr<true, true>(s, d, offset, len);
+    ASSERT_EQ(d.get_last_slice().to_string(), expect);
+  }
+
+  for (auto &e:cases) {
+    auto[offset, len, expect] = e;
+    std::cout << "offset=" << offset << ", len=" << len << ", expect=" << expect << std::endl;
+    StringFunctions::substr<false, true>(s, d, offset, len);
+    ASSERT_EQ(d.get_last_slice().to_string(), expect);
+  }
+}
+
+TEST_F(TestStringFunctions, append) {
+
+  std::u8string u8s = u8"壹贰叁肆伍陆柒捌玖拾";
+  std::string s(u8s.begin(), u8s.end());
+  std::cout << s << std::endl;
+  std::cout << s.size() << std::endl;
+  std::cout << std::hex << (unsigned) (uint8_t) s[0] << std::endl;
+  std::cout << std::hex << (unsigned) (uint8_t) s[1] << std::endl;
+}
+
 } // namespace test
 
 int main(int argc, char **argv) {
   ::testing::InitGoogleTest(&argc, argv);
-  RUN_ALL_TESTS();
+  return RUN_ALL_TESTS();
 }

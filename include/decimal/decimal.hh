@@ -20,7 +20,6 @@
 typedef __int128 int128_t;
 typedef unsigned __int128 uint128_t;
 
-
 template<int64_t n>
 struct Exp10 {
   static constexpr int64_t value = Exp10<n - 1>::value * 10;
@@ -90,6 +89,16 @@ template<typename T, typename F>
 void batch_compute(size_t n, T *lhs, T *rhs, T *result, F &&f) {
   for (auto i = 0; i < n; i++) {
     result[i] = f(lhs[i], rhs[i]);
+  }
+}
+
+template<typename T, typename F>
+void single_compute(size_t n, T *lhs, T *rhs, T *result, F &&f) {
+  auto &a = lhs[0];
+  auto &b = rhs[0];
+  auto &c = result[0];
+  for (int i=0;i<8192;++i) {
+    c = f(a, b);
   }
 }
 
@@ -387,7 +396,7 @@ struct DorisDecimalOp {
     return quotient.u128;
   }
 
-  int do_add1(int128_t x, int128_t y, int128_t &res) {
+  int do_add2(int128_t x, int128_t y, int128_t &res) {
     res = x + y;
     auto s = res >> 127;
     res = (res ^ s) - s;
@@ -399,9 +408,9 @@ struct DorisDecimalOp {
     return res;
   }
 
-  int128_t add1(int128_t x, int128_t y) {
+  int128_t add2(int128_t x, int128_t y) {
     int128_t res;
-    do_add1(x, y, res);
+    do_add2(x, y, res);
     return res;
   }
 
@@ -547,6 +556,24 @@ struct DorisDecimalOp {
     return result;
   }
 
+  int128_t div2(const int128_t &x, const int128_t &y) {
+    int128_t result;
+    // todo: return 0 for divide zero
+    if (x == 0 || y == 0) return 0;
+    //
+    int128_t dividend = x * ONE_BILLION;
+
+    uint128_t remainder;
+    divmodti3(dividend, y, result, remainder);
+    // round if remainder >= 0.5*y
+    if (remainder != 0) {
+      if (remainder >= (y >> 1)) {
+        result += 1;
+      }
+    }
+    return result;
+  }
+
   int do_div(int128_t x, int128_t y, int128_t *result) {
     int error = E_DEC_OK;
     int128_t dividend = x * ONE_BILLION;
@@ -666,6 +693,14 @@ struct PrepareData {
   std::vector<int128_t> rhs;
   std::vector<int128_t> result;
 
+  std::vector<int64_t> lhs64;
+  std::vector<int64_t> rhs64;
+  std::vector<int64_t> result64;
+
+  std::vector<int32_t> lhs32;
+  std::vector<int32_t> rhs32;
+  std::vector<int32_t> result32;
+
   PrepareData() {
     auto batch_size_env_value = getenv("batch_size");
     if (batch_size_env_value != nullptr) {
@@ -702,6 +737,14 @@ struct PrepareData {
     rhs.resize(batch_size, zero);
     result.resize(batch_size, zero);
 
+    lhs64.resize(batch_size, 0);
+    rhs64.resize(batch_size, 0);
+    result64.resize(batch_size, 0);
+
+    lhs32.resize(batch_size, 0);
+    rhs32.resize(batch_size, 0);
+    result32.resize(batch_size, 0);
+
     if (fill_zero) {
       return;
     }
@@ -712,6 +755,16 @@ struct PrepareData {
       rhs.resize(0);
       lhs.resize(batch_size, max_decimal);
       rhs.resize(batch_size, max_decimal);
+
+      lhs64.resize(0);
+      rhs64.resize(0);
+      lhs64.resize(batch_size, INT64_MAX);
+      rhs64.resize(batch_size, INT64_MAX);
+
+      lhs32.resize(0);
+      rhs32.resize(0);
+      lhs32.resize(batch_size, INT32_MAX);
+      rhs32.resize(batch_size, INT32_MAX);
       return;
     }
 
@@ -749,6 +802,10 @@ struct PrepareData {
       };
       lhs[i] = gen_int128();
       rhs[i] = gen_int128();
+      lhs64[i] = static_cast<int64_t>(lhs[i] >> 64) | static_cast<int64_t>(lhs[i]);
+      rhs64[i] = static_cast<int64_t>(rhs[i] >> 64) | static_cast<int64_t>(rhs[i]);
+      lhs32[i] = static_cast<int32_t>(lhs64[i] >> 32) | static_cast<int32_t>(lhs64[i]);
+      rhs32[i] = static_cast<int32_t>(rhs64[i] >> 32) | static_cast<int32_t>(rhs64[i]);
     }
   }
 };
