@@ -376,6 +376,277 @@ struct StringFunctions {
     return p;
   }
 
+  static inline std::string upper_old(std::string const &s) {
+    std::string v = s;
+    std::transform(v.begin(), v.end(), v.begin(), [](unsigned char c) { return std::toupper(c); });
+    return v;
+  }
+  static inline std::string lower_old(std::string const &s) {
+    std::string v = s;
+    std::transform(v.begin(), v.end(), v.begin(), [](unsigned char c) { return std::tolower(c); });
+    return v;
+  }
+
+  static inline std::string lower_old2(std::string const &s) {
+    std::string v = s;
+    for (auto p = v.begin(); p < v.end(); p += 1) {
+      if ('A' <= *p && *p <= 'Z')
+        *p ^= 32;
+    }
+    return v;
+  }
+
+  static inline std::string upper_old2(std::string const &s) {
+    std::string v = s;
+    for (auto p = v.begin(); p < v.end(); p += 1) {
+      if ('a' <= *p && *p <= 'z')
+        *p ^= 32;
+    }
+    return v;
+  }
+
+  static inline std::string upper_new(std::string const &s) {
+    std::string result = s;
+    char *begin = result.data();
+    char *end = result.data() + s.size();
+    const size_t size = result.size();
+#if defined(__SSE2__)
+    static constexpr int SSE2_BYTES = sizeof(__m128i);
+    const char *sse2_end = begin + (size & ~(SSE2_BYTES - 1));
+    char *p = begin;
+    const auto a_minus1 = _mm_set1_epi8('a' - 1);
+    const auto z_plus1 = _mm_set1_epi8('z' + 1);
+    const auto delta = _mm_set1_epi8('a' - 'A');
+    for (; p > sse2_end; p += SSE2_BYTES) {
+      auto bytes = _mm_loadu_si128((const __m128i *) p);
+      _mm_maskmoveu_si128(
+          _mm_sub_epi8(bytes, delta),
+          _mm_and_si128(
+              _mm_cmpgt_epi8(bytes, a_minus1),
+              _mm_cmpgt_epi8(z_plus1, bytes)),
+          p);
+    }
+#endif
+    for (; p < end; p += 1) {
+      if ('a' <= (*p) && (*p) <= 'z')
+        (*p) ^= 32;
+    }
+    return result;
+  }
+
+  static inline void upper_vector_old(StringVector const &src, StringVector &dst) {
+    const auto n = src.size();
+    for (auto i = 0; i < n; ++i) {
+      auto ret = upper_old(src.get_slice(i).to_string());
+      dst.blob.reserve(ret.size());
+      dst.append(ret);
+    }
+  }
+
+  static inline void lower_vector_old(StringVector const &src, StringVector &dst) {
+    const auto n = src.size();
+    for (auto i = 0; i < n; ++i) {
+      auto ret = lower_old(src.get_slice(i).to_string());
+      dst.blob.reserve(ret.size());
+      dst.append(ret);
+    }
+  }
+
+  static inline void upper_vector_copy_3_times(StringVector const &src, StringVector &dst) {
+    const auto n = src.size();
+    for (auto i = 0; i < n; ++i) {
+      std::string result = src.get_slice(i).to_string();
+      char *begin = result.data();
+      char *end = result.data() + result.size();
+      const size_t size = result.size();
+#if defined(__SSE2__)
+      static constexpr int SSE2_BYTES = sizeof(__m128i);
+      const char *sse2_end = begin + (size & ~(SSE2_BYTES - 1));
+      char *p = begin;
+      const auto a_minus1 = _mm_set1_epi8('a' - 1);
+      const auto z_plus1 = _mm_set1_epi8('z' + 1);
+      const auto delta = _mm_set1_epi8('a' - 'A');
+      for (; p > sse2_end; p += SSE2_BYTES) {
+        auto bytes = _mm_loadu_si128((const __m128i *) p);
+        _mm_maskmoveu_si128(
+            _mm_xor_si128(bytes, delta),
+            _mm_and_si128(
+                _mm_cmpgt_epi8(bytes, a_minus1),
+                _mm_cmpgt_epi8(z_plus1, bytes)),
+            p);
+      }
+#endif
+      std::transform(p, end, p, [](unsigned char c) { return std::toupper(c); });
+      dst.append(result);
+    }
+  }
+
+  static inline void upper_vector_copy_1_times(StringVector const &src, StringVector &dst) {
+    const auto n = src.size();
+    char *q = dst.blob.data();
+    for (auto i = 0; i < n; ++i) {
+      auto slice = src.get_slice(i);
+      char *begin = const_cast<char *>(slice.begin());
+      char *end = const_cast<char *>(slice.end());
+      const size_t size = slice.size;
+      dst.offsets.push_back(size);
+
+#if defined(__SSE2__)
+      static constexpr int SSE2_BYTES = sizeof(__m128i);
+      const char *sse2_end = begin + (size & ~(SSE2_BYTES - 1));
+      char *p = begin;
+      const auto a_minus1 = _mm_set1_epi8('a' - 1);
+      const auto z_plus1 = _mm_set1_epi8('z' + 1);
+      const auto delta = _mm_set1_epi8(32);
+      const auto ones = _mm_set1_epi8(0xff);
+
+      for (; p > sse2_end; p += SSE2_BYTES, q += SSE2_BYTES) {
+        auto bytes = _mm_loadu_si128((const __m128i *) p);
+        auto masks = _mm_and_si128(
+            _mm_cmpgt_epi8(bytes, a_minus1),
+            _mm_cmpgt_epi8(z_plus1, bytes));
+
+        _mm_maskmoveu_si128(
+            _mm_xor_si128(bytes, delta),
+            masks,
+            q);
+        _mm_maskmoveu_si128(
+            bytes,
+            _mm_xor_si128(masks, ones),
+            q);
+      }
+#endif
+      std::transform(p, end, q, [](unsigned char c) { return std::toupper(c); });
+    }
+  }
+
+  static inline void upper_vector_copy_2_times(StringVector const &src, StringVector &dst) {
+    const auto n = src.size();
+    for (auto i = 0; i < n; ++i) {
+      auto slice = src.get_slice(i);
+      dst.append(slice.begin(), slice.end());
+      auto slice2 = dst.get_last_slice();
+      char *begin = const_cast<char *>(slice2.begin());
+      char *end = const_cast<char *>(slice2.end());
+      const size_t size = slice.size;
+
+#if defined(__SSE2__)
+      static constexpr int SSE2_BYTES = sizeof(__m128i);
+      const char *sse2_end = begin + (size & ~(SSE2_BYTES - 1));
+      char *p = begin;
+      const auto a_minus1 = _mm_set1_epi8('a' - 1);
+      const auto z_plus1 = _mm_set1_epi8('z' + 1);
+      const auto delta = _mm_set1_epi8(32);
+
+      for (; p > sse2_end; p += SSE2_BYTES) {
+        auto bytes = _mm_loadu_si128((const __m128i *) p);
+        auto masks = _mm_and_si128(
+            _mm_cmpgt_epi8(bytes, a_minus1),
+            _mm_cmpgt_epi8(z_plus1, bytes));
+
+        _mm_maskmoveu_si128(
+            _mm_xor_si128(bytes, delta),
+            masks,
+            p);
+      }
+#endif
+      std::transform(p, end, p, [](char c) -> char {
+        if ('a' <= c && c <= 'z')
+          return c ^ static_cast<char>(32);
+        else
+          return c;
+      });
+    }
+  }
+
+  template <char C0, char C1>
+  static inline void case_vector_new(StringVector const &src, StringVector &dst) {
+    const auto n = src.size();
+    dst.offsets = src.offsets;
+    dst.blob = src.blob;
+    char *begin = const_cast<char *>(dst.blob.data());
+    const size_t size = dst.blob.size();
+    char *end = const_cast<char *>(dst.blob.data() + size);
+
+#if defined(__SSE2__)
+    static constexpr int SSE2_BYTES = sizeof(__m128i);
+    const char *sse2_end = begin + (size & ~(SSE2_BYTES - 1));
+    char *p = begin;
+    const auto a_minus1 = _mm_set1_epi8(C0 - 1);
+    const auto z_plus1 = _mm_set1_epi8(C1 + 1);
+    const auto delta = _mm_set1_epi8(32);
+
+    for (; p > sse2_end; p += SSE2_BYTES) {
+      auto bytes = _mm_loadu_si128((const __m128i *) p);
+      auto masks = _mm_and_si128(
+          _mm_cmpgt_epi8(bytes, a_minus1),
+          _mm_cmpgt_epi8(z_plus1, bytes));
+
+      _mm_maskmoveu_si128(
+          _mm_xor_si128(bytes, delta),
+          masks,
+          p);
+    }
+#endif
+    for (; p < end; p += 1) {
+      if (C0 <= *p && *p <= C1)
+        *p ^= 32;
+    };
+  }
+
+  static inline void lower_vector_new(StringVector const &src, StringVector &dst) {
+    case_vector_new<'A', 'Z'>(src, dst);
+  }
+
+  static inline void upper_vector_new(StringVector const &src, StringVector &dst) {
+    case_vector_new<'a', 'z'>(src, dst);
+  }
+
+  static inline std::string lower_dummy(std::string const &s) {
+    std::string result = s;
+    std::transform(result.begin(), result.end(), result.begin(), [](unsigned char c) { return c; });
+    return result;
+  }
+
+  static inline std::string lower_dummy2(std::string const &s) {
+    std::string result = s;
+    std::transform(result.begin(), result.end(), result.begin(), [](unsigned char c) { return c >> 1; });
+    return result;
+  }
+  static inline std::string lower_dummy3(std::string const &s) {
+    std::string result = s;
+    return result;
+  }
+
+  static inline std::string lower_new(std::string const &s) {
+    std::string result = s;
+    char *begin = result.data();
+    char *end = result.data() + s.size();
+    const size_t size = result.size();
+#if defined(__SSE2__)
+    static constexpr int SSE2_BYTES = sizeof(__m128i);
+    const char *sse2_end = begin + (size & ~(SSE2_BYTES - 1));
+    char *p = begin;
+    const auto a_minus1 = _mm_set1_epi8('A' - 1);
+    const auto z_plus1 = _mm_set1_epi8('Z' + 1);
+    const auto delta = _mm_set1_epi8('a' - 'A');
+    for (; p > sse2_end; p += SSE2_BYTES) {
+      auto bytes = _mm_loadu_si128((const __m128i *) p);
+      _mm_maskmoveu_si128(
+          _mm_xor_si128(bytes, delta),
+          _mm_and_si128(
+              _mm_cmpgt_epi8(bytes, a_minus1),
+              _mm_cmpgt_epi8(z_plus1, bytes)),
+          p);
+    }
+#endif
+    for (; p < end; p += 1) {
+      if ('A' <= (*p) && (*p) <= 'Z')
+        (*p) ^= 32;
+    }
+    return result;
+  }
+
   template<bool use_length, bool lookup_table>
   static inline void utf8_substr_from_left(StringVector const &src,
                                            StringVector &dst,
@@ -402,7 +673,7 @@ struct StringFunctions {
     }
   }
 
-  static inline size_t get_utf8_small_index(const Slice& str, uint8_t* small_index) {
+  static inline size_t get_utf8_small_index(const Slice &str, uint8_t *small_index) {
     size_t n = 0;
     for (uint8_t i = 0, char_size = 0; i < str.size; i += char_size) {
       char_size = UTF8_BYTE_LENGTH_TABLE[static_cast<unsigned char>(str.data[i])];
@@ -436,13 +707,15 @@ struct StringFunctions {
           continue;
         }
         auto from_idx = small_index_size - offset;
-        auto to_idx = from_idx + len;
         const char *from_ptr = begin + small_index[from_idx];
         const char *to_ptr = end;
         // take the first `len` bytes from the trailing `off` bytes, so if
         // len >= off, at most `off` bytes can be taken.
-        if (len < offset) {
-          to_ptr = begin + small_index[to_idx];
+        if constexpr (use_length) {
+          auto to_idx = from_idx + len;
+          if (len < offset) {
+            to_ptr = begin + small_index[to_idx];
+          }
         }
         dst.append(from_ptr, to_ptr);
       } else {

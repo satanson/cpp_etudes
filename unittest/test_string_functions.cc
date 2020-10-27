@@ -83,6 +83,7 @@ TEST_F(TestStringFunctions, substr_ascii_no_length) {
   StringVector d;
 
   std::vector<std::tuple<int, std::string>> cases = {
+      {-9, "123456789"},
       {1, "123456789"},
       {2, "23456789"},
       {9, "9"},
@@ -282,17 +283,17 @@ TEST_F(TestStringFunctions, compareSubstr) {
   const auto size = src.size();
   StringFunctions::substr_old(src, dst0, 1, 1);
   StringFunctions::substr<true, true>(src, dst1, 1, 1);
-  auto&& res0 = dst0.to_vector();
-  auto&& res1 = dst1.to_vector();
-  for (int i=0; i< size;++i){
+  auto &&res0 = dst0.to_vector();
+  auto &&res1 = dst1.to_vector();
+  for (int i = 0; i < size; ++i) {
     ASSERT_EQ(res0[i], res1[i]);
   }
 }
 
 TEST_F(TestStringFunctions, compareSubstr_15_25) {
-  setenv("VECTOR_SIZE","65536", 1);
-  setenv("MIN_LENGTH","15",1);
-  setenv("MAX_LENGTH","25",1);
+  setenv("VECTOR_SIZE", "65536", 1);
+  setenv("MIN_LENGTH", "15", 1);
+  setenv("MAX_LENGTH", "25", 1);
   prepare_utf8_data data;
   auto &src = data.string_data;
   StringVector dst0;
@@ -300,10 +301,74 @@ TEST_F(TestStringFunctions, compareSubstr_15_25) {
   const auto size = src.size();
   StringFunctions::substr_old(src, dst0, 5, 10);
   StringFunctions::substr<true, true>(src, dst1, 5, 10);
-  auto&& res0 = dst0.to_vector();
-  auto&& res1 = dst1.to_vector();
-  for (int i=0; i< size;++i){
+  auto &&res0 = dst0.to_vector();
+  auto &&res1 = dst1.to_vector();
+  for (int i = 0; i < size; ++i) {
     ASSERT_EQ(res0[i], res1[i]);
+  }
+}
+
+TEST_F(TestStringFunctions, upper) {
+  std::vector<std::string> cases = {
+      "11111111111111abcdefg",
+      "1abcdefg",
+      "abcdefghigklmnopqrstuvwxyz",
+      "aaaaabcdefghigklmnopqrstuvwxyz0000000",
+      "aAAAABCDEFGHIGklmnopqrstuvwxyz0000000",
+  };
+  for (auto &s:cases) {
+    ASSERT_EQ(
+        StringFunctions::upper_new(StringFunctions::lower_new(StringFunctions::upper_new(s))),
+        StringFunctions::upper_old(s));
+
+    ASSERT_EQ(
+        StringFunctions::lower_new(StringFunctions::upper_new(s)),
+        StringFunctions::lower_old(StringFunctions::upper_old(s)));
+
+    StringVector src;
+    src.append(s);
+    StringVector dst_upper_old, dst_upper_new, dst_lower_old, dst_lower_new;
+    StringFunctions::lower_vector_new(src, dst_lower_new);
+    StringFunctions::lower_vector_old(src, dst_lower_old);
+    StringFunctions::upper_vector_new(src, dst_upper_new);
+    StringFunctions::upper_vector_old(src, dst_upper_old);
+    ASSERT_EQ(dst_lower_new.get_last_slice().to_string(), StringFunctions::lower_new(s));
+    ASSERT_EQ(dst_lower_old.get_last_slice().to_string(), StringFunctions::lower_new(s));
+    ASSERT_EQ(dst_upper_new.get_last_slice().to_string(), StringFunctions::upper_new(s));
+    ASSERT_EQ(dst_upper_old.get_last_slice().to_string(), StringFunctions::upper_new(s));
+  }
+}
+
+TEST_F(TestStringFunctions, case2) {
+  std::vector<std::string> cases = {
+      "11111111111111abcdefg",
+      "1abcdefg",
+      "abcdefghigklmnopqrstuvwxyz",
+      "aaaaabcdefghigklmnopqrstuvwxyz0000000",
+      "aAAAABCDEFGHIGklmnopqrstuvwxyz0000000",
+  };
+
+  StringVector src;
+  for (auto &s: cases){
+    src.append(s);
+  }
+
+  StringVector dst_upper_old, dst_upper_new, dst_lower_old, dst_lower_new;
+  StringFunctions::lower_vector_new(src, dst_lower_new);
+  StringFunctions::lower_vector_old(src, dst_lower_old);
+  StringFunctions::upper_vector_new(src, dst_upper_new);
+  StringFunctions::upper_vector_old(src, dst_upper_old);
+  ASSERT_EQ(dst_upper_old.size(), cases.size());
+  ASSERT_EQ(dst_upper_new.size(), cases.size());
+  ASSERT_EQ(dst_lower_old.size(), cases.size());
+  ASSERT_EQ(dst_lower_new.size(), cases.size());
+  for (auto i=0; i < src.size(); ++i){
+    auto upper_old_s = dst_upper_old.get_slice(i).to_string();
+    auto upper_new_s = dst_upper_new.get_slice(i).to_string();
+    auto lower_old_s = dst_lower_old.get_slice(i).to_string();
+    auto lower_new_s = dst_lower_new.get_slice(i).to_string();
+    ASSERT_EQ(upper_new_s, upper_old_s);
+    ASSERT_EQ(lower_new_s, lower_old_s);
   }
 }
 
