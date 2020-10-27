@@ -68,10 +68,6 @@ Str returnStr(std::string const &a) {
   return Str(a);
 }
 
-Str &&returnStrRvalueRef(std::string const &a) {
-  return Str(a);
-}
-
 Str &&returnStrRvalueRef(Str &a) {
   return static_cast<Str &&>(a);
 }

@@ -4,6 +4,7 @@ set(BENCHMARKS
         vectorized_bm.cc
         doris_benchmark.cc
         benchmark_string_functions.cc
+        benchmark_string_functions_substr.cc
         benchmark_int_arithmetic.cc
         benchmark_int_arithmetic_single.cc
         )

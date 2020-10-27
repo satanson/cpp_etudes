@@ -293,16 +293,16 @@ struct StringFunctions {
     size_t i = 0;
     __m128i has_error = _mm_setzero_si128();
     if (len >= 16) {
-        for (; i <= len - 16; i += 16) {
-            __m128i current_bytes = _mm_loadu_si128((const __m128i*)(src + i));
-            has_error = _mm_or_si128(has_error, current_bytes);
-        }
+      for (; i <= len - 16; i += 16) {
+        __m128i current_bytes = _mm_loadu_si128((const __m128i *) (src + i));
+        has_error = _mm_or_si128(has_error, current_bytes);
+      }
     }
     int error_mask = _mm_movemask_epi8(has_error);
 
     char tail_has_error = 0;
     for (; i < len; i++) {
-        tail_has_error |= src[i];
+      tail_has_error |= src[i];
     }
     error_mask |= (tail_has_error & 0x80);
 
@@ -318,6 +318,10 @@ struct StringFunctions {
 
   template<bool use_length>
   static inline void ascii_substr(StringVector const &src, StringVector &dst, int offset, int len) {
+    if (offset > 0) {
+      offset -= 1;
+    }
+
     const auto n = src.size();
     for (auto i = 0; i < n; ++i) {
       Slice s = src.get_slice(i);
@@ -344,30 +348,35 @@ struct StringFunctions {
       dst.append(s.data + from_pos, s.data + to_pos);
     }
   }
-
+  template<bool lookup_table>
   static inline const char *skip_leading_utf8(const char *p, const char *end, size_t n) {
-    size_t char_size = 0;
+    int char_size = 0;
     for (auto i = 0; i < n && p < end; ++i, p += char_size) {
-      uint8_t b = static_cast<uint8_t>(*p);
-      if (b >> 7 == 0) {
-        char_size = 1;
+      if constexpr (lookup_table) {
+        char_size = UTF8_BYTE_LENGTH_TABLE[static_cast<uint8_t>(*p)];
       } else {
-        char_size = __builtin_clz(b) - 24;
+        uint8_t b = ~static_cast<uint8_t>(*p);
+        if (b >> 7 == 1) {
+          char_size = 1;
+        } else {
+          char_size = __builtin_clz(b) - 24;
+        }
       }
     }
     return p;
   }
 
+  template<bool lookup_table>
   static inline const char *skip_trailing_utf8(const char *p, const char *begin, size_t n) {
     constexpr auto threshold = static_cast<int8_t>(0b1011'1111);
-    for (auto i = 0; i < n && p > begin; ++i) {
+    for (auto i = 0; i < n && p >= begin; ++i) {
       --p;
-      while (p > begin && static_cast<int8_t>(*p) <= threshold)--p;
+      while (p >= begin && static_cast<int8_t>(*p) <= threshold)--p;
     }
     return p;
   }
 
-  template<bool use_length>
+  template<bool use_length, bool lookup_table>
   static inline void utf8_substr_from_left(StringVector const &src,
                                            StringVector &dst,
                                            int offset,
@@ -377,12 +386,14 @@ struct StringFunctions {
       auto s = src.get_slice(i);
       auto begin = s.begin();
       auto end = s.end();
-      auto from_ptr = skip_leading_utf8(begin, end, offset);
+      auto from_ptr = skip_leading_utf8<lookup_table>(begin, end, offset);
+      //std::cout<<s.to_string()<<", offset="<<offset<<", from_pos="<<from_ptr-begin<<std::endl;
       if constexpr (use_length) {
         if (from_ptr >= end) {
           dst.append("");
         } else {
-          auto to_ptr = skip_leading_utf8(from_ptr, end, len);
+          auto to_ptr = skip_leading_utf8<lookup_table>(from_ptr, end, len);
+          //std::cout<<s.to_string()<<", offset="<<offset<<", end_pos="<<to_ptr-begin<<std::endl;
           dst.append(from_ptr, to_ptr);
         }
       } else {
@@ -391,61 +402,195 @@ struct StringFunctions {
     }
   }
 
-  template<bool use_length>
+  static inline size_t get_utf8_small_index(const Slice& str, uint8_t* small_index) {
+    size_t n = 0;
+    for (uint8_t i = 0, char_size = 0; i < str.size; i += char_size) {
+      char_size = UTF8_BYTE_LENGTH_TABLE[static_cast<unsigned char>(str.data[i])];
+      small_index[n++] = i;
+    }
+    return n;
+  }
+
+  template<bool use_length, bool lookup_table>
   static inline void utf8_substr_from_right(StringVector const &src,
                                             StringVector &dst,
                                             int offset,
                                             [[maybe_unused]]int len) {
     const auto size = src.size();
+    constexpr size_t SMALL_INDEX_MAX = 32;
+    uint8_t small_index[SMALL_INDEX_MAX] = {0};
     for (auto i = 0; i < size; ++i) {
       auto s = src.get_slice(i);
       auto begin = s.begin();
       auto end = s.end();
 
       if (offset > s.size) {
+        dst.append("");
         continue;
       }
 
-      auto from_ptr = skip_trailing_utf8(end, begin, offset);
-
-      if (from_ptr < begin) {
-        continue;
-      }
-
-      if constexpr(use_length) {
-        std::cout<<"end-from_ptr="<<end-from_ptr<<", len="<<len<<std::endl;
-        if (len > end - from_ptr) {
-          dst.append(from_ptr, end);
-        } else {
-          auto to_ptr = skip_leading_utf8(from_ptr, end, len);
-          std::cout << "to_ptr=" << to_ptr - begin << std::endl;
-          dst.append(from_ptr, to_ptr);
+      if (s.size <= SMALL_INDEX_MAX) {
+        auto small_index_size = get_utf8_small_index(s, small_index);
+        if (offset > small_index_size) {
+          dst.append("");
+          continue;
         }
+        auto from_idx = small_index_size - offset;
+        auto to_idx = from_idx + len;
+        const char *from_ptr = begin + small_index[from_idx];
+        const char *to_ptr = end;
+        // take the first `len` bytes from the trailing `off` bytes, so if
+        // len >= off, at most `off` bytes can be taken.
+        if (len < offset) {
+          to_ptr = begin + small_index[to_idx];
+        }
+        dst.append(from_ptr, to_ptr);
       } else {
-        dst.append(from_ptr, end);
+
+        auto from_ptr = skip_trailing_utf8<lookup_table>(end, begin, offset);
+
+        if (from_ptr < begin) {
+          dst.append("");
+          continue;
+        }
+
+        if constexpr(use_length) {
+          //std::cout << "end-from_ptr=" << end - from_ptr << ", len=" << len << std::endl;
+          if (len > end - from_ptr) {
+            dst.append(from_ptr, end);
+          } else {
+            auto to_ptr = skip_leading_utf8<lookup_table>(from_ptr, end, len);
+            //std::cout << "to_ptr=" << to_ptr - begin << std::endl;
+            dst.append(from_ptr, to_ptr);
+          }
+        } else {
+          dst.append(from_ptr, end);
+        }
       }
     }
   }
 
-  template<bool check_ascii, bool use_length>
+  template<bool check_ascii, bool use_length, bool lookup_table = false>
   static inline void substr(StringVector const &src, StringVector &dst, int offset, [[maybe_unused]] int len) {
     if (offset == 0) {
       return;
-    } else if (offset > 0) {
-      offset -= 1;
     }
     if constexpr(check_ascii) {
       auto is_ascii = validate_ascii_fast(src.blob.data(), src.blob.size());
+      //std::cout << std::boolalpha << "is_ascii=" << is_ascii << std::endl;
       if (is_ascii) {
         ascii_substr<use_length>(src, dst, offset, len);
       } else {
-        substr<false, use_length>(src, dst, offset, len);
+        //std::cout << "enter substr<false, use_length>" << std::endl;
+        substr<false, use_length, lookup_table>(src, dst, offset, len);
       }
     } else {
-      if (offset >= 0) {
-        utf8_substr_from_left<use_length>(src, dst, offset, len);
+      if (offset > 0) {
+        //std::cout << "enter utf8_substr_from_left" << std::endl;
+        utf8_substr_from_left<use_length, lookup_table>(src, dst, offset - 1, len);
       } else if (offset < 0) {
-        utf8_substr_from_right<use_length>(src, dst, -offset, len);
+        utf8_substr_from_right<use_length, lookup_table>(src, dst, -offset, len);
+      }
+    }
+  }
+  static inline size_t get_utf8_index(const Slice &str, std::vector<size_t> *index) {
+    for (int i = 0, char_size = 0; i < str.size; i += char_size) {
+      char_size = UTF8_BYTE_LENGTH_TABLE[static_cast<unsigned char>(str.data[i])];
+      index->push_back(i);
+    }
+    return index->size();
+  }
+
+  static inline size_t get_utf8_index2(const Slice &str, std::vector<size_t> *index) {
+    for (int i = 0, char_size = 0; i < str.size; i += char_size) {
+      uint8_t b = ~static_cast<uint8_t>(str.data[i]);
+      if (b >> 7 == 1) {
+        char_size = 1;
+      } else {
+        char_size = __builtin_clz(b) - 24;
+      }
+      index->push_back(i);
+    }
+    return index->size();
+  }
+
+  template<bool negative_offset = false, bool use_length = true>
+  static inline void substr_new(StringVector const &src, StringVector &dst, int offset, [[maybe_unused]] int len) {
+    std::vector<size_t> index;
+    auto is_ascii = validate_ascii_fast(src.blob.data(), src.blob.size());
+    if (is_ascii) {
+      ascii_substr<true>(src, dst, offset, len);
+    } else {
+      if (offset > 0) {
+        offset -= 1;
+      }
+      auto size = src.size();
+      for (size_t i = 0; i < size; ++i) {
+        Slice value = src.get_slice(i);
+        if (__builtin_expect((value.size == 0), 0)) {
+          dst.append("");
+          continue;
+        }
+        index.clear();
+        get_utf8_index2(value, &index);
+        auto pos = offset;
+        if constexpr(negative_offset) {
+          if (pos < 0) {
+            pos += index.size();
+          }
+        }
+
+        if (pos >= index.size() || pos < 0) {
+          dst.append("");
+          continue;
+        }
+
+        int byte_pos = index[pos];
+        int result_length = value.size - byte_pos;
+        if (pos + len < index.size()) {
+          result_length = index[pos + len] - byte_pos;
+        }
+        dst.append(value.begin() + byte_pos, value.begin() + byte_pos + result_length);
+      }
+    }
+  }
+  template<bool negative_offset = false, bool use_length = true>
+  static inline void substr_old(StringVector const &src, StringVector &dst, int offset, [[maybe_unused]] int len) {
+    std::vector<size_t> index;
+    auto is_ascii = validate_ascii_fast(src.blob.data(), src.blob.size());
+    if (is_ascii) {
+      ascii_substr<true>(src, dst, offset, len);
+    } else {
+      if (offset > 0) {
+        offset -= 1;
+      }
+      auto size = src.size();
+      for (size_t i = 0; i < size; ++i) {
+        Slice value = src.get_slice(i);
+        if (__builtin_expect((value.size == 0), 0)) {
+          dst.append("");
+          continue;
+        }
+        index.clear();
+        get_utf8_index(value, &index);
+        auto pos = offset;
+        if constexpr(negative_offset) {
+          if (pos < 0) {
+            pos += index.size();
+          }
+        }
+
+        if (pos >= index.size() || pos < 0) {
+          dst.append("");
+          continue;
+        }
+
+        int byte_pos = index[pos];
+        int result_length = value.size - byte_pos;
+        if (pos + len < index.size()) {
+          result_length = index[pos + len] - byte_pos;
+        }
+        dst.append(value.begin() + byte_pos, value.begin() + byte_pos + result_length);
       }
     }
   }
@@ -596,7 +741,7 @@ struct prepare_utf8_data {
     vector_size = env_to_int("VECTOR_SIZE", "8192");
     weights = std::move(env_to_csv_int("WEIGHTS", "10,10,4,3,0,0"));
     min_length = env_to_int("MIN_LENGTH", "100");
-    max_length = env_to_int("MIN_LENGTH", "1000");
+    max_length = env_to_int("MAX_LENGTH", "1000");
     data = std::move(StringFunctions::gen_utf8_vector(weights, vector_size, min_length, max_length));
 
     for (auto &s: data) {
