@@ -77,6 +77,7 @@ TEST_F(TestStringFunctions, substr_ascii) {
   }
 }
 
+/*
 TEST_F(TestStringFunctions, substr_ascii_no_length) {
   StringVector s;
   s.append("123456789");
@@ -105,6 +106,8 @@ TEST_F(TestStringFunctions, substr_ascii_no_length) {
     ASSERT_EQ(d.get_last_slice().to_string(), expect);
   }
 }
+*/
+
 
 TEST_F(TestStringFunctions, substr_zh) {
   std::u8string u8s = u8"壹贰叁肆伍陆柒捌玖";
@@ -145,7 +148,7 @@ TEST_F(TestStringFunctions, substr_zh) {
     ASSERT_EQ(d.get_last_slice().to_string(), expect_bytes);
   }
 }
-
+/*
 TEST_F(TestStringFunctions, substr_zh_no_length) {
   std::u8string u8s = u8"壹贰叁肆伍陆柒捌玖";
   StringVector s;
@@ -194,7 +197,7 @@ TEST_F(TestStringFunctions, substr_zh_no_length) {
     ASSERT_EQ(d.get_last_slice().to_string(), expect_bytes);
   }
 }
-
+*/
 TEST_F(TestStringFunctions, substr_mixed) {
   std::string s;
   s.append({(char) 0b0111'1111});

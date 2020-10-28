@@ -16,6 +16,15 @@ void BM_substr_pos_len_old(benchmark::State &state) {
   }
 }
 
+void BM_substr_1_len_old(benchmark::State &state) {
+  StringVector dst;
+  dst.blob.reserve(std::min(data.size() * 3, dst.blob.size()));
+  dst.offsets.reserve(data.size() + 1);
+  for (auto _ : state) {
+    StringFunctions::substr_old(data, dst, 1, 3);
+  }
+}
+
 void BM_substr_pos_len_new2(benchmark::State &state) {
   StringVector dst;
   dst.blob.reserve(std::min(data.size() * 10, dst.blob.size()));
@@ -40,6 +49,15 @@ void BM_substr_pos_len_check_ascii_lookup_table_new(benchmark::State &state) {
   dst.offsets.reserve(data.size() + 1);
   for (auto _ : state) {
     StringFunctions::substr<true, true,true>(data, dst, 5, 10);
+  }
+}
+
+void BM_substr_1_len_check_ascii_lookup_table_new(benchmark::State &state) {
+  StringVector dst;
+  dst.blob.reserve(std::min(data.size() * 10, dst.blob.size()));
+  dst.offsets.reserve(data.size() + 1);
+  for (auto _ : state) {
+    StringFunctions::substr<true, true,true>(data, dst, 1, 3);
   }
 }
 
@@ -125,12 +143,15 @@ void BM_substr_get_utf8_index_new(benchmark::State &state) {
 //BENCHMARK(BM_substr_get_utf8_index_new);
 //BENCHMARK(BM_substr_get_utf8_index_old);
 
-BENCHMARK(BM_substr_neg_len_old);
-BENCHMARK(BM_substr_neg_len_check_ascii_new);
-BENCHMARK(BM_substr_neg_len_check_ascii_lookup_table_new);
+//BENCHMARK(BM_substr_neg_len_old);
+//BENCHMARK(BM_substr_neg_len_check_ascii_new);
+//BENCHMARK(BM_substr_neg_len_check_ascii_lookup_table_new);
 
-BENCHMARK(BM_substr_pos_len_old);
-BENCHMARK(BM_substr_pos_len_check_ascii_new);
-BENCHMARK(BM_substr_pos_len_check_ascii_lookup_table_new);
+//BENCHMARK(BM_substr_pos_len_old);
+//BENCHMARK(BM_substr_pos_len_check_ascii_new);
+//BENCHMARK(BM_substr_pos_len_check_ascii_lookup_table_new);
+
+BENCHMARK(BM_substr_1_len_old);
+BENCHMARK(BM_substr_1_len_check_ascii_lookup_table_new);
 
 BENCHMARK_MAIN();

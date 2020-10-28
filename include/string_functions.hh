@@ -104,7 +104,30 @@ static uint8_t *create_utf8_length_table2() {
   return tbl;
 }
 // SIZE: 257 * uint8_t
-static const uint8_t *UTF8_BYTE_LENGTH_TABLE = create_utf8_length_table();
+static const uint8_t UTF8_BYTE_LENGTH_TABLE[256] = {
+    // start byte of 1-byte utf8 char: 0b0000'0000 ~ 0b0111'1111
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    // continuation byte: 0b1000'0000 ~ 0b1011'1111
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    // start byte of 2-byte utf8 char: 0b1100'0000 ~ 0b1101'1111
+    2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+    2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+    // start byte of 3-byte utf8 char: 0b1110'0000 ~ 0b1110'1111
+    3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+    // start byte of 4-byte utf8 char: 0b1111'0000 ~ 0b1111'0111
+    // invalid utf8 byte: 0b1111'1000~ 0b1111'1111
+    4, 4, 4, 4, 4, 4, 4, 4, 1, 1, 1, 1, 1, 1, 1, 1
+};
 static const uint8_t *UTF8_BYTE_LENGTH_TABLE2 = create_utf8_length_table2();
 
 struct StringFunctions {
@@ -316,36 +339,34 @@ struct StringFunctions {
 #endif
   }
 
-  template<bool use_length>
+  template<bool negative_offset>
   static inline void ascii_substr(StringVector const &src, StringVector &dst, int offset, int len) {
-    if (offset > 0) {
-      offset -= 1;
-    }
-
     const auto n = src.size();
     for (auto i = 0; i < n; ++i) {
       Slice s = src.get_slice(i);
+      if (s.size == 0) {
+        dst.append("");
+        continue;
+      }
       auto from_pos = offset;
-      // negative offset, count bytes from right side;
-      if (from_pos < 0) {
+      auto begin = s.data;
+      if constexpr (negative_offset) {
         from_pos = from_pos + s.size;
-      }
-      // pos should between [0,s.size);
-      if (from_pos < 0 || from_pos >= s.size) {
-        from_pos = s.size;
-      }
-
-      // set end to s.size when end exceeds the string tail.
-      auto to_pos = size_t(0);
-      if constexpr (use_length) {
-        to_pos = from_pos + len;
-        if (to_pos > s.size) {
-          to_pos = s.size;
+        if (from_pos < 0) {
+          dst.append("");
+          continue;
         }
       } else {
+        if (from_pos > s.size) {
+          dst.append("");
+          continue;
+        }
+      }
+      auto to_pos =from_pos + len;
+      if (to_pos < from_pos || to_pos > s.size) {
         to_pos = s.size;
       }
-      dst.append(s.data + from_pos, s.data + to_pos);
+      dst.append(begin + from_pos, begin + to_pos);
     }
   }
   template<bool lookup_table>
@@ -559,7 +580,7 @@ struct StringFunctions {
     }
   }
 
-  template <char C0, char C1>
+  template<char C0, char C1>
   static inline void case_vector_new(StringVector const &src, StringVector &dst) {
     const auto n = src.size();
     dst.offsets = src.offsets;
@@ -752,7 +773,11 @@ struct StringFunctions {
       auto is_ascii = validate_ascii_fast(src.blob.data(), src.blob.size());
       //std::cout << std::boolalpha << "is_ascii=" << is_ascii << std::endl;
       if (is_ascii) {
-        ascii_substr<use_length>(src, dst, offset, len);
+        if (offset>0) {
+          ascii_substr<false>(src, dst, offset - 1, len);
+        } else {
+          ascii_substr<true>(src, dst, offset, len);
+        }
       } else {
         //std::cout << "enter substr<false, use_length>" << std::endl;
         substr<false, use_length, lookup_table>(src, dst, offset, len);
@@ -832,7 +857,22 @@ struct StringFunctions {
     std::vector<size_t> index;
     auto is_ascii = validate_ascii_fast(src.blob.data(), src.blob.size());
     if (is_ascii) {
-      ascii_substr<true>(src, dst, offset, len);
+      const size_t size = src.size();
+      for (int i = 0; i < size; ++i) {
+        Slice value = src.get_slice(i);
+        if (__builtin_expect((value.size == 0 || offset > value.size), 0)) {
+          dst.append("");
+          continue;
+        }
+
+        int byte_pos = offset - 1;
+        int result_length = len;
+        if (offset + len > value.size) {
+          result_length = value.size - byte_pos;
+        }
+
+        dst.append(value.data + byte_pos, value.data + byte_pos + result_length);
+      }
     } else {
       if (offset > 0) {
         offset -= 1;
