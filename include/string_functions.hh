@@ -17,8 +17,8 @@ class Slice;
 class StringVector;
 
 struct Slice {
-  const char *data;
-  const size_t size;
+  char *data;
+  size_t size;
   std::string to_string() {
     return std::string(data, data + size);
   }
@@ -45,7 +45,7 @@ struct StringVector {
 
   Slice get_slice(int i) const {
     return {
-        .data = blob.data() + offsets[i],
+        .data = (char*)blob.data() + offsets[i],
         .size = static_cast<size_t>(offsets[i + 1] - offsets[i])
     };
   }
