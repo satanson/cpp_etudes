@@ -138,6 +138,51 @@ void BM_substr_get_utf8_index_new(benchmark::State &state) {
   }
 }
 
+void BM_ascii_substr_by_ref(benchmark::State &state) {
+  for (auto _ : state) {
+    const auto size = data.size();
+    std::string bytes;
+    std::vector<int> offsets;
+    bytes.reserve(data.size()*3);
+    offsets.resize(data.size()+1);
+    StringFunctions::ascii_substr_by_ref<false>(data, bytes, offsets, 1,3);
+  }
+}
+
+void BM_ascii_substr_by_ptr(benchmark::State &state) {
+  for (auto _ : state) {
+    const auto size = data.size();
+    std::string bytes;
+    std::vector<int> offsets;
+    bytes.reserve(data.size()*3);
+    offsets.resize(data.size()+1);
+    StringFunctions::ascii_substr_by_ptr<false>(&data, &bytes, &offsets, 1,3);
+  }
+}
+
+void BM_vector_insert_a(benchmark::State &state) {
+  for (auto _ : state) {
+    const auto bytes= data.blob.size();
+    std::vector<uint8_t> result;
+    result.reserve(bytes);
+    for (size_t i=0; i < data.size(); ++i){
+      Slice s = data.get_slice(i);
+      result.insert(result.end(), (uint8_t*)s.begin(), (uint8_t*)s.begin()+3);
+    }
+  }
+}
+
+void BM_vector_insert_b(benchmark::State &state) {
+  for (auto _ : state) {
+    const auto bytes= data.blob.size();
+    std::vector<uint8_t> result;
+    result.reserve(bytes);
+    for (size_t i=0; i < data.size(); ++i){
+      Slice s = data.get_slice(i);
+      result.insert(result.end(), s.begin(), s.begin()+3);
+    }
+  }
+}
 //BENCHMARK(BM_substr_get_utf8_index_new);
 //BENCHMARK(BM_substr_get_utf8_index_old);
 //BENCHMARK(BM_substr_get_utf8_index_new);
@@ -151,7 +196,18 @@ void BM_substr_get_utf8_index_new(benchmark::State &state) {
 //BENCHMARK(BM_substr_pos_len_check_ascii_new);
 //BENCHMARK(BM_substr_pos_len_check_ascii_lookup_table_new);
 
-BENCHMARK(BM_substr_1_len_old);
-BENCHMARK(BM_substr_1_len_check_ascii_lookup_table_new);
+//BENCHMARK(BM_substr_1_len_old);
+//BENCHMARK(BM_substr_1_len_check_ascii_lookup_table_new);
+//BENCHMARK(BM_ascii_substr_by_ref);
+//BENCHMARK(BM_ascii_substr_by_ptr);
+BENCHMARK(BM_vector_insert_a);
+BENCHMARK(BM_vector_insert_b);
+BENCHMARK(BM_vector_insert_a);
+BENCHMARK(BM_vector_insert_a);
+BENCHMARK(BM_vector_insert_a);
+BENCHMARK(BM_vector_insert_b);
+BENCHMARK(BM_vector_insert_b);
+BENCHMARK(BM_vector_insert_b);
+BENCHMARK(BM_vector_insert_b);
 
 BENCHMARK_MAIN();

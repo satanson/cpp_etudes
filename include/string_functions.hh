@@ -362,13 +362,86 @@ struct StringFunctions {
           continue;
         }
       }
-      auto to_pos =from_pos + len;
+      auto to_pos = from_pos + len;
       if (to_pos < from_pos || to_pos > s.size) {
         to_pos = s.size;
       }
       dst.append(begin + from_pos, begin + to_pos);
     }
   }
+
+  template<bool negative_offset>
+  static inline void ascii_substr_by_ref(
+      StringVector const &src,
+      std::string &bytes,
+      std::vector<int> &offsets,
+      int off, int len) {
+    const auto n = src.size();
+    for (auto i = 0; i < n; ++i) {
+      Slice s = src.get_slice(i);
+      if (s.size == 0) {
+        offsets[i+1] = bytes.size();
+        continue;
+      }
+      auto from_pos = off;
+      auto begin = s.data;
+      if constexpr (negative_offset) {
+        from_pos = from_pos + s.size;
+        if (from_pos < 0) {
+          offsets[i+1] = bytes.size();
+          continue;
+        }
+      } else {
+        if (from_pos > s.size) {
+          offsets[i+1] = bytes.size();
+          continue;
+        }
+      }
+      auto to_pos = from_pos + len;
+      if (to_pos < from_pos || to_pos > s.size) {
+        to_pos = s.size;
+      }
+      bytes.insert(bytes.end(), begin+from_pos, begin+to_pos);
+      offsets[i+1] = bytes.size();
+    }
+  }
+
+  template<bool negative_offset>
+  static inline void ascii_substr_by_ptr(
+      StringVector * src,
+      std::string *bytes,
+      std::vector<int> *offsets,
+      int off, int len) {
+    const auto n = src->size();
+    for (auto i = 0; i < n; ++i) {
+      Slice s = src->get_slice(i);
+      if (s.size == 0) {
+        (*offsets)[i+1] = bytes->size();
+        continue;
+      }
+      auto from_pos = off;
+      auto begin = s.data;
+      if constexpr (negative_offset) {
+        from_pos = from_pos + s.size;
+        if (from_pos < 0) {
+          (*offsets)[i+1] = bytes->size();
+          continue;
+        }
+      } else {
+        if (from_pos > s.size) {
+          (*offsets)[i+1] = bytes->size();
+          continue;
+        }
+      }
+      auto to_pos = from_pos + len;
+      if (to_pos < from_pos || to_pos > s.size) {
+        to_pos = s.size;
+      }
+      bytes->insert(bytes->end(), begin+from_pos, begin+to_pos);
+      (*offsets)[i+1] = bytes->size();
+    }
+  }
+
   template<bool lookup_table>
   static inline const char *skip_leading_utf8(const char *p, const char *end, size_t n) {
     int char_size = 0;
@@ -773,7 +846,7 @@ struct StringFunctions {
       auto is_ascii = validate_ascii_fast(src.blob.data(), src.blob.size());
       //std::cout << std::boolalpha << "is_ascii=" << is_ascii << std::endl;
       if (is_ascii) {
-        if (offset>0) {
+        if (offset > 0) {
           ascii_substr<false>(src, dst, offset - 1, len);
         } else {
           ascii_substr<true>(src, dst, offset, len);
