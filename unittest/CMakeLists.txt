@@ -10,7 +10,8 @@ set(TESTS
         decimal_microbm_test.cc
         test_c++17.cc
         test_decimal.cc
-        #test_string_functions.cc
+        test_default_init_allocator.cc
+        test_string_functions.cc
         )
 foreach (src ${TESTS})
     get_filename_component(exe ${src} NAME_WE)

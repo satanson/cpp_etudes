@@ -12,7 +12,7 @@
 #include<random>
 #include<iostream>
 #include <immintrin.h>
-
+#include <default_init_allocator.hh>
 class Slice;
 class StringVector;
 
@@ -27,25 +27,25 @@ struct Slice {
 };
 
 struct StringVector {
-  std::string blob;
+  std::vector<uint8_t> blob;
   std::vector<int> offsets;
   StringVector() : blob({}), offsets({0}) {}
   size_t size() const {
     return offsets.size() - 1;
   }
   void append(std::string const &s) {
-    blob.append(s);
+    blob.insert(blob.end(), s.begin(), s.end());
     offsets.push_back(offsets.back() + s.size());
   }
 
   void append(const char *begin, const char *end) {
-    blob.append(begin, end);
+    blob.insert(blob.end(), begin, end);
     offsets.push_back(offsets.back() + (end - begin));
   }
 
   Slice get_slice(int i) const {
     return {
-        .data = (char*)blob.data() + offsets[i],
+        .data = (char *) blob.data() + offsets[i],
         .size = static_cast<size_t>(offsets[i + 1] - offsets[i])
     };
   }
@@ -380,7 +380,7 @@ struct StringFunctions {
     for (auto i = 0; i < n; ++i) {
       Slice s = src.get_slice(i);
       if (s.size == 0) {
-        offsets[i+1] = bytes.size();
+        offsets[i + 1] = bytes.size();
         continue;
       }
       auto from_pos = off;
@@ -388,12 +388,12 @@ struct StringFunctions {
       if constexpr (negative_offset) {
         from_pos = from_pos + s.size;
         if (from_pos < 0) {
-          offsets[i+1] = bytes.size();
+          offsets[i + 1] = bytes.size();
           continue;
         }
       } else {
         if (from_pos > s.size) {
-          offsets[i+1] = bytes.size();
+          offsets[i + 1] = bytes.size();
           continue;
         }
       }
@@ -401,14 +401,14 @@ struct StringFunctions {
       if (to_pos < from_pos || to_pos > s.size) {
         to_pos = s.size;
       }
-      bytes.insert(bytes.end(), begin+from_pos, begin+to_pos);
-      offsets[i+1] = bytes.size();
+      bytes.insert(bytes.end(), begin + from_pos, begin + to_pos);
+      offsets[i + 1] = bytes.size();
     }
   }
 
   template<bool negative_offset>
   static inline void ascii_substr_by_ptr(
-      StringVector * src,
+      StringVector *src,
       std::string *bytes,
       std::vector<int> *offsets,
       int off, int len) {
@@ -416,7 +416,7 @@ struct StringFunctions {
     for (auto i = 0; i < n; ++i) {
       Slice s = src->get_slice(i);
       if (s.size == 0) {
-        (*offsets)[i+1] = bytes->size();
+        (*offsets)[i + 1] = bytes->size();
         continue;
       }
       auto from_pos = off;
@@ -424,12 +424,12 @@ struct StringFunctions {
       if constexpr (negative_offset) {
         from_pos = from_pos + s.size;
         if (from_pos < 0) {
-          (*offsets)[i+1] = bytes->size();
+          (*offsets)[i + 1] = bytes->size();
           continue;
         }
       } else {
         if (from_pos > s.size) {
-          (*offsets)[i+1] = bytes->size();
+          (*offsets)[i + 1] = bytes->size();
           continue;
         }
       }
@@ -437,8 +437,8 @@ struct StringFunctions {
       if (to_pos < from_pos || to_pos > s.size) {
         to_pos = s.size;
       }
-      bytes->insert(bytes->end(), begin+from_pos, begin+to_pos);
-      (*offsets)[i+1] = bytes->size();
+      bytes->insert(bytes->end(), begin + from_pos, begin + to_pos);
+      (*offsets)[i + 1] = bytes->size();
     }
   }
 
@@ -577,7 +577,7 @@ struct StringFunctions {
 
   static inline void upper_vector_copy_1_times(StringVector const &src, StringVector &dst) {
     const auto n = src.size();
-    char *q = dst.blob.data();
+    char *q = (char *) dst.blob.data();
     for (auto i = 0; i < n; ++i) {
       auto slice = src.get_slice(i);
       char *begin = const_cast<char *>(slice.begin());
@@ -654,18 +654,18 @@ struct StringFunctions {
   }
 
   template<char C0, char C1>
-  static inline void case_vector_new(StringVector const &src, StringVector &dst) {
+  static inline void case_vector_new1(StringVector const &src, StringVector &dst) {
     const auto n = src.size();
     dst.offsets = src.offsets;
     dst.blob = src.blob;
-    char *begin = const_cast<char *>(dst.blob.data());
+    auto begin = dst.blob.data();
     const size_t size = dst.blob.size();
-    char *end = const_cast<char *>(dst.blob.data() + size);
+    auto end = dst.blob.data() + size;
 
 #if defined(__SSE2__)
     static constexpr int SSE2_BYTES = sizeof(__m128i);
-    const char *sse2_end = begin + (size & ~(SSE2_BYTES - 1));
-    char *p = begin;
+    auto sse2_end = begin + (size & ~(SSE2_BYTES - 1));
+    auto p = begin;
     const auto a_minus1 = _mm_set1_epi8(C0 - 1);
     const auto z_plus1 = _mm_set1_epi8(C1 + 1);
     const auto delta = _mm_set1_epi8(32);
@@ -679,21 +679,82 @@ struct StringFunctions {
       _mm_maskmoveu_si128(
           _mm_xor_si128(bytes, delta),
           masks,
-          p);
+          (char *) p);
     }
 #endif
     for (; p < end; p += 1) {
       if (C0 <= *p && *p <= C1)
         *p ^= 32;
-    };
+    }
   }
 
-  static inline void lower_vector_new(StringVector const &src, StringVector &dst) {
-    case_vector_new<'A', 'Z'>(src, dst);
+  template<bool use_raw, char C0, char C1>
+  static inline void case_vector_new2(StringVector const &src, StringVector &dst) {
+    const auto n = src.size();
+    dst.offsets = src.offsets;
+    raw::raw_vector<uint8_t> buffer;
+    const size_t size = src.blob.size();
+
+    uint8_t *q = nullptr;
+    if constexpr (use_raw) {
+      buffer.resize(size);
+      q = buffer.data();
+    } else {
+      dst.blob.resize(size);
+      q = dst.blob.data();
+    }
+
+    char *begin = (char *) (src.blob.data());
+    char *end = (char *) (src.blob.data() + size);
+
+#if defined(__SSE2__)
+    static constexpr int SSE2_BYTES = sizeof(__m128i);
+    const char *sse2_end = begin + (size & ~(SSE2_BYTES - 1));
+    char *p = begin;
+    const auto a_minus1 = _mm_set1_epi8(C0 - 1);
+    const auto z_plus1 = _mm_set1_epi8(C1 + 1);
+    const auto delta = _mm_set1_epi8(32);
+
+    for (; p > sse2_end; p += SSE2_BYTES, q += SSE2_BYTES) {
+      auto bytes = _mm_loadu_si128((const __m128i *) p);
+      auto masks = _mm_and_si128(
+          _mm_cmpgt_epi8(bytes, a_minus1),
+          _mm_cmpgt_epi8(z_plus1, bytes));
+
+      _mm_storeu_si128(
+          (__m128i *) q,
+          _mm_xor_si128(bytes,
+                        _mm_and_si128(masks, delta)));
+    }
+#endif
+    for (; p < end; p += 1, q += 1) {
+      if (C0 <= *p && *p <= C1)
+        *q = *p ^ 32;
+      else
+        *q = *p;
+    }
+
+    if constexpr(use_raw) {
+      dst.blob = std::move(reinterpret_cast<std::vector<uint8_t> &>(buffer));
+    }
   }
 
-  static inline void upper_vector_new(StringVector const &src, StringVector &dst) {
-    case_vector_new<'a', 'z'>(src, dst);
+  static inline void lower_vector_new1(StringVector const &src, StringVector &dst) {
+    case_vector_new1<'A', 'Z'>(src, dst);
+  }
+
+  static inline void upper_vector_new1(StringVector const &src, StringVector &dst) {
+    case_vector_new1<'a', 'z'>(src, dst);
+  }
+
+  template<bool use_raw=true>
+  static inline void lower_vector_new2(StringVector const &src, StringVector &dst) {
+    case_vector_new2<use_raw, 'A', 'Z'>(src, dst);
+  }
+
+  template<bool use_raw=true>
+  static inline void upper_vector_new2(StringVector const &src, StringVector &dst) {
+    case_vector_new2<use_raw, 'a', 'z'>(src, dst);
   }
 
   static inline std::string lower_dummy(std::string const &s) {
@@ -843,7 +904,7 @@ struct StringFunctions {
       return;
     }
     if constexpr(check_ascii) {
-      auto is_ascii = validate_ascii_fast(src.blob.data(), src.blob.size());
+      auto is_ascii = validate_ascii_fast((const char *) src.blob.data(), src.blob.size());
       //std::cout << std::boolalpha << "is_ascii=" << is_ascii << std::endl;
       if (is_ascii) {
         if (offset > 0) {
@@ -888,7 +949,7 @@ struct StringFunctions {
   template<bool negative_offset = false, bool use_length = true>
   static inline void substr_new(StringVector const &src, StringVector &dst, int offset, [[maybe_unused]] int len) {
     std::vector<size_t> index;
-    auto is_ascii = validate_ascii_fast(src.blob.data(), src.blob.size());
+    auto is_ascii = validate_ascii_fast((const char *) src.blob.data(), src.blob.size());
     if (is_ascii) {
       ascii_substr<true>(src, dst, offset, len);
     } else {
@@ -928,7 +989,7 @@ struct StringFunctions {
   template<bool negative_offset = false, bool use_length = true>
   static inline void substr_old(StringVector const &src, StringVector &dst, int offset, [[maybe_unused]] int len) {
     std::vector<size_t> index;
-    auto is_ascii = validate_ascii_fast(src.blob.data(), src.blob.size());
+    auto is_ascii = validate_ascii_fast((char *) src.blob.data(), src.blob.size());
     if (is_ascii) {
       const size_t size = src.size();
       for (int i = 0; i < size; ++i) {

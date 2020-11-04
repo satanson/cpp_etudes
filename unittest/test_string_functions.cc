@@ -110,33 +110,33 @@ TEST_F(TestStringFunctions, substr_ascii_no_length) {
 
 
 TEST_F(TestStringFunctions, substr_zh) {
-  std::u8string u8s = u8"壹贰叁肆伍陆柒捌玖";
-  StringVector s;
-  std::string byte_s(u8s.begin(), u8s.end());
+  std::string s = "壹贰叁肆伍陆柒捌玖";
+  StringVector src;
+  std::string byte_s(s.begin(), s.end());
   s.append(byte_s);
   StringVector d;
 
-  std::vector<std::tuple<int, int, std::u8string>> cases = {
-      {1, 2, u8"壹贰"},
-      {1, 0, u8""},
-      {2, 100, u8"贰叁肆伍陆柒捌玖"},
-      {9, 1, u8"玖"},
-      {9, 100, u8"玖"},
-      {10, 1, u8""},
-      {-9, 1, u8"壹"},
-      {-9, 9, u8"壹贰叁肆伍陆柒捌玖"},
-      {-9, 10, u8"壹贰叁肆伍陆柒捌玖"},
-      {-4, 1, u8"陆"},
-      {-4, 4, u8"陆柒捌玖"},
-      {-4, 5, u8"陆柒捌玖"},
-      {-1, 1, u8"玖"},
-      {-1, 2, u8"玖"}
+  std::vector<std::tuple<int, int, std::string>> cases = {
+      {1, 2, "壹贰"},
+      {1, 0, ""},
+      {2, 100, "贰叁肆伍陆柒捌玖"},
+      {9, 1, "玖"},
+      {9, 100, "玖"},
+      {10, 1, ""},
+      {-9, 1, "壹"},
+      {-9, 9, "壹贰叁肆伍陆柒捌玖"},
+      {-9, 10, "壹贰叁肆伍陆柒捌玖"},
+      {-4, 1, "陆"},
+      {-4, 4, "陆柒捌玖"},
+      {-4, 5, "陆柒捌玖"},
+      {-1, 1, "玖"},
+      {-1, 2, "玖"}
   };
   for (auto &e:cases) {
     auto[offset, len, expect] = e;
     std::string expect_bytes(expect.begin(), expect.end());
     std::cout << "offset=" << offset << ", len=" << len << ", expect=" << expect_bytes << std::endl;
-    StringFunctions::substr<true, true>(s, d, offset, len);
+    StringFunctions::substr<true, true>(src, d, offset, len);
     ASSERT_EQ(d.get_last_slice().to_string(), expect_bytes);
   }
 
@@ -144,7 +144,7 @@ TEST_F(TestStringFunctions, substr_zh) {
     auto[offset, len, expect] = e;
     std::string expect_bytes(expect.begin(), expect.end());
     std::cout << "offset=" << offset << ", len=" << len << ", expect=" << expect_bytes << std::endl;
-    StringFunctions::substr<false, true>(s, d, offset, len);
+    StringFunctions::substr<false, true>(src, d, offset, len);
     ASSERT_EQ(d.get_last_slice().to_string(), expect_bytes);
   }
 }
@@ -270,7 +270,7 @@ TEST_F(TestStringFunctions, substr_mixed) {
 
 TEST_F(TestStringFunctions, append) {
 
-  std::u8string u8s = u8"壹贰叁肆伍陆柒捌玖拾";
+  std::string u8s = "壹贰叁肆伍陆柒捌玖拾";
   std::string s(u8s.begin(), u8s.end());
   std::cout << s << std::endl;
   std::cout << s.size() << std::endl;
@@ -331,9 +331,9 @@ TEST_F(TestStringFunctions, upper) {
     StringVector src;
     src.append(s);
     StringVector dst_upper_old, dst_upper_new, dst_lower_old, dst_lower_new;
-    StringFunctions::lower_vector_new(src, dst_lower_new);
+    StringFunctions::lower_vector_new2(src, dst_lower_new);
     StringFunctions::lower_vector_old(src, dst_lower_old);
-    StringFunctions::upper_vector_new(src, dst_upper_new);
+    StringFunctions::upper_vector_new2(src, dst_upper_new);
     StringFunctions::upper_vector_old(src, dst_upper_old);
     ASSERT_EQ(dst_lower_new.get_last_slice().to_string(), StringFunctions::lower_new(s));
     ASSERT_EQ(dst_lower_old.get_last_slice().to_string(), StringFunctions::lower_new(s));
@@ -357,9 +357,9 @@ TEST_F(TestStringFunctions, case2) {
   }
 
   StringVector dst_upper_old, dst_upper_new, dst_lower_old, dst_lower_new;
-  StringFunctions::lower_vector_new(src, dst_lower_new);
+  StringFunctions::lower_vector_new2(src, dst_lower_new);
   StringFunctions::lower_vector_old(src, dst_lower_old);
-  StringFunctions::upper_vector_new(src, dst_upper_new);
+  StringFunctions::upper_vector_new2(src, dst_upper_new);
   StringFunctions::upper_vector_old(src, dst_upper_old);
   ASSERT_EQ(dst_upper_old.size(), cases.size());
   ASSERT_EQ(dst_upper_new.size(), cases.size());

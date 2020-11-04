@@ -101,14 +101,14 @@ void BM_upper_vector_copy_3_times(benchmark::State &state) {
   StringVector dst;
   dst.blob.resize(src.blob.size());
   for (auto _ : state) {
-    StringFunctions::upper_vector_copy_3_times (src, dst);
+    StringFunctions::upper_vector_copy_3_times(src, dst);
   }
 }
 
 void BM_upper_vector_copy_1_times(benchmark::State &state) {
   StringVector dst;
   dst.blob.resize(src.blob.size());
-  dst.offsets.reserve(src.size()+1);
+  dst.offsets.reserve(src.size() + 1);
   for (auto _ : state) {
     StringFunctions::upper_vector_copy_1_times(src, dst);
   }
@@ -117,40 +117,84 @@ void BM_upper_vector_copy_1_times(benchmark::State &state) {
 void BM_upper_vector_copy_2_times(benchmark::State &state) {
   StringVector dst;
   dst.blob.reserve(src.blob.size());
-  dst.offsets.reserve(src.size()+1);
+  dst.offsets.reserve(src.size() + 1);
   for (auto _ : state) {
     StringFunctions::upper_vector_copy_2_times(src, dst);
   }
 }
 
-void BM_upper_vector_new(benchmark::State &state){
-  StringVector dst;
+void BM_upper_vector_new1(benchmark::State &state) {
   for (auto _ : state) {
-    StringFunctions::upper_vector_new(src, dst);
+    StringVector dst;
+    StringFunctions::upper_vector_new1(src, dst);
   }
 }
 
-void BM_lower_vector_new(benchmark::State &state){
-  StringVector dst;
+void BM_lower_vector_new1(benchmark::State &state) {
   for (auto _ : state) {
-    StringFunctions::lower_vector_new(src, dst);
+    StringVector dst;
+    StringFunctions::lower_vector_new1(src, dst);
   }
 }
 
-void BM_upper_vector_old(benchmark::State &state){
+template<bool use_raw>
+void BM_upper_vector_new2(benchmark::State &state) {
+  for (auto _ : state) {
+    StringVector dst;
+    StringFunctions::upper_vector_new2<use_raw>(src, dst);
+  }
+}
+template<bool use_raw>
+void BM_lower_vector_new2(benchmark::State &state) {
+  for (auto _ : state) {
+    StringVector dst;
+    StringFunctions::lower_vector_new2<use_raw>(src, dst);
+  }
+}
+
+void BM_upper_vector_old(benchmark::State &state) {
   for (auto _ : state) {
     StringVector dst;
     StringFunctions::upper_vector_old(src, dst);
   }
 }
 
-void BM_lower_vector_old(benchmark::State &state){
+void BM_lower_vector_old(benchmark::State &state) {
   for (auto _ : state) {
     StringVector dst;
     StringFunctions::lower_vector_old(src, dst);
   }
 }
+void BM_no_shift(benchmark::State &state) {
+  for (auto _ : state) {
+    auto begin = src.blob.data();
+    auto end = begin + src.blob.size();
+    for (unsigned char *p = begin; p < end; ++p) {
+      if ('A' <= *p && *p < 'Z') {
+        *p = *p ^ 32;
+      }
+    }
+  }
+}
+void BM_shift_bitand(benchmark::State &state) {
+  for (auto _ : state) {
+    auto begin = src.blob.data();
+    auto end = begin + src.blob.size();
+    for (unsigned char *p = begin; p < end; ++p) {
+      *p = *p ^ (('A' <= *p & *p < 'Z') << 5);
+    }
+  }
+}
 
+void BM_shift_logicaland(benchmark::State &state) {
+  for (auto _ : state) {
+    auto begin = src.blob.data();
+    auto end = begin + src.blob.size();
+    for (unsigned char *p = begin; p < end; ++p) {
+      *p = *p ^ (('A' <= *p & *p < 'Z') << 5);
+    }
+  }
+}
 /*
 BENCHMARK(BM_lower_old);
 BENCHMARK(BM_lower_old2);
@@ -163,9 +207,15 @@ BENCHMARK(BM_upper_vector_copy_3_times);
 BENCHMARK(BM_upper_vector_copy_1_times);
 BENCHMARK(BM_upper_vector_copy_2_times);
 */
-BENCHMARK(BM_lower_vector_new);
-BENCHMARK(BM_upper_vector_new);
-BENCHMARK(BM_lower_vector_old);
-BENCHMARK(BM_upper_vector_old);
-
+//BENCHMARK(BM_lower_vector_new1);
+//BENCHMARK(BM_upper_vector_new1);
+//BENCHMARK_TEMPLATE(BM_lower_vector_new2, true);
+//BENCHMARK_TEMPLATE(BM_lower_vector_new2, false);
+//BENCHMARK_TEMPLATE(BM_upper_vector_new2, true);
+//BENCHMARK_TEMPLATE(BM_upper_vector_new2, false);
+//BENCHMARK(BM_lower_vector_old);
+//BENCHMARK(BM_upper_vector_old);
+BENCHMARK(BM_no_shift);
+BENCHMARK(BM_shift_bitand);
+BENCHMARK(BM_shift_logicaland);
 BENCHMARK_MAIN();

@@ -95,6 +95,23 @@ TEST_F(MiscTest, floatAdd) {
   std::cout<<b<<std::endl;
 }
 
+TEST_F(MiscTest, tuple){
+}
+
+template<bool abc, typename F, typename... Args>
+int foobar(int a, F f, Args&&... args){
+  if constexpr (abc){
+    return a * f(std::forward<Args>(args)...);
+  } else {
+    return a + f(std::forward<Args>(args)...);
+  }
+}
+TEST_F(MiscTest, foobar){
+  auto c=foobar<true>(10, [](int a, int b){return a+b;}, 10,20);
+  auto d=foobar<false>(10, [](int a, int b){return a+b;}, 10,20);
+  std::cout<<"c="<<c<<", d="<<d<<std::endl;
+}
+
 int main(int argc, char **argv) {
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();

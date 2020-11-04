@@ -8,6 +8,8 @@ set(BENCHMARKS
         benchmark_int_arithmetic.cc
         benchmark_int_arithmetic_single.cc
         benchmark_string_functions_case.cc
+        benchmark_vector.cc
+        benchmark_function_args_more_or_less.cc
         )
 foreach (src ${BENCHMARKS})
     get_filename_component(exe ${src} NAME_WE)
