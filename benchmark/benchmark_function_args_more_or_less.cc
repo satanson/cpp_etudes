@@ -19,6 +19,16 @@ void append_value_two() {
   builder.reset();
 }
 
+void append_value_two_is_just_return_false() {
+  ColumnViewer viewer;
+  ColumnBuilder builder;
+  builder.reserve();
+  for (int j = 0; j < 4000; ++j) {
+    builder.append_value(viewer.value(j), viewer.is_null_just_return_false(j));
+  }
+  builder.reset();
+}
+
 void append_value_one() {
   ColumnViewer viewer;
   ColumnBuilder builder;
@@ -37,8 +47,13 @@ static void BM_append_value_two(benchmark::State &state) {
   for (auto _ : state)
     append_value_two();
 }
-BENCHMARK(BM_append_value_one);
+static void BM_append_value_two_just_return_false(benchmark::State &state) {
+  for (auto _ : state)
+    append_value_two_is_just_return_false();
+}
 
+BENCHMARK(BM_append_value_one);
 BENCHMARK(BM_append_value_two);
+BENCHMARK(BM_append_value_two_just_return_false);
 
 BENCHMARK_MAIN();

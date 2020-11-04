@@ -29,6 +29,10 @@ class ColumnViewer {
     return null_data[idx * _null_flag];
   }
 
+  inline const bool is_null_just_return_false(const size_t idx) const {
+    return false;
+  }
+
  private:
   int* data;
   uint8_t* null_data;
