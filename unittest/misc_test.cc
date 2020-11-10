@@ -4,6 +4,7 @@
 
 #include <gtest/gtest.h>
 #include <iostream>
+#include <immintrin.h>
 using namespace std;
 class MiscTest : public ::testing::Test {
 
@@ -106,10 +107,33 @@ int foobar(int a, F f, Args&&... args){
     return a + f(std::forward<Args>(args)...);
   }
 }
+
+template <bool is_abc>
+struct AA { ;
+  static void evaluate() {
+    if constexpr (is_abc) {
+      std::cout << "is_abc" << std::endl;
+    } else {
+      std::cout << "!is_abc" << std::endl;
+    }
+  }
+};
+
+template <template<bool> typename F> void g(bool abc){
+  if (abc){
+    F<true>::evalute();
+  } else {
+    F<false>::evalute();
+  }
+}
+
 TEST_F(MiscTest, foobar){
-  auto c=foobar<true>(10, [](int a, int b){return a+b;}, 10,20);
-  auto d=foobar<false>(10, [](int a, int b){return a+b;}, 10,20);
-  std::cout<<"c="<<c<<", d="<<d<<std::endl;
+  std::string s("abcd");
+  const char * begin = s.data();
+  const char* p = begin;
+  p = p + 1;
+  std::string s2(p, p+2);
+  std::cout<<s2<<std::endl;
 }
 
 int main(int argc, char **argv) {

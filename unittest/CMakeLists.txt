@@ -12,6 +12,9 @@ set(TESTS
         test_decimal.cc
         test_default_init_allocator.cc
         test_string_functions.cc
+        test_trim.cc
+        test_reverse.cc
+        test_repeat.cc
         )
 foreach (src ${TESTS})
     get_filename_component(exe ${src} NAME_WE)

@@ -10,6 +10,7 @@ set(BENCHMARKS
         benchmark_string_functions_case.cc
         benchmark_vector.cc
         benchmark_function_args_more_or_less.cc
+        benchmark_repeat.cc
         )
 foreach (src ${BENCHMARKS})
     get_filename_component(exe ${src} NAME_WE)
