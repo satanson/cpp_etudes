@@ -99,6 +99,7 @@ inline void simd_memcpy_inline(void *dst, const void *src, size_t size) {
 }
 
 inline void simd_memcpy_inline_memcpy_rest(void *dst, const void *src, size_t size) {
+  char *end = (char *) src + size;
 #if defined (__SSE2__)
   constexpr auto SSE2_SIZE = sizeof(__m128i);
   const void *sse2_end = (char *) src + (size & ~(SSE2_SIZE - 1));
@@ -108,7 +109,7 @@ inline void simd_memcpy_inline_memcpy_rest(void *dst, const void *src, size_t si
     _mm_storeu_si128((__m128i *) dst, _mm_loadu_si128((__m128i *) src));
   }
 #endif
-  memcpy(dst, src, size & (SSE2_SIZE - 1));
+  memcpy(dst, src, end - (char*)src);
 }
 
 inline void simd_memcpy_inline_gutil_memcpy_rest(void *dst, const void *src, size_t size) {
@@ -166,7 +167,6 @@ std::string repeat_string_logn_gutil_memcpy_inline(std::string const &s, int n) 
   return result;
 }
 
-
 std::string repeat_string_logn_simd_memcpy_inline_1(std::string const &s, int n) {
   std::string result;
   const auto s_size = s.size();
@@ -191,7 +191,6 @@ std::string repeat_string_logn_simd_memcpy_inline_1(std::string const &s, int n)
   return result;
 }
 
-
 std::string repeat_string_logn_simd_memcpy_inline_2(std::string const &s, int n) {
   std::string result;
   const auto s_size = s.size();
@@ -215,7 +214,6 @@ std::string repeat_string_logn_simd_memcpy_inline_2(std::string const &s, int n)
   }
   return result;
 }
-
 
 std::string repeat_string_n(std::string const &s, int n) {
   std::string result;

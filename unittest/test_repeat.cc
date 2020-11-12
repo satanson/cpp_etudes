@@ -28,6 +28,14 @@ TEST_F(TestRepeat, testRepeatString){
   }
 }
 
+TEST_F(TestRepeat, testSimdCopy){
+  std::string s(1, 'x');
+  for (int i=0; i< 100;++i) {
+    std::string x10 = repeat_string_logn_simd_memcpy_inline_2(s, 10);
+    std::cout << "x10=" << x10 << std::endl;
+  }
+}
+
 } //namespace test
 
 int main(int argc, char **argv) {
