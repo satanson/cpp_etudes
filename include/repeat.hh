@@ -10,6 +10,7 @@
 #include <cstring>
 #include <raw_container.hh>
 #include <immintrin.h>
+#include <clickhouse/FastMemcpy.h>
 
 template<typename InitFunc, typename DeltaFunc, typename...Args>
 void fast_repeat(int num, InitFunc init_func, DeltaFunc delta_func, Args &&... args) {
@@ -109,7 +110,7 @@ inline void simd_memcpy_inline_memcpy_rest(void *dst, const void *src, size_t si
     _mm_storeu_si128((__m128i *) dst, _mm_loadu_si128((__m128i *) src));
   }
 #endif
-  memcpy(dst, src, end - (char*)src);
+  memcpy(dst, src, end - (char *) src);
 }
 
 inline void simd_memcpy_inline_gutil_memcpy_rest(void *dst, const void *src, size_t size) {
@@ -141,6 +142,45 @@ std::string repeat_string_logn(std::string const &s, int n) {
     }
   }
   return result;
+}
+typedef uint8_t UInt8;
+typedef uint64_t UInt64;
+static void fast_repeat(const UInt8 *src, UInt8 *dst, UInt64 size, UInt64 repeat_time) {
+  if (__builtin_expect(repeat_time <= 0, 0)) {
+    *dst = 0;
+    return;
+  }
+
+  size -= 1;
+  UInt64 k = 0;
+  UInt64 last_bit = repeat_time & 1;
+  repeat_time >>= 1;
+
+  const UInt8 *dst_hdr = dst;
+  memcpy_fast(dst, src, size);
+  dst += size;
+
+  while (repeat_time > 0) {
+    UInt64 cpy_size = size * (1 << k);
+    memcpy_fast(dst, dst_hdr, cpy_size);
+    dst += cpy_size;
+    if (last_bit) {
+      memcpy_fast(dst, dst_hdr, cpy_size);
+      dst += cpy_size;
+    }
+    k += 1;
+    last_bit = repeat_time & 1;
+    repeat_time >>= 1;
+  }
+  *dst = 0;
+}
+
+static void original_repeat(const UInt8 *src, UInt8 *dst, UInt64 size, UInt64 repeat_time) {
+  for (UInt64 i = 0; i < repeat_time; ++i){
+    memcpy_fast(dst, src, size-1);
+    dst += size -1;
+  }
+  *dst = 0;
 }
 
 std::string repeat_string_logn_gutil_memcpy_inline(std::string const &s, int n) {
