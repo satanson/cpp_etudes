@@ -5,6 +5,7 @@
 #include <benchmark/benchmark.h>
 #include <repeat.hh>
 #include <iostream>
+
 void BM_repeat_string_logn(benchmark::State &state) {
   std::string s(state.range(0), 'x');
   for (auto _:state) {

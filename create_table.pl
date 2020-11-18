@@ -51,13 +51,25 @@ while(<>){
   if (/^\s*$/){
     push @data, undef;
   } else {
-    s/^\s*(\S.*\S)\s*$/$1/g;
+    s/^\s*(\S.*\S|\S+)\s*$/$1/g;
     push @data, [split /\s*,\s*/, $_];
   }
 }
 #print Dumper(\@data);
 
 my $column_num = max(map {scalar(@$_)} grep {defined($_)} @data);
+
+@data=map { 
+  if (defined($_)) {
+    my @row =(@$_, ("") x $column_num);
+    [ @row[0 .. ($column_num -1)]]
+  } else{
+    $_
+  } 
+} @data;
+
+#print Dumper(\@data);
+
 my @max_len = map{my $col=$_; max(map {utf8_length($_->[$col])} grep {defined($_)} @data)} 0 .. ($column_num-1);
 
 #print Dumper(\@max_len);
