@@ -53,12 +53,12 @@ template<class T, std::enable_if_t<std::is_trivially_destructible_v<T>, T> = 0>
 using RawVector = std::vector<T, RawAllocator<T>>;
 
 template<class T, std::enable_if_t<std::is_trivially_destructible_v<T>, T> = 0>
-static inline void raw_resize(std::vector<T> &v, size_t n) {
+static inline void make_room(std::vector<T> &v, size_t n) {
   RawVector<T> rv;
   rv.resize(n);
   v.swap(reinterpret_cast<std::vector<T> &>(rv));
 }
-static inline void raw_resize(std::string &v, size_t n) {
+static inline void make_room(std::string &v, size_t n) {
   RawString rs;
   rs.resize(n);
   v.swap(reinterpret_cast<std::string &>(rs));

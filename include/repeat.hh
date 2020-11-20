@@ -186,7 +186,7 @@ static void original_repeat(const UInt8 *src, UInt8 *dst, UInt64 size, UInt64 re
 std::string repeat_string_logn_gutil_memcpy_inline(std::string const &s, int n) {
   std::string result;
   const auto s_size = s.size();
-  raw::raw_resize(result, s_size * n);
+  raw::make_room(result, s_size * n);
   int k = 0;
   int last_bit = n & 1;
   n >>= 1;
@@ -210,7 +210,7 @@ std::string repeat_string_logn_gutil_memcpy_inline(std::string const &s, int n) 
 std::string repeat_string_logn_simd_memcpy_inline_1(std::string const &s, int n) {
   std::string result;
   const auto s_size = s.size();
-  raw::raw_resize(result, s_size * n);
+  raw::make_room(result, s_size * n);
   int k = 0;
   int last_bit = n & 1;
   n >>= 1;
@@ -231,10 +231,34 @@ std::string repeat_string_logn_simd_memcpy_inline_1(std::string const &s, int n)
   return result;
 }
 
+std::string repeat_string_logn_memcpy(std::string const &s, int n) {
+  std::string result;
+  const auto s_size = s.size();
+  raw::make_room(result, s_size * n);
+  int k = 0;
+  int last_bit = n & 1;
+  n >>= 1;
+  char *result_begin = result.data();
+  char *result_curr = result_begin;
+  const char *s_begin = s.data();
+  memcpy(result_curr, s_begin, s_size);
+  result_curr += s_size;
+  for (; n > 0; k += 1, last_bit = n & 1, n >>= 1) {
+    int32_t len = s_size * (1 << k);
+    memcpy(result_curr, result_begin, len);
+    result_curr += len;
+    if (last_bit) {
+      memcpy(result_curr, result_begin, len);
+      result_curr += len;
+    }
+  }
+  return result;
+}
+
 std::string repeat_string_logn_simd_memcpy_inline_2(std::string const &s, int n) {
   std::string result;
   const auto s_size = s.size();
-  raw::raw_resize(result, s_size * n);
+  raw::make_room(result, s_size * n);
   int k = 0;
   int last_bit = n & 1;
   n >>= 1;

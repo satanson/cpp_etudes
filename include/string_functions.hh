@@ -13,56 +13,7 @@
 #include<iostream>
 #include <immintrin.h>
 #include <default_init_allocator.hh>
-class Slice;
-class StringVector;
-
-struct Slice {
-  char *data;
-  size_t size;
-  std::string to_string() {
-    return std::string(data, data + size);
-  }
-  const char *begin() { return data; }
-  const char *end() { return data + size; }
-};
-
-struct StringVector {
-  std::vector<uint8_t> blob;
-  std::vector<int> offsets;
-  StringVector() : blob({}), offsets({0}) {}
-  size_t size() const {
-    return offsets.size() - 1;
-  }
-  void append(std::string const &s) {
-    blob.insert(blob.end(), s.begin(), s.end());
-    offsets.push_back(offsets.back() + s.size());
-  }
-
-  void append(const char *begin, const char *end) {
-    blob.insert(blob.end(), begin, end);
-    offsets.push_back(offsets.back() + (end - begin));
-  }
-
-  Slice get_slice(int i) const {
-    return {
-        .data = (char *) blob.data() + offsets[i],
-        .size = static_cast<size_t>(offsets[i + 1] - offsets[i])
-    };
-  }
-
-  Slice get_last_slice() {
-    return get_slice(size() - 1);
-  }
-
-  std::vector<std::string> to_vector() {
-    std::vector<std::string> ss;
-    ss.reserve(size());
-    for (auto i = 0; i < size(); ++i) {
-      ss.push_back(get_slice(i).to_string());
-    }
-    return ss;
-  }
-};
+#include <binary_column.hh>
 static uint8_t *create_utf8_length_table() {
   uint8_t *tbl = new uint8_t[257];
   for (int byte = 0; byte < 257; ++byte) {
@@ -340,7 +291,7 @@ struct StringFunctions {
   }
 
   template<bool negative_offset>
-  static inline void ascii_substr(StringVector const &src, StringVector &dst, int offset, int len) {
+  static inline void ascii_substr(BinaryColumn const &src, BinaryColumn &dst, int offset, int len) {
     const auto n = src.size();
     for (auto i = 0; i < n; ++i) {
       Slice s = src.get_slice(i);
@@ -372,7 +323,7 @@ struct StringFunctions {
 
   template<bool negative_offset>
   static inline void ascii_substr_by_ref(
-      StringVector const &src,
+      BinaryColumn const &src,
       std::string &bytes,
       std::vector<int> &offsets,
       int off, int len) {
@@ -408,7 +359,7 @@ struct StringFunctions {
 
   template<bool negative_offset>
   static inline void ascii_substr_by_ptr(
-      StringVector *src,
+      BinaryColumn *src,
       std::string *bytes,
       std::vector<int> *offsets,
       int off, int len) {
@@ -528,25 +479,25 @@ struct StringFunctions {
     return result;
   }
 
-  static inline void upper_vector_old(StringVector const &src, StringVector &dst) {
+  static inline void upper_vector_old(BinaryColumn const &src, BinaryColumn &dst) {
     const auto n = src.size();
     for (auto i = 0; i < n; ++i) {
       auto ret = upper_old(src.get_slice(i).to_string());
-      dst.blob.reserve(ret.size());
+      dst.bytes.reserve(ret.size());
       dst.append(ret);
     }
   }
 
-  static inline void lower_vector_old(StringVector const &src, StringVector &dst) {
+  static inline void lower_vector_old(BinaryColumn const &src, BinaryColumn &dst) {
     const auto n = src.size();
     for (auto i = 0; i < n; ++i) {
       auto ret = lower_old(src.get_slice(i).to_string());
-      dst.blob.reserve(ret.size());
+      dst.bytes.reserve(ret.size());
       dst.append(ret);
     }
   }
 
-  static inline void upper_vector_copy_3_times(StringVector const &src, StringVector &dst) {
+  static inline void upper_vector_copy_3_times(BinaryColumn const &src, BinaryColumn &dst) {
     const auto n = src.size();
     for (auto i = 0; i < n; ++i) {
       std::string result = src.get_slice(i).to_string();
@@ -575,9 +526,9 @@ struct StringFunctions {
     }
   }
 
-  static inline void upper_vector_copy_1_times(StringVector const &src, StringVector &dst) {
+  static inline void upper_vector_copy_1_times(BinaryColumn const &src, BinaryColumn &dst) {
     const auto n = src.size();
-    char *q = (char *) dst.blob.data();
+    char *q = (char *) dst.bytes.data();
     for (auto i = 0; i < n; ++i) {
       auto slice = src.get_slice(i);
       char *begin = const_cast<char *>(slice.begin());
@@ -614,7 +565,7 @@ struct StringFunctions {
     }
   }
 
-  static inline void upper_vector_copy_2_times(StringVector const &src, StringVector &dst) {
+  static inline void upper_vector_copy_2_times(BinaryColumn const &src, BinaryColumn &dst) {
     const auto n = src.size();
     for (auto i = 0; i < n; ++i) {
       auto slice = src.get_slice(i);
@@ -654,13 +605,13 @@ struct StringFunctions {
   }
 
   template<char C0, char C1>
-  static inline void case_vector_new1(StringVector const &src, StringVector &dst) {
+  static inline void case_vector_new1(BinaryColumn const &src, BinaryColumn &dst) {
     const auto n = src.size();
     dst.offsets = src.offsets;
-    dst.blob = src.blob;
-    auto begin = dst.blob.data();
-    const size_t size = dst.blob.size();
-    auto end = dst.blob.data() + size;
+    dst.bytes = src.bytes;
+    auto begin = dst.bytes.data();
+    const size_t size = dst.bytes.size();
+    auto end = dst.bytes.data() + size;
 
 #if defined(__SSE2__)
     static constexpr int SSE2_BYTES = sizeof(__m128i);
@@ -689,23 +640,23 @@ struct StringFunctions {
   }
 
   template<bool use_raw, char C0, char C1>
-  static inline void case_vector_new2(StringVector const &src, StringVector &dst) {
+  static inline void case_vector_new2(BinaryColumn const &src, BinaryColumn &dst) {
     const auto n = src.size();
     dst.offsets = src.offsets;
     raw::raw_vector<uint8_t> buffer;
-    const size_t size = src.blob.size();
+    const size_t size = src.bytes.size();
 
     uint8_t *q = nullptr;
     if constexpr (use_raw) {
       buffer.resize(size);
       q = buffer.data();
     } else {
-      dst.blob.resize(size);
-      q = dst.blob.data();
+      dst.bytes.resize(size);
+      q = dst.bytes.data();
     }
 
-    char *begin = (char *) (src.blob.data());
-    char *end = (char *) (src.blob.data() + size);
+    char *begin = (char *) (src.bytes.data());
+    char *end = (char *) (src.bytes.data() + size);
 
 #if defined(__SSE2__)
     static constexpr int SSE2_BYTES = sizeof(__m128i);
@@ -735,25 +686,25 @@ struct StringFunctions {
     }
 
     if constexpr(use_raw) {
-      dst.blob = std::move(reinterpret_cast<std::vector<uint8_t> &>(buffer));
+      dst.bytes = std::move(reinterpret_cast<std::vector<uint8_t> &>(buffer));
     }
   }
 
-  static inline void lower_vector_new1(StringVector const &src, StringVector &dst) {
+  static inline void lower_vector_new1(BinaryColumn const &src, BinaryColumn &dst) {
     case_vector_new1<'A', 'Z'>(src, dst);
   }
 
-  static inline void upper_vector_new1(StringVector const &src, StringVector &dst) {
+  static inline void upper_vector_new1(BinaryColumn const &src, BinaryColumn &dst) {
     case_vector_new1<'a', 'z'>(src, dst);
   }
 
-  template<bool use_raw=true>
-  static inline void lower_vector_new2(StringVector const &src, StringVector &dst) {
+  template<bool use_raw = true>
+  static inline void lower_vector_new2(BinaryColumn const &src, BinaryColumn &dst) {
     case_vector_new2<use_raw, 'A', 'Z'>(src, dst);
   }
 
-  template<bool use_raw=true>
-  static inline void upper_vector_new2(StringVector const &src, StringVector &dst) {
+  template<bool use_raw = true>
+  static inline void upper_vector_new2(BinaryColumn const &src, BinaryColumn &dst) {
     case_vector_new2<use_raw, 'a', 'z'>(src, dst);
   }
 
@@ -803,8 +754,8 @@ struct StringFunctions {
   }
 
   template<bool use_length, bool lookup_table>
-  static inline void utf8_substr_from_left(StringVector const &src,
-                                           StringVector &dst,
+  static inline void utf8_substr_from_left(BinaryColumn const &src,
+                                           BinaryColumn &dst,
                                            int offset,
                                            [[maybe_unused]]int len) {
     auto const size = src.size();
@@ -838,8 +789,8 @@ struct StringFunctions {
   }
 
   template<bool use_length, bool lookup_table>
-  static inline void utf8_substr_from_right(StringVector const &src,
-                                            StringVector &dst,
+  static inline void utf8_substr_from_right(BinaryColumn const &src,
+                                            BinaryColumn &dst,
                                             int offset,
                                             [[maybe_unused]]int len) {
     const auto size = src.size();
@@ -899,12 +850,12 @@ struct StringFunctions {
   }
 
   template<bool check_ascii, bool use_length, bool lookup_table = false>
-  static inline void substr(StringVector const &src, StringVector &dst, int offset, [[maybe_unused]] int len) {
+  static inline void substr(BinaryColumn const &src, BinaryColumn &dst, int offset, [[maybe_unused]] int len) {
     if (offset == 0) {
       return;
     }
     if constexpr(check_ascii) {
-      auto is_ascii = validate_ascii_fast((const char *) src.blob.data(), src.blob.size());
+      auto is_ascii = validate_ascii_fast((const char *) src.bytes.data(), src.bytes.size());
       //std::cout << std::boolalpha << "is_ascii=" << is_ascii << std::endl;
       if (is_ascii) {
         if (offset > 0) {
@@ -947,9 +898,9 @@ struct StringFunctions {
   }
 
   template<bool negative_offset = false, bool use_length = true>
-  static inline void substr_new(StringVector const &src, StringVector &dst, int offset, [[maybe_unused]] int len) {
+  static inline void substr_new(BinaryColumn const &src, BinaryColumn &dst, int offset, [[maybe_unused]] int len) {
     std::vector<size_t> index;
-    auto is_ascii = validate_ascii_fast((const char *) src.blob.data(), src.blob.size());
+    auto is_ascii = validate_ascii_fast((const char *) src.bytes.data(), src.bytes.size());
     if (is_ascii) {
       ascii_substr<true>(src, dst, offset, len);
     } else {
@@ -987,9 +938,9 @@ struct StringFunctions {
     }
   }
   template<bool negative_offset = false, bool use_length = true>
-  static inline void substr_old(StringVector const &src, StringVector &dst, int offset, [[maybe_unused]] int len) {
+  static inline void substr_old(BinaryColumn const &src, BinaryColumn &dst, int offset, [[maybe_unused]] int len) {
     std::vector<size_t> index;
-    auto is_ascii = validate_ascii_fast((char *) src.blob.data(), src.blob.size());
+    auto is_ascii = validate_ascii_fast((char *) src.bytes.data(), src.bytes.size());
     if (is_ascii) {
       const size_t size = src.size();
       for (int i = 0; i < size; ++i) {
@@ -1182,8 +1133,26 @@ struct prepare_utf8_data {
   int min_length = 100;
   int max_length = 1000;
   std::vector<std::string> data;
-  StringVector string_data;
+  BinaryColumn binary_column;
   std::vector<int> result;
+  prepare_utf8_data(
+      int vector_size,
+      std::vector<int> weights,
+      int min_length,
+      int max_length) :
+      vector_size(vector_size),
+      weights(weights), min_length(min_length), max_length(max_length) {
+
+    data = std::move(StringFunctions::gen_utf8_vector(weights, vector_size, min_length, max_length));
+    for (auto &s: data) {
+      binary_column.append(s);
+    }
+
+    std::cerr << "generate " << data.size() << " strings: " << std::endl;
+    StringFunctions::stat_utf8(data);
+    result.resize(data.size());
+  }
+
   prepare_utf8_data() {
     vector_size = env_to_int("VECTOR_SIZE", "8192");
     weights = std::move(env_to_csv_int("WEIGHTS", "10,10,4,3,0,0"));
@@ -1192,7 +1161,7 @@ struct prepare_utf8_data {
     data = std::move(StringFunctions::gen_utf8_vector(weights, vector_size, min_length, max_length));
 
     for (auto &s: data) {
-      string_data.append(s);
+      binary_column.append(s);
     }
 
     std::cerr << "generate " << data.size() << " strings: " << std::endl;

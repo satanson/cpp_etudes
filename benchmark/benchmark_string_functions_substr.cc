@@ -6,11 +6,11 @@
 #include <string_functions.hh>
 #include <memory>
 prepare_utf8_data prepare;
-auto &data = prepare.string_data;
+auto &data = prepare.binary_column;
 
 void BM_substr_pos_len_old(benchmark::State &state) {
-  StringVector dst;
-  dst.blob.reserve(std::min(data.size() * 10, dst.blob.size()));
+  BinaryColumn dst;
+  dst.bytes.reserve(std::min(data.size() * 10, dst.bytes.size()));
   dst.offsets.reserve(data.size() + 1);
   for (auto _ : state) {
     StringFunctions::substr_old(data, dst, 5, 10);
@@ -18,8 +18,8 @@ void BM_substr_pos_len_old(benchmark::State &state) {
 }
 
 void BM_substr_1_len_old(benchmark::State &state) {
-  StringVector dst;
-  dst.blob.reserve(std::min(data.size() * 3, dst.blob.size()));
+  BinaryColumn dst;
+  dst.bytes.reserve(std::min(data.size() * 3, dst.bytes.size()));
   dst.offsets.reserve(data.size() + 1);
   for (auto _ : state) {
     StringFunctions::substr_old(data, dst, 1, 3);
@@ -27,8 +27,8 @@ void BM_substr_1_len_old(benchmark::State &state) {
 }
 
 void BM_substr_pos_len_new2(benchmark::State &state) {
-  StringVector dst;
-  dst.blob.reserve(std::min(data.size() * 10, dst.blob.size()));
+  BinaryColumn dst;
+  dst.bytes.reserve(std::min(data.size() * 10, dst.bytes.size()));
   dst.offsets.reserve(data.size() + 1);
   for (auto _ : state) {
     StringFunctions::substr_new(data, dst, 5, 10);
@@ -36,8 +36,8 @@ void BM_substr_pos_len_new2(benchmark::State &state) {
 }
 
 void BM_substr_pos_len_check_ascii_new(benchmark::State &state) {
-  StringVector dst;
-  dst.blob.reserve(std::min(data.size() * 10, dst.blob.size()));
+  BinaryColumn dst;
+  dst.bytes.reserve(std::min(data.size() * 10, dst.bytes.size()));
   dst.offsets.reserve(data.size() + 1);
   for (auto _ : state) {
     StringFunctions::substr<true, true,false>(data, dst, 5, 10);
@@ -45,8 +45,8 @@ void BM_substr_pos_len_check_ascii_new(benchmark::State &state) {
 }
 
 void BM_substr_pos_len_check_ascii_lookup_table_new(benchmark::State &state) {
-  StringVector dst;
-  dst.blob.reserve(std::min(data.size() * 10, dst.blob.size()));
+  BinaryColumn dst;
+  dst.bytes.reserve(std::min(data.size() * 10, dst.bytes.size()));
   dst.offsets.reserve(data.size() + 1);
   for (auto _ : state) {
     StringFunctions::substr<true, true,true>(data, dst, 5, 10);
@@ -54,8 +54,8 @@ void BM_substr_pos_len_check_ascii_lookup_table_new(benchmark::State &state) {
 }
 
 void BM_substr_1_len_check_ascii_lookup_table_new(benchmark::State &state) {
-  StringVector dst;
-  dst.blob.reserve(std::min(data.size() * 10, dst.blob.size()));
+  BinaryColumn dst;
+  dst.bytes.reserve(std::min(data.size() * 10, dst.bytes.size()));
   dst.offsets.reserve(data.size() + 1);
   for (auto _ : state) {
     StringFunctions::substr<true, true,true>(data, dst, 1, 3);
@@ -63,8 +63,8 @@ void BM_substr_1_len_check_ascii_lookup_table_new(benchmark::State &state) {
 }
 
 void BM_substr_pos_len_new(benchmark::State &state) {
-  StringVector dst;
-  dst.blob.reserve(std::min(data.size() * 10, dst.blob.size()));
+  BinaryColumn dst;
+  dst.bytes.reserve(std::min(data.size() * 10, dst.bytes.size()));
   dst.offsets.reserve(data.size() + 1);
   for (auto _ : state) {
     StringFunctions::substr<false, true,false>(data, dst, 5, 10);
@@ -72,8 +72,8 @@ void BM_substr_pos_len_new(benchmark::State &state) {
 }
 
 void BM_substr_neg_len_old(benchmark::State &state) {
-  StringVector dst;
-  dst.blob.reserve(std::min(data.size() * 10, dst.blob.size()));
+  BinaryColumn dst;
+  dst.bytes.reserve(std::min(data.size() * 10, dst.bytes.size()));
   dst.offsets.reserve(data.size() + 1);
   for (auto _ : state) {
     StringFunctions::substr_old(data, dst, -5, 10);
@@ -81,8 +81,8 @@ void BM_substr_neg_len_old(benchmark::State &state) {
 }
 
 void BM_substr_neg_len_new2(benchmark::State &state) {
-  StringVector dst;
-  dst.blob.reserve(std::min(data.size() * 10, dst.blob.size()));
+  BinaryColumn dst;
+  dst.bytes.reserve(std::min(data.size() * 10, dst.bytes.size()));
   dst.offsets.reserve(data.size() + 1);
   for (auto _ : state) {
     StringFunctions::substr_new(data, dst, -5, 10);
@@ -90,8 +90,8 @@ void BM_substr_neg_len_new2(benchmark::State &state) {
 }
 
 void BM_substr_neg_len_check_ascii_new(benchmark::State &state) {
-  StringVector dst;
-  dst.blob.reserve(std::min(data.size() * 10, dst.blob.size()));
+  BinaryColumn dst;
+  dst.bytes.reserve(std::min(data.size() * 10, dst.bytes.size()));
   dst.offsets.reserve(data.size() + 1);
   for (auto _ : state) {
     StringFunctions::substr<true, true,false>(data, dst, -5, 10);
@@ -99,8 +99,8 @@ void BM_substr_neg_len_check_ascii_new(benchmark::State &state) {
 }
 
 void BM_substr_neg_len_check_ascii_lookup_table_new(benchmark::State &state) {
-  StringVector dst;
-  dst.blob.reserve(std::min(data.size() * 10, dst.blob.size()));
+  BinaryColumn dst;
+  dst.bytes.reserve(std::min(data.size() * 10, dst.bytes.size()));
   dst.offsets.reserve(data.size() + 1);
   for (auto _ : state) {
     StringFunctions::substr<true, true,true>(data, dst, -5, 10);
@@ -108,8 +108,8 @@ void BM_substr_neg_len_check_ascii_lookup_table_new(benchmark::State &state) {
 }
 
 void BM_substr_neg_len_new(benchmark::State &state) {
-  StringVector dst;
-  dst.blob.reserve(std::min(data.size() * 10, dst.blob.size()));
+  BinaryColumn dst;
+  dst.bytes.reserve(std::min(data.size() * 10, dst.bytes.size()));
   dst.offsets.reserve(data.size() + 1);
 
   for (auto _ : state) {
@@ -163,7 +163,7 @@ void BM_ascii_substr_by_ptr(benchmark::State &state) {
 
 void BM_vector_insert_uint8_uint8(benchmark::State &state) {
   for (auto _ : state) {
-    const auto bytes= data.blob.size();
+    const auto bytes= data.bytes.size();
     std::vector<uint8_t> result;
     result.reserve(bytes);
     for (size_t i=0; i < data.size(); ++i){
@@ -175,7 +175,7 @@ void BM_vector_insert_uint8_uint8(benchmark::State &state) {
 
 void BM_vector_insert_uint8_int8(benchmark::State &state) {
   for (auto _ : state) {
-    const auto bytes= data.blob.size();
+    const auto bytes= data.bytes.size();
     std::vector<uint8_t> result;
     result.reserve(bytes);
     for (size_t i=0; i < data.size(); ++i){
@@ -187,7 +187,7 @@ void BM_vector_insert_uint8_int8(benchmark::State &state) {
 
 void BM_vector_insert_uint8_default(benchmark::State &state) {
   for (auto _ : state) {
-    const auto bytes= data.blob.size();
+    const auto bytes= data.bytes.size();
     std::vector<uint8_t> result;
     result.reserve(bytes);
     for (size_t i=0; i < data.size(); ++i){
@@ -199,7 +199,7 @@ void BM_vector_insert_uint8_default(benchmark::State &state) {
 
 void BM_vector_insert_uint8_char(benchmark::State &state) {
   for (auto _ : state) {
-    const auto bytes= data.blob.size();
+    const auto bytes= data.bytes.size();
     std::vector<uint8_t> result;
     result.reserve(bytes);
     for (size_t i=0; i < data.size(); ++i){
@@ -211,7 +211,7 @@ void BM_vector_insert_uint8_char(benchmark::State &state) {
 
 void BM_vector_insert_int8_uint8(benchmark::State &state) {
   for (auto _ : state) {
-    const auto bytes= data.blob.size();
+    const auto bytes= data.bytes.size();
     std::vector<int8_t> result;
     result.reserve(bytes);
     for (size_t i=0; i < data.size(); ++i){
@@ -223,7 +223,7 @@ void BM_vector_insert_int8_uint8(benchmark::State &state) {
 
 void BM_vector_insert_int8_int8(benchmark::State &state) {
   for (auto _ : state) {
-    const auto bytes= data.blob.size();
+    const auto bytes= data.bytes.size();
     std::vector<int8_t> result;
     result.reserve(bytes);
     for (size_t i=0; i < data.size(); ++i){
@@ -235,7 +235,7 @@ void BM_vector_insert_int8_int8(benchmark::State &state) {
 
 void BM_vector_insert_int8_default(benchmark::State &state) {
   for (auto _ : state) {
-    const auto bytes= data.blob.size();
+    const auto bytes= data.bytes.size();
     std::vector<int8_t> result;
     result.reserve(bytes);
     for (size_t i=0; i < data.size(); ++i){
@@ -247,7 +247,7 @@ void BM_vector_insert_int8_default(benchmark::State &state) {
 
 void BM_vector_insert_int8_char(benchmark::State &state) {
   for (auto _ : state) {
-    const auto bytes = data.blob.size();
+    const auto bytes = data.bytes.size();
     std::vector<int8_t> result;
     result.reserve(bytes);
     for (size_t i = 0; i < data.size(); ++i) {
@@ -258,7 +258,7 @@ void BM_vector_insert_int8_char(benchmark::State &state) {
 }
 void BM_vector_insert_char_uint8(benchmark::State &state) {
   for (auto _ : state) {
-    const auto bytes= data.blob.size();
+    const auto bytes= data.bytes.size();
     std::vector<char> result;
     result.reserve(bytes);
     for (size_t i=0; i < data.size(); ++i){
@@ -270,7 +270,7 @@ void BM_vector_insert_char_uint8(benchmark::State &state) {
 
 void BM_vector_insert_char_int8(benchmark::State &state) {
   for (auto _ : state) {
-    const auto bytes= data.blob.size();
+    const auto bytes= data.bytes.size();
     std::vector<char> result;
     result.reserve(bytes);
     for (size_t i=0; i < data.size(); ++i){
@@ -282,7 +282,7 @@ void BM_vector_insert_char_int8(benchmark::State &state) {
 
 void BM_vector_insert_char_default(benchmark::State &state) {
   for (auto _ : state) {
-    const auto bytes= data.blob.size();
+    const auto bytes= data.bytes.size();
     std::vector<char> result;
     result.reserve(bytes);
     for (size_t i=0; i < data.size(); ++i){
@@ -294,7 +294,7 @@ void BM_vector_insert_char_default(benchmark::State &state) {
 
 void BM_vector_insert_char_char(benchmark::State &state) {
   for (auto _ : state) {
-    const auto bytes= data.blob.size();
+    const auto bytes= data.bytes.size();
     std::vector<char> result;
     result.reserve(bytes);
     for (size_t i=0; i < data.size(); ++i){
@@ -312,7 +312,7 @@ using Bytes = Buffer<uint8_t>;
 template<typename T,typename U>
 void BM_vector_insert(benchmark::State &state) {
   for (auto _ : state) {
-    const auto bytes= data.blob.size();
+    const auto bytes= data.bytes.size();
     std::vector<T> result;
     result.reserve(bytes);
     for (size_t i=0; i < data.size(); ++i){
@@ -329,7 +329,7 @@ void BM_vector_insert(benchmark::State &state) {
 template<typename T>
 void BM_Bytes_insert(benchmark::State &state) {
   for (auto _ : state) {
-    const auto bytes= data.blob.size();
+    const auto bytes= data.bytes.size();
     auto underlying=std::make_unique<Bytes>();
     Bytes& result=*underlying;
     result.reserve(bytes);

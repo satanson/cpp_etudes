@@ -43,9 +43,9 @@ TEST_F(TestStringFunctions, compare_utf8_length3) {
 }
 
 TEST_F(TestStringFunctions, substr_ascii) {
-  StringVector s;
+  BinaryColumn s;
   s.append("123456789");
-  StringVector d;
+  BinaryColumn d;
 
   std::vector<std::tuple<int, int, std::string>> cases = {
       {1, 2, "12"},
@@ -111,10 +111,10 @@ TEST_F(TestStringFunctions, substr_ascii_no_length) {
 
 TEST_F(TestStringFunctions, substr_zh) {
   std::string s = "壹贰叁肆伍陆柒捌玖";
-  StringVector src;
+  BinaryColumn src;
   std::string byte_s(s.begin(), s.end());
   s.append(byte_s);
-  StringVector d;
+  BinaryColumn d;
 
   std::vector<std::tuple<int, int, std::string>> cases = {
       {1, 2, "壹贰"},
@@ -215,8 +215,8 @@ TEST_F(TestStringFunctions, substr_mixed) {
   s.append({(char) 0b1110'1111, (char) 0b1011'1111, (char) 0b1011'1111});
   s.append({(char) 0b1111'0111, (char) 0b1011'1111, (char) 0b1011'1111, (char) 0b1011'1111});
 
-  StringVector src;
-  StringVector dst;
+  BinaryColumn src;
+  BinaryColumn dst;
   src.append(s);
 
   std::vector<std::tuple<int, int, std::string>>
@@ -280,9 +280,9 @@ TEST_F(TestStringFunctions, append) {
 
 TEST_F(TestStringFunctions, compareSubstr) {
   prepare_utf8_data data;
-  auto &src = data.string_data;
-  StringVector dst0;
-  StringVector dst1;
+  auto &src = data.binary_column;
+  BinaryColumn dst0;
+  BinaryColumn dst1;
   const auto size = src.size();
   StringFunctions::substr_old(src, dst0, 1, 1);
   StringFunctions::substr<true, true>(src, dst1, 1, 1);
@@ -298,9 +298,9 @@ TEST_F(TestStringFunctions, compareSubstr_15_25) {
   setenv("MIN_LENGTH", "15", 1);
   setenv("MAX_LENGTH", "25", 1);
   prepare_utf8_data data;
-  auto &src = data.string_data;
-  StringVector dst0;
-  StringVector dst1;
+  auto &src = data.binary_column;
+  BinaryColumn dst0;
+  BinaryColumn dst1;
   const auto size = src.size();
   StringFunctions::substr_old(src, dst0, 5, 10);
   StringFunctions::substr<true, true>(src, dst1, 5, 10);
@@ -328,9 +328,9 @@ TEST_F(TestStringFunctions, upper) {
         StringFunctions::lower_new(StringFunctions::upper_new(s)),
         StringFunctions::lower_old(StringFunctions::upper_old(s)));
 
-    StringVector src;
+    BinaryColumn src;
     src.append(s);
-    StringVector dst_upper_old, dst_upper_new, dst_lower_old, dst_lower_new;
+    BinaryColumn dst_upper_old, dst_upper_new, dst_lower_old, dst_lower_new;
     StringFunctions::lower_vector_new2(src, dst_lower_new);
     StringFunctions::lower_vector_old(src, dst_lower_old);
     StringFunctions::upper_vector_new2(src, dst_upper_new);
@@ -351,12 +351,12 @@ TEST_F(TestStringFunctions, case2) {
       "aAAAABCDEFGHIGklmnopqrstuvwxyz0000000",
   };
 
-  StringVector src;
+  BinaryColumn src;
   for (auto &s: cases){
     src.append(s);
   }
 
-  StringVector dst_upper_old, dst_upper_new, dst_lower_old, dst_lower_new;
+  BinaryColumn dst_upper_old, dst_upper_new, dst_lower_old, dst_lower_new;
   StringFunctions::lower_vector_new2(src, dst_lower_new);
   StringFunctions::lower_vector_old(src, dst_lower_old);
   StringFunctions::upper_vector_new2(src, dst_upper_new);

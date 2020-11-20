@@ -11,6 +11,7 @@ set(BENCHMARKS
         benchmark_vector.cc
         benchmark_function_args_more_or_less.cc
         benchmark_repeat.cc
+        benchmark_concat.cc
         )
 foreach (src ${BENCHMARKS})
     get_filename_component(exe ${src} NAME_WE)

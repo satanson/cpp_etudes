@@ -51,6 +51,13 @@ void BM_repeat_string_logn_gutil_memcpy_inline(benchmark::State &state) {
   }
 }
 
+void BM_repeat_string_logn_memcpy(benchmark::State &state) {
+  std::string s(state.range(0), 'x');
+  for (auto _:state) {
+    repeat_string_logn_memcpy(s, state.range(1));
+  }
+}
+
 void BM_repeat_string_logn_simd_memcpy_inline_1(benchmark::State &state) {
   std::string s(state.range(0), 'x');
   for (auto _:state) {
@@ -64,7 +71,7 @@ void BM_repeat_string_logn_simd_memcpy_inline_2(benchmark::State &state) {
     repeat_string_logn_simd_memcpy_inline_2(s, state.range(1));
   }
 }
-
+#if 0
 BENCHMARK(BM_fast_repeat)
     ->Args({1, 1})
     ->Args({1, 15})
@@ -88,23 +95,28 @@ BENCHMARK(BM_original_repeat)
     ->Args({10, 1000})
     ->Args({10, 10000});
 
-#if 0
+#endif
+
+#if 1
 BENCHMARK(BM_repeat_string_logn)->Args({1,10});
-BENCHMARK(BM_repeat_string_n)->Args({1,10});
+//BENCHMARK(BM_repeat_string_n)->Args({1,10});
 BENCHMARK(BM_repeat_string_logn_gutil_memcpy_inline)->Args({1,10});
 BENCHMARK(BM_repeat_string_logn_simd_memcpy_inline_1)->Args({1,10});
+BENCHMARK(BM_repeat_string_logn_memcpy)->Args({1,10});
 BENCHMARK(BM_repeat_string_logn_simd_memcpy_inline_2)->Args({1,10});
 
 BENCHMARK(BM_repeat_string_logn)->Args({1,50});
-BENCHMARK(BM_repeat_string_n)->Args({1,50});
+//BENCHMARK(BM_repeat_string_n)->Args({1,50});
 BENCHMARK(BM_repeat_string_logn_gutil_memcpy_inline)->Args({1,50});
 BENCHMARK(BM_repeat_string_logn_simd_memcpy_inline_1)->Args({1,50});
+BENCHMARK(BM_repeat_string_logn_memcpy)->Args({1,50});
 BENCHMARK(BM_repeat_string_logn_simd_memcpy_inline_2)->Args({1,50});
 
 BENCHMARK(BM_repeat_string_logn)->Args({1,100});
-BENCHMARK(BM_repeat_string_n)->Args({1,100});
+//BENCHMARK(BM_repeat_string_n)->Args({1,100});
 BENCHMARK(BM_repeat_string_logn_gutil_memcpy_inline)->Args({1,100});
 BENCHMARK(BM_repeat_string_logn_simd_memcpy_inline_1)->Args({1,100});
+BENCHMARK(BM_repeat_string_logn_memcpy)->Args({1,100});
 BENCHMARK(BM_repeat_string_logn_simd_memcpy_inline_2)->Args({1,100});
 #endif
 BENCHMARK_MAIN();

@@ -6,7 +6,7 @@
 #include <string_functions.hh>
 prepare_utf8_data prepare;
 auto &data = prepare.data;
-auto &src = prepare.string_data;
+auto &src = prepare.binary_column;
 
 void BM_lower_old(benchmark::State &state) {
   std::vector<std::string> res;
@@ -98,16 +98,16 @@ void BM_lower_dummy3(benchmark::State &state) {
 }
 
 void BM_upper_vector_copy_3_times(benchmark::State &state) {
-  StringVector dst;
-  dst.blob.resize(src.blob.size());
+  BinaryColumn dst;
+  dst.bytes.resize(src.bytes.size());
   for (auto _ : state) {
     StringFunctions::upper_vector_copy_3_times(src, dst);
   }
 }
 
 void BM_upper_vector_copy_1_times(benchmark::State &state) {
-  StringVector dst;
-  dst.blob.resize(src.blob.size());
+  BinaryColumn dst;
+  dst.bytes.resize(src.bytes.size());
   dst.offsets.reserve(src.size() + 1);
   for (auto _ : state) {
     StringFunctions::upper_vector_copy_1_times(src, dst);
@@ -115,8 +115,8 @@ void BM_upper_vector_copy_1_times(benchmark::State &state) {
 }
 
 void BM_upper_vector_copy_2_times(benchmark::State &state) {
-  StringVector dst;
-  dst.blob.reserve(src.blob.size());
+  BinaryColumn dst;
+  dst.bytes.reserve(src.bytes.size());
   dst.offsets.reserve(src.size() + 1);
   for (auto _ : state) {
     StringFunctions::upper_vector_copy_2_times(src, dst);
@@ -125,14 +125,14 @@ void BM_upper_vector_copy_2_times(benchmark::State &state) {
 
 void BM_upper_vector_new1(benchmark::State &state) {
   for (auto _ : state) {
-    StringVector dst;
+    BinaryColumn dst;
     StringFunctions::upper_vector_new1(src, dst);
   }
 }
 
 void BM_lower_vector_new1(benchmark::State &state) {
   for (auto _ : state) {
-    StringVector dst;
+    BinaryColumn dst;
     StringFunctions::lower_vector_new1(src, dst);
   }
 }
@@ -140,35 +140,35 @@ void BM_lower_vector_new1(benchmark::State &state) {
 template<bool use_raw>
 void BM_upper_vector_new2(benchmark::State &state) {
   for (auto _ : state) {
-    StringVector dst;
+    BinaryColumn dst;
     StringFunctions::upper_vector_new2<use_raw>(src, dst);
   }
 }
 template<bool use_raw>
 void BM_lower_vector_new2(benchmark::State &state) {
   for (auto _ : state) {
-    StringVector dst;
+    BinaryColumn dst;
     StringFunctions::lower_vector_new2<use_raw>(src, dst);
   }
 }
 
 void BM_upper_vector_old(benchmark::State &state) {
   for (auto _ : state) {
-    StringVector dst;
+    BinaryColumn dst;
     StringFunctions::upper_vector_old(src, dst);
   }
 }
 
 void BM_lower_vector_old(benchmark::State &state) {
   for (auto _ : state) {
-    StringVector dst;
+    BinaryColumn dst;
     StringFunctions::lower_vector_old(src, dst);
   }
 }
 void BM_no_shift(benchmark::State &state) {
   for (auto _ : state) {
-    auto begin = src.blob.data();
-    auto end = begin + src.blob.size();
+    auto begin = src.bytes.data();
+    auto end = begin + src.bytes.size();
     for (unsigned char *p = begin; p < end; ++p) {
       if ('A' <= *p && *p < 'Z') {
         *p = *p ^ 32;
@@ -178,8 +178,8 @@ void BM_no_shift(benchmark::State &state) {
 }
 void BM_shift_bitand(benchmark::State &state) {
   for (auto _ : state) {
-    auto begin = src.blob.data();
-    auto end = begin + src.blob.size();
+    auto begin = src.bytes.data();
+    auto end = begin + src.bytes.size();
     for (unsigned char *p = begin; p < end; ++p) {
       *p = *p ^ (('A' <= *p & *p < 'Z') << 5);
     }
@@ -188,8 +188,8 @@ void BM_shift_bitand(benchmark::State &state) {
 
 void BM_shift_logicaland(benchmark::State &state) {
   for (auto _ : state) {
-    auto begin = src.blob.data();
-    auto end = begin + src.blob.size();
+    auto begin = src.bytes.data();
+    auto end = begin + src.bytes.size();
     for (unsigned char *p = begin; p < end; ++p) {
       *p = *p ^ (('A' <= *p & *p < 'Z') << 5);
     }
