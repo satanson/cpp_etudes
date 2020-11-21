@@ -4,6 +4,37 @@
 # Author: satanson
 # Email: ranpanf@gmail.com
 
+# Usage:  show class hierarchy of cpp project in the style of Linux utility tree.
+#
+# Format: 
+#   ./cpp_class_hierarchy.pl <keyword|regex> <filter> <verbose(0|1)> <depth(num)>
+#   
+#   - keyword for exact match, regex for fuzzy match;
+#    - subtrees whose leaf nodes does not match filter are pruned, default value is '' means match all;
+#    - verbose=0, no file locations output; otherwise succinctly output;
+#    - depth=num, print max derivation depth.
+#
+# Examples: 
+#
+# # show all classes
+# ./cpp_class_hierarchy.pl '\w+'
+#
+# # show all classes with file locations.
+# ./cpp_class_hierarchy.pl '\w+' '' 1
+#
+# # show all classes exact-match ExecNode if ExecNode class exists
+# ./cpp_class_hierarchy.pl 'ExecNode' '' 1
+#
+# # show all classes fuzzy-match regex '.*Node$' if the literal class name not exists.
+# ./cpp_class_hierarchy.pl '.*Node$' '' 1
+#
+# # show all classes and depth of derivation relationship is less than 3
+# ./cpp_class_hierarchy.pl '\w+' '' 1 3
+#
+# # show all classes whose ancestor class matches 'Node' and itself or its offsprings matches 'Scan'
+# /cpp_class_hierarchy.pl 'Node' 'Scan'
+#
+
 use warnings;
 use strict;
 use Data::Dumper;
