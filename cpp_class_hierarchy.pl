@@ -11,7 +11,7 @@ sub ensure_ag_installed() {
     my ($ag_path) = map {chomp;
         $_} qx(which ag 2>/dev/null);
     if (!defined($ag_path) || (!-e $ag_path)) {
-        printf STDERR "ag is missing, please install ag at first\n";
+        printf STDERR "ag is missing, please install ag at first, refer to https://github.com/ggreer/the_silver_searcher\n";
         exit 1;
     }
 }
