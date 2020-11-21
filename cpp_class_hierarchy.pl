@@ -135,6 +135,7 @@ sub all_sub_classes() {
 my $cls = shift || die "missing class name";
 my $verbose = shift;
 my $depth = shift;
+$verbose = undef if (defined($verbose) && $verbose == 0);
 $depth = 100000 unless defined($depth);
 
 my ($tree, $table) = all_sub_classes();
