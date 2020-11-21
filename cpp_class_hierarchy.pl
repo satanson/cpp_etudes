@@ -134,6 +134,9 @@ sub all_sub_classes() {
 
 my $cls = shift || die "missing class name";
 my $verbose = shift;
+my $depth = shift;
+$depth = 100000 unless defined($depth);
+
 my ($tree, $table) = all_sub_classes();
 
 
@@ -169,7 +172,7 @@ sub sub_class($$) {
   $level++;
   #print "level=$level, file_info=$file_info, cls=$cls\n";
   my $root = { file_info => $file_info, name => $cls, child => [] };
-  if (!exists $tree->{$cls}) {
+  if (!exists $tree->{$cls} || $level >= $depth) {
     $level--;
     return $root;
   }
