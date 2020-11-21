@@ -133,8 +133,11 @@ sub all_sub_classes() {
 }
 
 my $cls = shift || die "missing class name";
+my $filter = shift;
 my $verbose = shift;
 my $depth = shift;
+
+$filter = ".*"  unless (defined($filter) && $filter ne "");
 $verbose = undef if (defined($verbose) && $verbose == 0);
 $depth = 100000 unless defined($depth);
 
@@ -168,48 +171,60 @@ sub remove_all_loops($) {
 }
 
 my $level = 0;
-sub sub_class($$) {
-  my ($file_info, $cls) = @_;
+sub sub_class($$;$) {
+  my ($file_info, $cls, $filter) = @_;
+  $filter = ".*" unless defined($filter);
   $level++;
   #print "level=$level, file_info=$file_info, cls=$cls\n";
   my $root = { file_info => $file_info, name => $cls, child => [] };
   if (!exists $tree->{$cls} || $level >= $depth) {
     $level--;
-    return $root;
+    return $cls=~/$filter/?$root:undef;
   }
 
   my $child = $tree->{$cls};
+  my @child_nodes=();
 
   foreach my $chd (@$child) {
-    push @{$root->{child}}, &sub_class($chd->[0], $chd->[1]);
+    push @child_nodes, &sub_class($chd->[0], $chd->[1], $filter);
   }
+
+  @child_nodes = grep{defined($_)} @child_nodes;
   $level--;
-  return $root;
+
+  if (@child_nodes){
+    $root->{child} = [@child_nodes];
+    return $root;
+  } else {
+    return undef;
+  }
 }
 
-sub fuzzy_sub_class($) {
-  my ($cls_pattern) = @_;
+sub fuzzy_sub_class($;$) {
+  my ($cls_pattern, $filter) = @_;
+  $filter = ".*" unless defined($filter);
   my $root = { file_info => undef, name => $cls_pattern };
   my @names = map {my $name = $_;
     map {[ $_, $name ]} @{$table->{$name}}} grep {/$cls_pattern/} (keys %$table);
   #print Dumper(\@names);
-  $root->{child} = [ map {&sub_class(@$_)} @names ];
+  $root->{child} = [ grep {defined($_)} map {&sub_class(@$_, $filter)} @names ];
   return $root;
 }
 
-sub unified_sub_class($) {
-  my ($cls) = @_;
+sub unified_sub_class($;$) {
+  my ($cls, $filter) = @_;
+  $filter = ".*" unless defined($filter);
   if (!exists $tree->{$cls}) {
-    return &fuzzy_sub_class($cls);
+    return &fuzzy_sub_class($cls, $filter);
   }
   else {
-    return &fuzzy_sub_class("^$cls\$");
+    return &fuzzy_sub_class("^$cls\$", $filter);
   }
 }
 
 $tree = remove_all_loops $tree;
 #print Dumper(all_sub_classes);
-my $hierarchy = unified_sub_class $cls;
+my $hierarchy = unified_sub_class $cls, $filter;
 #print Dumper($hierarchy);
 #
 sub format_tree($;$) {
