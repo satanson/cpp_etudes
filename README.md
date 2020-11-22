@@ -6,7 +6,7 @@ built by both clang and gcc. Some interesting perl scripts are also included.
 
 ## Scripts
 
-### create\_table.pl: create a ascii-border table from CSV format.
+### csvtable.pl: create a ascii-border table from CSV format.
 
 1. create a csv file
 
@@ -22,7 +22,7 @@ DONE
 2. generate a ascii-border table
 
 ```
-cat repeat.csv |./create_table.pl
+cat repeat.csv |./csvtable.pl
 
 +====================+===============+===================+=====================+=============+=======================+
 | test               | vectorization | new-vectorization | non-vectorization   | new speedup | vectorization speedup |
@@ -33,14 +33,14 @@ cat repeat.csv |./create_table.pl
 +--------------------+---------------+-------------------+---------------------+-------------+-----------------------+
 ```
 
-### cpp\_class\_hierarchy.pl: show class hierarchy of cpp project in the style of Linux utility tree.
+### cpptree.pl: show class hierarchy of cpp project in the style of Linux utility tree.
 
 1. usage, try with incubator-doris, other cpp projects are just ok.
 
 ```
 # format
 
-./cpp_class_hierarchy.pl <keyword|regex> <filter> <verbose(0|1)> <depth(num)>
+./cpptree.pl <keyword|regex> <filter> <verbose(0|1)> <depth(num)>
 - keyword for exact match, regex for fuzzy match;
 - subtrees whose leaf nodes does not match filter are pruned, default value is '' means match all;
 - verbose=0, no file locations output; otherwise succinctly output;
@@ -50,55 +50,55 @@ git clone https://github.com/satanson/incubator-doris.git
 cd incubator-doris
 
 # show all classes
-./cpp_class_hierarchy.pl '\w+'
+./cpptree.pl '\w+'
 
 # show all classes with file locations.
-./cpp_class_hierarchy.pl '\w+' '' 1
+./cpptree.pl '\w+' '' 1
 
 # show all classes exact-match ExecNode if ExecNode class exists
-./cpp_class_hierarchy.pl 'ExecNode' '' 1
+./cpptree.pl 'ExecNode' '' 1
 
 # show all classes fuzzy-match regex '.*Node$' if the literal class name not exists.
-./cpp_class_hierarchy.pl '.*Node$' '' 1
+./cpptree.pl '.*Node$' '' 1
 
 # show all classes and depth of derivation relationship is less than 3
-./cpp_class_hierarchy.pl '\w+' '' 1 3
+./cpptree.pl '\w+' '' 1 3
 
 # show all classes whose ancestor class matches 'Node' and itself or its offsprings matches 'Scan'
-/cpp_class_hierarchy.pl 'Node' 'Scan'
+/cpptree.pl 'Node' 'Scan'
 
 ```
 2. some outputs
 
 ```
 cd incubator-doris
-./cpp_class_hierarchy.pl 'ExecNode'
+./cpptree.pl 'ExecNode'
 ```
 ![image](./images/doris_execnode.png)
 
 
 ```
 cd ClickHouse
-./cpp_class_hierarchy.pl IProcessor
+./cpptree.pl IProcessor
 ```
 ![image](./images/clickhouse_iprocessor.png)
 
 
 ```
 cd ClickHouse
-./cpp_class_hierarchy.pl IDataType '' 1
+./cpptree.pl IDataType '' 1
 ```
 ![image](./images/clickhouse_idatatype.png)
 
 ```
 cd incubator-doris
-./cpp_class_hierarchy.pl 'Node' 'Scan'
+./cpptree.pl 'Node' 'Scan'
 ```
 ![image](./images/doris_node_to_scan.png)
 
 ```
 cd ClickHouse
-./cpp_class_hierarchy.pl IProcessor Aggregat 1
+./cpptree.pl IProcessor Aggregat 1
 ```
 ![image](./images/clickhouse_iprocessor_to_aggregat.png)
 
