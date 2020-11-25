@@ -46,7 +46,7 @@ sub ensure_ag_installed() {
 
 ensure_ag_installed;
 
-my $ignore_pattern = join "", map {" --ignore '$_' "} qw/*test* *benchmark* *CMakeFiles*/;
+my $ignore_pattern = join "", map {" --ignore '$_' "} qw(*test* *benchmark* *CMakeFiles* *contrib/* *thirdparty/* *3rdparty/*);
 my $cpp_filename_pattern = qq/'\\.(c|cc|cpp|C|h|hh|hpp|H)\$'/;
 
 my $NAME = "\\b[A-Za-z_]\\w+\\b";
@@ -297,7 +297,7 @@ sub register_abnormal_shutdown_hook(){
 
 sub merge_lines(\@) {
   my @lines = @{+shift};
-  my @three_parts = map {/^(\S+?):(\d+):(.*)$/; [ $1, $2, $3 ]} @lines;
+  my @three_parts = map {/^([^:]+):(\d+):(.*)$/; [ $1, $2, $3 ]} @lines;
   my @line_contents = map {$_->[2]} @three_parts;
   my $func_def_re = qr!$FUNC_DEF_RE!;
 
@@ -311,6 +311,12 @@ sub merge_lines(\@) {
 
   for (my $i = 1; $i < scalar(@three_parts); ++$i) {
     my ($file, $lineno, $line) = @{$three_parts[$i]};
+    unless (defined($file) && defined($lineno) && defined($line)){
+      printf "prev line=%s\n", $lines[$i-1];
+      printf "line=%s\n", $lines[$i];
+
+      die "undefined file,lineno,line";
+    }
     if (($file eq $prev_file) && ($prev_lineno_adjacent + 1 == $lineno)) {
       $prev_line = $prev_line . $line;
       $prev_lineno_adjacent += 1;
