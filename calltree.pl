@@ -106,6 +106,172 @@ sub gen_func_call_re() {
 
 my $FUNC_CALL_RE = gen_func_call_re;
 
+sub read_content($){
+  my $file_name = shift;
+  if (-f $file_name){
+    open my $handle, "<", $file_name or die "Fail to open '$file_name' for reading: $!";
+    local $/;
+    my $content = <$handle>;
+    close $handle;
+    return $content;
+  }
+  return undef;
+}
+
+sub write_content($@){
+  my ($file_name, @lines) = @_;
+  open my $handle, "+>", $file_name or die "Fail to open '$file_name' for writing: $!";
+  print $handle join("\n",@lines);
+  close $handle;
+}
+
+sub read_lines($){
+  my $file_name = shift;
+  if (-f $file_name){
+    open my $handle, "<", $file_name or die "Fail to open '$file_name' for reading: $!";
+    my @lines = <$handle>;
+    close $handle;
+    return \@lines ;
+  }
+  return undef;
+}
+## preprocess source file
+
+my $RE_QUOTED_STRING = qr/("([^"]*\\")*[^"]*")/;
+my $RE_SINGLE_DOUBLEQUOTE_CHAR = qr/'"'/;
+my $RE_SLASH_STAR_COMMENT = qr"(/[*]([^/*]*(([*]+|[/]+)[^/*]+)*([*]+|[/]+)?)[*]/)";
+my $RE_NESTED_CHARS_IN_SINGLE_QUOTES = qr/'[{}<>()]'/;
+my $RE_SINGLE_LINE_COMMENT = qr"/[/\\].*\$";
+
+sub string2x($){
+  return q/""/.(join "\n", map {""} split "\n", $_[0]);
+}
+
+sub comment2star($){
+  return join "\n", map {""} split "\n", $_[0];
+}
+
+sub replace_single_doublequote_char($) {
+  return $_[0] =~ s/$RE_SINGLE_DOUBLEQUOTE_CHAR/'x'/gr;
+}
+
+sub replace_quoted_string($){
+   return $_[0] =~ s/$RE_QUOTED_STRING/&string2x($1)/gemr;
+}
+
+sub replace_slash_star_comment($){
+  return $_[0] =~ s/$RE_SLASH_STAR_COMMENT/&comment2star($1)/gemr;
+}
+
+sub replace_nested_char($) {
+  return $_[0] =~ s/$RE_NESTED_CHARS_IN_SINGLE_QUOTES/'x'/gr;
+}
+
+sub replace_single_line_comment($){
+  return $_[0] =~ s/$RE_SINGLE_LINE_COMMENT//gr;
+}
+
+sub preprocess_one_cpp_file($){
+  my $file = shift;
+  return unless -f $file;
+  my $content = read_content($file);
+  return unless defined($content) && length($content) > 0;
+  $content = replace_quoted_string(replace_single_doublequote_char(replace_slash_star_comment($content)));
+  $content = join qq/\n/, map {replace_nested_char(replace_single_line_comment($_))} split qq/\n/, $content;
+  my $tmp_file = "$file.tmp.created_by_call_tree";
+  write_content($tmp_file, $content);
+  rename $tmp_file => $file;
+}
+
+sub get_all_cpp_files() {
+  return grep {
+    defined($_) && length($_) > 0 && (-f $_)
+  } map{
+    chomp;$_
+  } qx(ag -G '\.(c|cc|cpp|C|h|hh|hpp|H)\$' --ignore '*test*' --ignore '*benchmark*'  --ignore '*benchmark*' -l);
+}
+
+sub group_files($@){
+  my ($num_groups, @files)=@_;
+  my $num_files = scalar(@files);
+  die "Illegal num_groups($num_groups)" if $num_groups < 1;
+  if ($num_files==0){
+    return;
+  }
+  $num_groups=$num_files if $num_files < $num_groups;
+  my @groups = ([]) x $num_groups;
+  foreach my $i (0 .. ($num_files-1)) {
+    push @{$groups[$i % $num_groups]}, $files[$i];
+  }
+  return @groups;
+}
+
+sub preprocess_cpp_files(\@){
+  my @files = grep{defined($_) && length($_) > 0 && (-f $_) && (-T $_)} @{$_[0]};
+  foreach my $f (@files) {
+    my $saved_f = "$f.saved_by_calltree";
+    write_content($saved_f, read_content($f));
+    preprocess_one_cpp_file($f);
+  } 
+}
+
+sub preprocess_all_cpp_files(){
+  my @files = get_all_cpp_files();
+  my @groups = group_files(10, @files);
+  my $num_groups = scalar(@groups);
+  return if $num_groups < 1;
+  my @pids=(undef) x $num_groups;
+  for (my $i=0; $i < $num_groups; ++$i) {
+    my @group = @{$groups[0]};
+    my $pid = fork();
+    if ($pid == 0) {
+      preprocess_cpp_files(@group);
+      exit 0;
+    } elsif($pid > 0) {
+      $pids[$i] = $pid;
+    } else {
+      die "Fail to fork a process: $!";
+    }
+  }
+
+  for (my $i=0; $i < $num_groups; ++$i) {
+    wait;
+  }
+}
+
+sub restore_saved_files(){
+  my @saved_files = grep {
+    defined($_) && length($_) > 0 && (-f $_)
+  } map{
+    chomp;$_
+  } qx(ag -G '\.saved_by_calltree\$' --ignore '*test*' --ignore '*benchmark*'  --ignore '*benchmark*' -l);
+
+  foreach my $f (@saved_files){
+    rename $f => substr($f, length($f)-length(".saved_by_calltree"));
+  }
+
+  my @tmp_files = grep {
+    defined($_) && length($_) > 0 && (-f $_)
+  } map{
+    chomp;$_
+  } qx(ag -G '\.tmp\.created_by_calltree\$' --ignore '*test*' --ignore '*benchmark*'  --ignore '*benchmark*' -l);
+
+  foreach my $f (@tmp_files) { 
+    unlink $f;
+  }
+}
+
+sub register_abnormal_shutdown_hook(){
+  my $abnormal_handler = sub {
+    my $cause = shift;
+    print "Abnormal exit caused by $cause\n";
+    @SIG{keys %SIG} = qw/DEFAULT/ x (keys %SIG);
+    restore_saved_files();
+    exit 0;
+  };
+  my @sigs=qw/__DIE__ QUIT INT TERM ABRT/;
+  @SIG{@sigs}=($abnormal_handler) x scalar(@sigs);
+}
 
 sub merge_lines(\@) {
   my @lines = @{+shift};
@@ -123,16 +289,6 @@ sub merge_lines(\@) {
 
   for (my $i = 1; $i < scalar(@three_parts); ++$i) {
     my ($file, $lineno, $line) = @{$three_parts[$i]};
-
-    $line =~ s{//.*$}{}g;
-    $line =~ s/'[{}<>()]'/'x'/g;
-    $line =~ s{/\\.*$}{}g;
-    $line =~ s{/[*](([^/*]*|[^/]+|[^*]+|[*][^&/]+/)+)[*]/}{}g;
-    $line =~ s{"([^\\"]|\\.)*"}{""}g;
-
-    # print "i=$i, file=$file, lineno=$lineno, line=$line\n";
-    # sequential lines may be concatenated into a long line;
-    #
     if (($file eq $prev_file) && ($prev_lineno_adjacent + 1 == $lineno)) {
       $prev_line = $prev_line . $line;
       $prev_lineno_adjacent += 1;
@@ -195,7 +351,6 @@ sub extract_all_funcs(\%$$) {
 
   my $func_call_re_enclosed_by_parentheses = qr!($FUNC_CALL_RE)!;
   my @func_callees = map {
-    print "def=$_\n";
     my ($first, @rest) = all_callee($_, $func_call_re_enclosed_by_parentheses);
     [@rest]
   } @func_def;
@@ -275,38 +430,12 @@ sub extract_all_funcs(\%$$) {
   return (\%calling, \%called);
 }
 
-sub read_content($){
-  my $file_name = shift;
-  if (-f $file_name){
-    open my $handle, "<", $file_name or die "Fail to open '$file_name' for reading: $!";
-    local $/;
-    my $content = <$handle>;
-    close $handle;
-    return $content;
-  }
-  return undef;
-}
-
-sub write_content($@){
-  my ($file_name, @lines) = @_;
-  open my $handle, "+>", $file_name or die "Fail to open '$file_name' for writing: $!";
-  print $handle join("\n",@lines);
-  close $handle;
-}
-
-sub read_lines($){
-  my $file_name = shift;
-  if (-f $file_name){
-    open my $handle, "<", $file_name or die "Fail to open '$file_name' for reading: $!";
-    my @lines = <$handle>;
-    close $handle;
-    return \@lines ;
-  }
-  return undef;
-}
 
 sub cache_or_extract_all_funcs(\%$$) {
   my ($ignored, $trivial_threshold, $length_threshold)=@_;
+
+  restore_saved_files();
+
   $trivial_threshold = int($trivial_threshold);
   $length_threshold = int($length_threshold);
   my $suffix = ".$trivial_threshold.$length_threshold";
@@ -331,7 +460,17 @@ sub cache_or_extract_all_funcs(\%$$) {
       return ($calling, $called);
     }
   }
+
+  print "preprocess_all_cpp_files\n";
+  preprocess_all_cpp_files();
+  print "register_abnormal_shutdown_hook\n";
+  register_abnormal_shutdown_hook();
+  print "extract_all_funcs: begin\n";
   my ($calling, $called) = extract_all_funcs(%$ignored, $trivial_threshold, $length_threshold);
+  print "extract_all_funcs: end\n";
+  @SIG{keys %SIG} = qw/DEFAULT/ x (keys %SIG);
+  #restore_saved_files();
+
   write_content $ignored_file, $ignored_string;
   local $Data::Dumper::Purity = 1;
   write_content($calling_file, Data::Dumper->Dump([$calling], [qw(calling)]));
