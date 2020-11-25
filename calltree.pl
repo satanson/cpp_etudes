@@ -46,7 +46,10 @@ sub ensure_ag_installed() {
 
 ensure_ag_installed;
 
-my $NAME = "\\b\\w+\\b";
+my $ignore_pattern = join "", map {" --ignore '$_' "} qw/*test* *benchmark* *CMakeFiles*/;
+my $cpp_filename_pattern = qq/'\\.(c|cc|cpp|C|h|hh|hpp|H)\$'/;
+
+my $NAME = "\\b[A-Za-z_]\\w+\\b";
 my $WS = "(?:\\s)";
 my $SPACES = "(?:[\t ])";
 my $TWO_COLON="(?::{2})";
@@ -70,7 +73,7 @@ my $REF_PTR= "(?:[*&]+)";
 my $FUNC_RETURN_VALUE = "(?:$CV_QUALIFIER $WS+)? $SCOPED_NAME (?:$WS* $NESTED_ANGLES)? (?: $WS* $CV_QUALIFIER)? (?: $WS*  $REF_PTR $WS* )?" =~ s/ //gr;
 
 sub gen_initializer_list_of_ctor(){
-  my $initializer = "$NAME $WS* (?:$NESTED_PARENTHESES|$NESTED_BRACES)";
+  my $initializer = "$NAME $WS* $NESTED_PARENTHESES";
   my $initializer_list = "$WS* : $WS* (?:$initializer $WS*,)* $WS* $initializer $WS*";
   return $initializer_list =~ s/ //gr;
 }
@@ -78,9 +81,8 @@ sub gen_initializer_list_of_ctor(){
 my $INITIALIZER_LIST = gen_initializer_list_of_ctor();
 sub gen_func_def_re() {
   my $func_def_re = "";
-  #$func_def_re .= "(?:$TEMPLATE_ARGS)?(?:$WS+ $FUNC_MODIFIER $WS+)? $FUNC_RETURN_VALUE";
-  #$func_def_re .= "$WS+ ($SCOPED_NAME) $WS* $NESTED_PARENTHESES (?:$INITIALIZER_LIST)?";
-  $func_def_re .= "^.*?($SCOPED_NAME) $WS* $NESTED_PARENTHESES (?:$INITIALIZER_LIST)?";
+  # $func_def_re .= "^.*?($SCOPED_NAME) $WS* $NESTED_PARENTHESES (?:$INITIALIZER_LIST)?";
+  $func_def_re .= "^.*?($SCOPED_NAME) $WS* $NESTED_PARENTHESES";
   $func_def_re .= "$WS* $NESTED_BRACES";
   $func_def_re =~ s/ //g; 
   return $func_def_re;
@@ -100,7 +102,11 @@ my $FUNC_DEF_RE = gen_func_def_re;
 my $FUNC_DEF_CAPTURE_NAME_RE = gen_func_def_capture_name_re;
 
 sub gen_func_call_re() {
-  my $func_call_re = "($NAME) (?:$WS* <.*?>)? $WS* $NESTED_PARENTHESES";
+  # template specialization: both (?: $WS* <.*?>)? and (?: NESTED_ANGLES)? has corner cases which get stuck
+  # nested patterns in perlre may be processed in possessive mode.
+  # so we don't process function template specialization now
+  # my $func_call_re = "($NAME) (?:$WS* <.*?>)? $WS* $NESTED_PARENTHESES";
+  my $func_call_re = "($NAME) $WS* [(]";
   return $func_call_re =~ s/ //gr;
 }
 
@@ -138,10 +144,11 @@ sub read_lines($){
 ## preprocess source file
 
 my $RE_QUOTED_STRING = qr/("([^"]*\\")*[^"]*")/;
-my $RE_SINGLE_DOUBLEQUOTE_CHAR = qr/'"'/;
+my $RE_SINGLE_CHAR = qr/'[\\]?.'/;
 my $RE_SLASH_STAR_COMMENT = qr"(/[*]([^/*]*(([*]+|[/]+)[^/*]+)*([*]+|[/]+)?)[*]/)";
 my $RE_NESTED_CHARS_IN_SINGLE_QUOTES = qr/'[{}<>()]'/;
-my $RE_SINGLE_LINE_COMMENT = qr"/[/\\].*\$";
+my $RE_SINGLE_LINE_COMMENT = qr'/[/\\].*';
+my $RE_LEFT_ANGLES=qr'<[<=]+';
 
 sub string2x($){
   return q/""/.(join "\n", map {""} split "\n", $_[0]);
@@ -151,8 +158,8 @@ sub comment2star($){
   return join "\n", map {""} split "\n", $_[0];
 }
 
-sub replace_single_doublequote_char($) {
-  return $_[0] =~ s/$RE_SINGLE_DOUBLEQUOTE_CHAR/'x'/gr;
+sub replace_single_char($) {
+  return $_[0] =~ s/$RE_SINGLE_CHAR/'x'/gr;
 }
 
 sub replace_quoted_string($){
@@ -171,13 +178,25 @@ sub replace_single_line_comment($){
   return $_[0] =~ s/$RE_SINGLE_LINE_COMMENT//gr;
 }
 
+sub replace_left_angles($){
+  return $_[0] =~ s/$RE_LEFT_ANGLES/++/gr;
+}
+
+sub replace_lt($){
+  return $_[0] =~ s/\s+<\s+/ + /gr;
+}
+
 sub preprocess_one_cpp_file($){
   my $file = shift;
   return unless -f $file;
   my $content = read_content($file);
   return unless defined($content) && length($content) > 0;
-  $content = replace_quoted_string(replace_single_doublequote_char(replace_slash_star_comment($content)));
-  $content = join qq/\n/, map {replace_nested_char(replace_single_line_comment($_))} split qq/\n/, $content;
+  $content = replace_quoted_string(replace_single_char(replace_slash_star_comment($content)));
+
+  $content = join qq/\n/, map {
+    replace_lt(replace_left_angles(replace_nested_char(replace_single_line_comment($_))))
+  } split qq/\n/, $content;
+
   my $tmp_file = "$file.tmp.created_by_call_tree";
   write_content($tmp_file, $content);
   rename $tmp_file => $file;
@@ -188,7 +207,7 @@ sub get_all_cpp_files() {
     defined($_) && length($_) > 0 && (-f $_)
   } map{
     chomp;$_
-  } qx(ag -G '\.(c|cc|cpp|C|h|hh|hpp|H)\$' --ignore '*test*' --ignore '*benchmark*'  --ignore '*benchmark*' -l);
+  } qx(ag -G $cpp_filename_pattern $ignore_pattern -l);
 }
 
 sub group_files($@){
@@ -199,7 +218,7 @@ sub group_files($@){
     return;
   }
   $num_groups=$num_files if $num_files < $num_groups;
-  my @groups = ([]) x $num_groups;
+  my @groups = map{[]} (1 .. $num_groups);
   foreach my $i (0 .. ($num_files-1)) {
     push @{$groups[$i % $num_groups]}, $files[$i];
   }
@@ -210,19 +229,21 @@ sub preprocess_cpp_files(\@){
   my @files = grep{defined($_) && length($_) > 0 && (-f $_) && (-T $_)} @{$_[0]};
   foreach my $f (@files) {
     my $saved_f = "$f.saved_by_calltree";
-    write_content($saved_f, read_content($f));
+    rename $f => $saved_f;
+    write_content($f, read_content($saved_f));
     preprocess_one_cpp_file($f);
   } 
 }
 
 sub preprocess_all_cpp_files(){
   my @files = get_all_cpp_files();
+
   my @groups = group_files(10, @files);
   my $num_groups = scalar(@groups);
   return if $num_groups < 1;
   my @pids=(undef) x $num_groups;
   for (my $i=0; $i < $num_groups; ++$i) {
-    my @group = @{$groups[0]};
+    my @group = @{$groups[$i]};
     my $pid = fork();
     if ($pid == 0) {
       preprocess_cpp_files(@group);
@@ -244,17 +265,18 @@ sub restore_saved_files(){
     defined($_) && length($_) > 0 && (-f $_)
   } map{
     chomp;$_
-  } qx(ag -G '\.saved_by_calltree\$' --ignore '*test*' --ignore '*benchmark*'  --ignore '*benchmark*' -l);
+  } qx(ag -G '.+\\.saved_by_calltree\$' $ignore_pattern -l);
 
   foreach my $f (@saved_files){
-    rename $f => substr($f, length($f)-length(".saved_by_calltree"));
+    my $original_f = substr($f, 0, length($f)-length(".saved_by_calltree"));
+    rename $f => $original_f;
   }
 
   my @tmp_files = grep {
     defined($_) && length($_) > 0 && (-f $_)
   } map{
     chomp;$_
-  } qx(ag -G '\.tmp\.created_by_calltree\$' --ignore '*test*' --ignore '*benchmark*'  --ignore '*benchmark*' -l);
+  } qx(ag -G '\\.tmp\\.created_by_calltree\$' $ignore_pattern -l);
 
   foreach my $f (@tmp_files) { 
     unlink $f;
@@ -306,9 +328,10 @@ sub all_callee($$){
   my ($line, $func_call_re) = @_;
   my @calls=();
   my @names=();
+  # print "\n\n\nline=$line\n";
   while ($line =~ /$func_call_re/g){
     if (defined($1) && defined($2)){
-      #print "calling=$1, func_name=$2\n";
+      # print "calling=$1, func_name=$2\n";
       push @calls, $1; 
       push @names, $2;
     }
@@ -324,23 +347,22 @@ sub all_callee($$){
 sub extract_all_funcs(\%$$) {
   my ($ignored, $trivial_threshold, $length_threshold)=@_;
 
+  print qq(ag -G $cpp_filename_pattern $ignore_pattern '$FUNC_DEF_RE'), "\n";
   my @matches = map {
     chomp;
     $_
-  } qx(ag -G '\.(c|cc|cpp|C|h|hh|hpp|H)\$' --ignore '*test*' --ignore '*benchmark*'  --ignore '*benchmark*' '$FUNC_DEF_RE');
+  } qx(ag -G $cpp_filename_pattern $ignore_pattern '$FUNC_DEF_RE');
+  
+  printf "extract lines: %d\n", scalar(@matches);
 
   my @func_file_line_def = merge_lines @matches;
 
-  my $left_angles_re = qr/(?:<\s*){2,}/;
-  my @func_def = map{s/$left_angles_re/ /g; $_} map {$_->[2]}@func_file_line_def;
+  printf "function definition after merge: %d\n", scalar(@func_file_line_def);
 
-  @func_def = map{s/\s+<\s+/ lt /g; $_} @func_def;
-  @func_def = map{s/<=/ le /g; $_} @func_def;
-  
   my $func_def_re = qr!$FUNC_DEF_RE!;
   my $func_def_capture_name_re = qr!$FUNC_DEF_CAPTURE_NAME_RE!;
   my $func_call_re = qr!$FUNC_CALL_RE!;
-
+  my @func_def = map {$_->[2]}@func_file_line_def;
   my @func_name = map {
     if($_=~$func_def_capture_name_re){
       $1
@@ -350,10 +372,12 @@ sub extract_all_funcs(\%$$) {
   } @func_def;
 
   my $func_call_re_enclosed_by_parentheses = qr!($FUNC_CALL_RE)!;
+  printf "process callees: begin\n";
   my @func_callees = map {
     my ($first, @rest) = all_callee($_, $func_call_re_enclosed_by_parentheses);
     [@rest]
   } @func_def;
+  printf "process callees: end\n";
 
   # remove trivial functions;
   my %func_count = ();
@@ -364,8 +388,8 @@ sub extract_all_funcs(\%$$) {
   }
 
   my %trivials = map{$_=>1}grep{$func_count{$_} > $trivial_threshold || length($_) < $length_threshold } (keys %func_count);
-  my %reserved = map{/(\b\w+\b)$/; $_=>$1}grep{$func_count{$_} <= $trivial_threshold && length($_) > $length_threshold} (keys %func_count);
   my %ignored = (%$ignored, %trivials);
+  my %reserved = map{/(\b\w+\b)$/; $_=>$1}grep{!exists $ignored{$_}} (keys %func_count);
 
   my @idx = grep {
     my $name = $func_name[$_]; 
@@ -469,7 +493,7 @@ sub cache_or_extract_all_funcs(\%$$) {
   my ($calling, $called) = extract_all_funcs(%$ignored, $trivial_threshold, $length_threshold);
   print "extract_all_funcs: end\n";
   @SIG{keys %SIG} = qw/DEFAULT/ x (keys %SIG);
-  #restore_saved_files();
+  restore_saved_files();
 
   write_content $ignored_file, $ignored_string;
   local $Data::Dumper::Purity = 1;
@@ -491,8 +515,9 @@ $depth = 100000 unless defined($depth);
 
 my @ignored=(
   qw(for if while switch catch),
-  qw(log  warn log trace debug defined warn  error fatal),
+  qw(log  warn log trace debug defined warn error fatal),
   qw(static_cast reinterpret_cast const_cast dynamic_cast),
+  qw(return assert sizeof alignas),
   qw(constexpr),
   qw(set get),
 );
