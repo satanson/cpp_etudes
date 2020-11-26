@@ -11,6 +11,7 @@
 #include <string_functions.hh>
 #include <iostream>
 #include <memory>
+#include <unordered_map>
 
 struct prepare {
   prepare_utf8_data col_5_10;
