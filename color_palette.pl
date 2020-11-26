@@ -28,7 +28,7 @@ for (1 .. @fg * @bg * @ef) {
     (!defined($expect_bg) || $expect_bg == $bg) &&
     (!defined($expect_ef) || $expect_ef == $ef)) {
     print "\e[${fg};${bg};${ef}m \\e[${fg};${bg};${ef}m\\e[m\e[m";
-    if ($count % 8 == 0) {
+    if (($count+1) % 8 == 0) {
       print "\n";
     }
     else {

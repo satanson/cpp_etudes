@@ -18,6 +18,7 @@
 #include <immintrin.h>
 #include <default_init_allocator.hh>
 #include <binary_column.hh>
+#include <algorithm>
 static uint8_t *create_utf8_length_table() {
   uint8_t *tbl = new uint8_t[257];
   for (int byte = 0; byte < 257; ++byte) {
