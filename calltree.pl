@@ -43,7 +43,6 @@ sub ensure_ag_installed() {
   }
 }
 
-
 ensure_ag_installed;
 
 my $ignore_pattern = join "", map {" --ignore '$_' "} qw(*test* *benchmark* *CMakeFiles* *contrib/* *thirdparty/* *3rdparty/*);
@@ -414,18 +413,19 @@ sub extract_all_funcs(\%$$) {
     my $file_info = $func_file_line[$i];
     my $caller_name = $func_name[$i];
     my $caller_simple_name = $func_simple_name[$i];
+
     my %callee_names = map {$_=>1} grep {exists $reserved{$_}} @{$func_callees[$i]};
     my @callee_names = keys %callee_names;
-    my %callee_simple_names = map {/(\b\w+\b)$/; $1 => 1} @callee_names;
     my %callee_name2simple = map {/(\b\w+\b)$/; $_ => $1 } @callee_names;
-    # remove simple name that equals to its original name
-    my @callee_simple_names = grep {!exists $callee_names{$_}} keys %callee_simple_names;
+
+    my %callee_simple_names = map {$_=>1} grep {exists $reserved{$_}} (values %callee_name2simple);
+    my @callee_simple_names = sort { $a cmp $b } keys %callee_simple_names;
+
     my $caller_node = {
       name=>$caller_name, 
       simple_name=>$caller_simple_name,
       file_info=>$file_info,
-      callee_names=>[@callee_names],
-      callee_simple_names=> [@callee_simple_names],
+      callee_names=>[@callee_simple_names],
     };
 
     if (!exists $calling{$caller_name}) {
@@ -461,6 +461,17 @@ sub extract_all_funcs(\%$$) {
 }
 
 
+sub any(\&;@){
+  my ($pred, @values) = @_;
+  my $n =()= grep {$_} map {$pred->($_)} @values;
+  return $n > 0;
+}
+
+sub all(\&;@){
+  my ($pred, @values) = @_;
+  return !&any(sub{!$pred->($_)}, @values);
+}
+
 sub cache_or_extract_all_funcs(\%$$) {
   my ($ignored, $trivial_threshold, $length_threshold)=@_;
 
@@ -468,26 +479,27 @@ sub cache_or_extract_all_funcs(\%$$) {
 
   $trivial_threshold = int($trivial_threshold);
   $length_threshold = int($length_threshold);
-  my $suffix = ".$trivial_threshold.$length_threshold";
-  my $ignored_file = ".calltree_ignored$suffix";
-  my $calling_file = ".calltree_calling$suffix";
-  my $called_file = ".calltree_called$suffix";
+  my $suffix = "$trivial_threshold.$length_threshold";
+
+  my $ignored_file = ".calltree.ignored.$suffix";
+  my %cached_files = map { $_ => ".calltree.$_.$suffix"} qw/calling called calling_names called_names/;
 
   my $ignored_string = join ",", sort{$a cmp $b} (keys %$ignored);
   my $saved_ignored_string=read_content($ignored_file);
 
   if (defined($saved_ignored_string) && ($saved_ignored_string eq $ignored_string)) {
-    if ((-f $calling_file) && (-f $called_file)) { 
-      my ($calling, $called)=(undef, undef);
-      eval(read_content($calling_file));
-      eval(read_content($called_file));
-      unless (defined($calling) && defined($called)) {
-        die "Fail to parse '$calling_file' or '$called_file'";
+
+    if (&all(sub{-f $_}, (values %cached_files))) { 
+      my ($calling, $called, $calling_names, $called_names)=(undef, undef, undef, undef);
+      foreach my $cached_file (values %cached_files) {
+        eval(read_content($cached_file));
       }
-      qx(touch $ignored_file);
-      qx(touch $calling_file);
-      qx(touch $called_file);
-      return ($calling, $called);
+      my @cached_vars = ($calling, $called, $calling_names, $called_names);
+      if (&any(sub{!defined($_)}, @cached_vars)) {
+        my $args = join " or ",  map {'$_'} keys %cached_files;
+        die "Fail to parse $args";
+      }
+      return @cached_vars;
     }
   }
 
@@ -501,23 +513,26 @@ sub cache_or_extract_all_funcs(\%$$) {
   @SIG{keys %SIG} = qw/DEFAULT/ x (keys %SIG);
   restore_saved_files();
 
+  my $calling_names = [sort {$a cmp $b} keys %$calling];
+  my $called_names = [sort {$a cmp $b} keys %$called];
+  
+  my @keyed_cached_vars = (
+    [ calling => $calling ],
+    [ called => $called ],
+    [ calling_names => $calling_names ],
+    [ called_names => $called_names ],
+  );
+
   write_content $ignored_file, $ignored_string;
+
   local $Data::Dumper::Purity = 1;
-  write_content($calling_file, Data::Dumper->Dump([$calling], [qw(calling)]));
-  write_content($called_file, Data::Dumper->Dump([$called], [qw(called)]));
-  return ($calling, $called);
+  foreach my $e (@keyed_cached_vars) {
+    my ($key, $cached_var) = @$e;
+    write_content($cached_files{$key}, Data::Dumper->Dump([$cached_var], [$key]));
+  }
+  return map{$_->[1]} @keyed_cached_vars;
 }
 
-my $func = shift || die "missing function name";
-my $filter = shift;
-my $backtrace = shift;
-my $verbose = shift;
-my $depth = shift;
-
-$filter = ".*"  unless (defined($filter) && $filter ne "");
-$backtrace = 0 unless (defined($backtrace) && $backtrace ne "0");
-$verbose = undef if (defined($verbose) && $verbose == 0);
-$depth = 100000 unless defined($depth);
 
 my @ignored=(
   qw(for if while switch catch),
@@ -530,85 +545,184 @@ my @ignored=(
 
 my %ignored=map{$_=>1}@ignored;
 
-my ($calling, $called) = cache_or_extract_all_funcs(%ignored, 50, 3);
+my ($calling, $called, $calling_names, $called_names) = cache_or_extract_all_funcs(%ignored, 50, 3);
 
-sub called_tree($$$$$$) {
-  my ($called, $name, $file_info, $level, $filter, $path) = @_;
-  $level++;
 
-  my $node = { file_info => $file_info, name => $name, callers => [], leaf=>undef};
-  my $simple_name = ($name=~/\b(\w+)\b$/, $1);
+sub sub_tree($$$$$$$) {
+  my ($graph, $node, $level, $depth, $path, $get_id_and_child, $install_child) = @_;
 
-  if (!exists $called->{$simple_name} || $level >= $depth || exists $path->{$simple_name}) {
-    $level--;
-    if (!exists $called->{$simple_name}) {
+  my ($matched, $node_id, @child) = $get_id_and_child->($graph, $node);
+  return undef unless defined($node_id);
+
+  if (scalar(@child)==0 || ($level + 1) >= $depth || exists $path->{$node_id}) {
+    if (scalar(@child)==0) {
       $node->{leaf}="outmost";
     } elsif ($level >= $depth) {
       $node->{leaf}="deep";
-    } elsif (exists $path->{$simple_name}) {
+    } elsif (exists $path->{$node_id}) {
       $node->{leaf}="recursive";
+    } else {
+      # never reach here;
     }
-    $level--;
-    return $name =~ /$filter/?$node:undef;
+    return $matched? $node : undef;
   }
 
-  my $child = $called->{$simple_name};
+  $level++;
+
+  # add node_id to path;
+  $path->{$node_id} = 1;
+
   my @child_nodes=();
-
-  $path->{$simple_name}=1;
-  foreach my $chd (@$child) {
-    push @child_nodes, &called_tree($called, $chd->{name}, $chd->{file_info}, $level, $filter, $path);
+  foreach my $chd (@child) {
+    push @child_nodes, &sub_tree($graph, $chd, $level, $depth, $path, $get_id_and_child, $install_child);
   }
-  delete $path->{$simple_name};
+  
+  # delete node_id from path;
+  delete $path->{$node_id};
 
   @child_nodes = grep{defined($_)} @child_nodes;
   $level--;
 
   if (@child_nodes){
-    $node->{callers} = [@child_nodes];
+    $install_child->($node, [@child_nodes]);
     return $node;
   } else {
-    return undef;
+    $install_child->($node, []);
+    return $matched ? $node : undef;
   }
 }
 
-sub fuzzy_called_tree($$$) {
-  my ($called, $name_pattern, $filter) = @_;
-  my $root = {file_info => "", name => $name_pattern, callers=>[], leaf=>undef};
-  my @names = grep {/$name_pattern/} sort {$a cmp $b} (keys %$called);
+sub called_tree($$$$) {
+  my ($called_graph, $name, $filter, $depth) = @_;
+  my $get_id_and_child = sub($$) {
+    my ($called, $node) = @_;
+    my $name = $node->{name};
+    my $simple_name = ($name =~ /\b(\w+)\b$/, $1);
+    my $matched = $simple_name =~ /$filter/;
+    if (!exists $called_graph->{$simple_name}) {
+      return ($matched, $simple_name);
+    } else {
+      # deep copy
+      my @child = map {
+        my $child = {
+          name=>$_->{name},
+          simple_name=>$_->{simple_name},
+          file_info=>$_->{file_info},
+        };
+        $child;
+      } @{$called_graph->{$simple_name}};
+      return ($matched, $simple_name, @child);
+    }
+  };
+  my $install_child = sub($$) {
+    my ($node, $child) = @_;
+    $node->{child} = $child;
+  };
 
-  $root->{callers} = [ 
+  my $node = {
+    name=>$name,
+    simple_name=>$name,
+    file_info=>"",
+  };
+
+  return &sub_tree($called_graph, $node, 0, $depth, {}, $get_id_and_child, $install_child);
+}
+
+sub fuzzy_called_tree($$$$$) {
+  my ($called_names, $called, $name_pattern, $filter, $depth) = @_;
+  my $root = {file_info => "", name => $name_pattern, leaf=>undef};
+  my @names = grep {/$name_pattern/} @$called_names;
+
+  $root->{child} = [ 
     grep {defined($_)} map {
-      &called_tree($called, $_, "", 0, $filter, {})
+      &called_tree($called, $_, $filter, $depth);
     } @names
   ];
   return $root;
 }
 
 sub unified_called_tree($$$) {
-  my ($called, $name, $filter) = @_;
-  if (!exists $called->{$name}) {
-    return &fuzzy_called_tree($called, $name, $filter);
-  }
-  else {
-    return &fuzzy_called_tree($called, "^$name\$", $filter);
+  my ($name, $filter, $depth) = @_;
+  if (exists $called->{$name}) {
+    return &called_tree($called, $name, $filter, $depth);
+  } else {
+    return &fuzzy_called_tree($called_names, $called, $name, $filter, $depth);
   }
 }
-sub get_entry_of_called_tree($$){
-  my ($node, $verbose)=@_;
 
-  my $name = $node->{name};
-  my $file_info = $node->{file_info};
-  $name = "\e[33;32;1m$name\e[m";
-  if (defined($verbose) && defined($file_info) && length($file_info)>0) {
-    $name = $name . "\t[" . $file_info . "]";
-  }
-  return $name;
+sub calling_tree($$$$) {
+  my ($calling_graph, $name, $filter, $depth) = @_;
+
+  my $get_id_and_child = sub($$){
+    my ($graph, $node) = @_;
+    my $name = $node->{name};
+    my $simple_name = ($name =~ /\b(\w+)\b$/, $1);
+    my $type = $node->{type};
+
+    my $matched = $simple_name =~ /$filter/;
+
+    if ($type eq "variants") {
+      if (!exists $calling_graph->{$simple_name}){
+        return ($matched, $simple_name);
+      } else {
+        my @variant_nodes = map { 
+          my $func_node = $_;
+          my %variant_node = map{$_ => $func_node->{$_}} qw/name simple_name file_info/;
+          $variant_node{type} = 'callees';
+          $variant_node{callees} = [@{$func_node->{callee_names}}];
+          \%variant_node;
+        } @{$calling_graph->{$simple_name}};
+        return ($matched, "+".$simple_name, @variant_nodes);
+      }
+    } else {
+      my @callee_nodes = map {
+        my $callee_node = {
+          name=>$_,
+          simple_name=>$_,
+          file_info=>"",
+          type => 'variants',
+        };
+        $callee_node;
+      } @{$node->{callees}};
+      return ($matched, $simple_name, @callee_nodes);
+    }
+  };
+
+  my $install_child = sub($$) {
+    my ($node, $child) = @_;
+    $node->{child} = $child;
+  };
+
+  my $node = {
+    name => $name,
+    simple_name => $name,
+    file_info => "",
+    type => "variants",
+  };
+
+  return &sub_tree($calling_graph, $node, 0, $depth, {}, $get_id_and_child, $install_child);
 }
 
-sub get_child_of_called_tree($){
-  my $node = shift;
-  return @{$node->{callers}};
+sub fuzzy_calling_tree($$$$$) {
+  my ($calling_names, $calling_graph, $name_pattern, $filter, $depth) = @_;
+  my @names = grep {/$name_pattern/} @$calling_names;
+  my @trees = grep {defined($_)} map {&calling_tree($calling_graph, $_, $filter, $depth)} @names;
+  return {
+    name => $name_pattern,
+    simple_name => $name_pattern,
+    file_info => "",
+    type => "matches",
+    child => [@trees],
+  };
+}
+
+sub unified_calling_tree($$$){
+  my ($name, $filter, $depth) = @_;
+  if (exists $calling->{$name}) {
+    return &calling_tree($calling, $name, $filter, $depth * 2);
+  } else {
+    return &fuzzy_calling_tree($calling_names, $calling, $name, $filter, $depth * 2);
+  }
 }
 
 sub format_tree($$\&\&) {
@@ -626,7 +740,7 @@ sub format_tree($$\&\&) {
   }
 
   my $last_child = pop @child;
-
+  
   foreach my $chd (@child) {
     my ($first, @rest) = &format_tree($chd, $verbose, $get_entry, $get_child);
     push @result, "├── $first";
@@ -639,9 +753,75 @@ sub format_tree($$\&\&) {
   return @result;
 }
 
-sub format_called_tree($$){
-  return format_tree($_[0], $_[1], &get_entry_of_called_tree, &get_child_of_called_tree);
+sub get_entry_of_called_tree($$){
+  my ($node, $verbose)=@_;
+
+  my $name = $node->{name};
+  my $file_info = $node->{file_info};
+  $name = "\e[33;32;1m$name\e[m";
+  if (defined($verbose) && defined($file_info) && length($file_info)>0) {
+    $name = $name . "\t[" . $file_info . "]";
+  }
+  return $name;
 }
 
-my @lines = format_called_tree(unified_called_tree($called, $func, $filter), $verbose);
-print join qq//, map {"$_\n"} @lines;
+sub get_child_of_called_tree($){
+  my $node = shift;
+  return exists $node->{child} ? @{$node->{child}} : ();
+}
+
+sub format_called_tree($$){
+  my ($root, $verbose) = @_;
+  return format_tree($root, $verbose,  &get_entry_of_called_tree, &get_child_of_called_tree);
+}
+
+sub get_entry_of_calling_tree($$){
+  my ($node, $verbose)=@_;
+
+  my $name = $node->{name};
+  my $type = $node->{type};
+  my $file_info = $node->{file_info};
+
+  if ($type eq "matches") {
+    $name = "\e[97;35;1m$name\e[m";
+  } elsif ($type eq "variants") {
+    $name = "\e[91;33;1m+$name\e[m";
+  } elsif ($type eq "callees") {
+    $name = "\e[33;32;1m$name\e[m";
+  }
+
+  if (defined($verbose) && defined($file_info) && length($file_info) > 0) {
+    $name = $name . "\t[" . $file_info . "]";
+  }
+  return $name;
+}
+
+sub get_child_of_calling_tree($){
+  my $node = shift;
+  return exists $node->{child}? @{$node->{child}} : ();
+}
+sub format_calling_tree($$){
+  my ($root, $verbose) = @_;
+  return format_tree($root, $verbose, &get_entry_of_calling_tree, &get_child_of_calling_tree);
+}
+
+my $func = shift || die "missing function name";
+my $filter = shift;
+my $backtrace = shift;
+my $verbose = shift;
+my $depth = shift;
+
+$filter = (defined($filter) && $filter ne "") ? $filter : ".*";
+$backtrace = (defined($backtrace) && $backtrace eq "0") ? undef : "backtrace";
+$verbose = (defined($verbose) && $verbose ne "0")? "verbose" : undef;
+$depth = (defined($depth) && int($depth)>0 ) ? int($depth) : 3;
+
+if ($backtrace) {
+  my $tree = unified_called_tree($func, $filter, $depth);
+  my @lines = format_called_tree($tree, $verbose);
+  print join qq//, map {"$_\n"} @lines;
+} else {
+  my $tree = unified_calling_tree($func, $filter, $depth);
+  my @lines = format_calling_tree($tree, $verbose);
+  print join qq//, map {"$_\n"} @lines;
+}
