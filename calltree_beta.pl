@@ -43,7 +43,6 @@ sub ensure_ag_installed() {
   }
 }
 
-
 ensure_ag_installed;
 
 my $ignore_pattern = join "", map {" --ignore '$_' "} qw(*test* *benchmark* *CMakeFiles* *contrib/* *thirdparty/* *3rdparty/*);
@@ -600,10 +599,10 @@ sub called_tree($$$$) {
     my $name = $node->{name};
     my $simple_name = ($name =~ /\b(\w+)\b$/, $1);
     my $matched = $simple_name =~ /$filter/;
-    if (!exists $called->{$simple_name}) {
-      return ($matched, undef);
+    if (!exists $called_graph->{$simple_name}) {
+      return ($matched, $simple_name);
     } else {
-      return ($matched, $simple_name, @{$called->{$simple_name}});
+      return ($matched, $simple_name, @{$called_graph->{$simple_name}});
     }
   };
   my $install_child = sub($$) {
@@ -655,7 +654,7 @@ sub calling_tree($$$$) {
 
     if ($type eq "variants") {
       if (!exists $calling_graph->{$simple_name}){
-        return ($matched, undef);
+        return ($matched, $simple_name);
       } else {
         my @variant_nodes = map { 
           my $func_node = $_;
