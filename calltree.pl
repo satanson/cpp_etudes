@@ -727,7 +727,7 @@ sub unified_calling_tree($$$){
 
 sub format_tree($$\&\&) {
   my ($root, $verbose, $get_entry, $get_child) = @_;
-  unless (%$root) {
+  unless (defined($root) && %$root) {
     return ();
   }
   my $entry = $get_entry->($root, $verbose);
