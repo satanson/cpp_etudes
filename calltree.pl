@@ -48,11 +48,11 @@ ensure_ag_installed;
 my $ignore_pattern = join "", map {" --ignore '$_' "} qw(*test* *benchmark* *CMakeFiles* *contrib/* *thirdparty/* *3rdparty/*);
 my $cpp_filename_pattern = qq/'\\.(c|cc|cpp|C|h|hh|hpp|H)\$'/;
 
-my $NAME = "\\b[A-Za-z_]\\w+\\b";
+my $NAME = "\\b[A-Za-z_]\\w*\\b";
 my $WS = "(?:\\s)";
 my $SPACES = "(?:[\t ])";
 my $TWO_COLON="(?::{2})";
-my $SCOPED_NAME = "$TWO_COLON? (?:$NAME $TWO_COLON)* $NAME" =~ s/ //gr;
+my $SCOPED_NAME = "$TWO_COLON? (?:$NAME $TWO_COLON)* [~]?$NAME" =~ s/ //gr;
 my $TRAILING_WS = "(?:$WS*(?://|/\\*)?.*)?\$";
 sub gen_nested_pair_re($$$){
   my ($L,$R, $others)=@_;
@@ -73,38 +73,23 @@ my $FUNC_RETURN_VALUE = "(?:$CV_QUALIFIER $WS+)? $SCOPED_NAME (?:$WS* $NESTED_AN
 
 sub gen_initializer_list_of_ctor(){
   my $initializer = "$NAME $WS* $NESTED_PARENTHESES";
-  my $initializer_list = "$WS* : $WS* (?:$initializer $WS*,)* $WS* $initializer $WS*";
+  my $initializer_list = "$WS* : (?:$WS* $initializer $WS*,$WS*)* $WS* $initializer $WS*";
   return $initializer_list =~ s/ //gr;
 }
 
 my $INITIALIZER_LIST = gen_initializer_list_of_ctor();
+
 sub gen_func_def_re() {
   my $func_def_re = "";
-  # $func_def_re .= "^.*?($SCOPED_NAME) $WS* $NESTED_PARENTHESES (?:$INITIALIZER_LIST)?";
   $func_def_re .= "^.*?($SCOPED_NAME) $WS* $NESTED_PARENTHESES";
   $func_def_re .= "$WS* $NESTED_BRACES";
   $func_def_re =~ s/ //g; 
   return $func_def_re;
 }
 
-sub gen_func_def_capture_name_re(){
-  my $func_def_re = "";
-  $func_def_re .= "($SCOPED_NAME) $WS* $NESTED_PARENTHESES (?:$INITIALIZER_LIST)?";
-  $func_def_re .= "$WS* $NESTED_BRACES";
-  $func_def_re =~ s/ //g; 
-  return $func_def_re;
-}
-
-my $FUNC_DEF_TRAILING_RE = "^.*}$TRAILING_WS";
-
 my $FUNC_DEF_RE = gen_func_def_re;
-my $FUNC_DEF_CAPTURE_NAME_RE = gen_func_def_capture_name_re;
 
 sub gen_func_call_re() {
-  # template specialization: both (?: $WS* <.*?>)? and (?: NESTED_ANGLES)? has corner cases which get stuck
-  # nested patterns in perlre may be processed in possessive mode.
-  # so we don't process function template specialization now
-  # my $func_call_re = "($NAME) (?:$WS* <.*?>)? $WS* $NESTED_PARENTHESES";
   my $func_call_re = "($NAME) $WS* [(]";
   return $func_call_re =~ s/ //gr;
 }
@@ -148,12 +133,13 @@ my $RE_SLASH_STAR_COMMENT = qr"(/[*]([^/*]*(([*]+|[/]+)[^/*]+)*([*]+|[/]+)?)[*]/
 my $RE_NESTED_CHARS_IN_SINGLE_QUOTES = qr/'[{}<>()]'/;
 my $RE_SINGLE_LINE_COMMENT = qr'/[/\\].*';
 my $RE_LEFT_ANGLES=qr'<[<=]+';
+my $RE_TEMPLATE_ARGS_1LAYER=qr'(<\s*(((::)?(\w+::)*\w+\s*,\s*)*(::)?(\w+::)*\w+\s*)>)';
 
-sub string2x($){
+sub empty_string_with_blank_lines($){
   return q/""/.(join "\n", map {""} split "\n", $_[0]);
 }
 
-sub comment2star($){
+sub blank_lines($){
   return join "\n", map {""} split "\n", $_[0];
 }
 
@@ -162,11 +148,11 @@ sub replace_single_char($) {
 }
 
 sub replace_quoted_string($){
-   return $_[0] =~ s/$RE_QUOTED_STRING/&string2x($1)/gemr;
+   return $_[0] =~ s/$RE_QUOTED_STRING/&empty_string_with_blank_lines($1)/gemr;
 }
 
 sub replace_slash_star_comment($){
-  return $_[0] =~ s/$RE_SLASH_STAR_COMMENT/&comment2star($1)/gemr;
+  return $_[0] =~ s/$RE_SLASH_STAR_COMMENT/&blank_lines($1)/gemr;
 }
 
 sub replace_nested_char($) {
@@ -185,6 +171,23 @@ sub replace_lt($){
   return $_[0] =~ s/\s+<\s+/ + /gr;
 }
 
+sub replace_template_args_1layer($) {
+  return ($_[0] =~ s/$RE_TEMPLATE_ARGS_1LAYER/&blank_lines($1)/gemr, $1);
+}
+
+sub repeat_apply($\&$){
+  my ($times, $fun, $arg) = @_;
+  my ($result, $continue) = $fun->($arg);
+  if (defined($continue) && $times > 1) {
+    return &repeat_apply($times - 1, $fun, $result);
+  }
+  return $result;
+}
+
+sub replace_template_args_4layers($) {
+  return repeat_apply(4, &replace_template_args_1layer, $_[0]);
+}
+
 sub preprocess_one_cpp_file($){
   my $file = shift;
   return unless -f $file;
@@ -195,6 +198,8 @@ sub preprocess_one_cpp_file($){
   $content = join qq/\n/, map {
     replace_lt(replace_left_angles(replace_nested_char(replace_single_line_comment($_))))
   } split qq/\n/, $content;
+
+  $content = replace_template_args_4layers($content);
 
   my $tmp_file = "$file.tmp.created_by_call_tree";
   write_content($tmp_file, $content);
@@ -298,11 +303,6 @@ sub merge_lines(\@) {
   my @lines = @{+shift};
   my @three_parts = map {/^([^:]+):(\d+):(.*)$/; [ $1, $2, $3 ]} @lines;
   my @line_contents = map {$_->[2]} @three_parts;
-  my $func_def_re = qr!$FUNC_DEF_RE!;
-
-  #my $func_def_trailing_re = qr!$FUNC_DEF_TRAILING_RE!;
-  # my %maybe_func_def_trailing = map {$_=>1} grep{$line_contents[$_] =~ $func_def_trailing_re} (0 .. $#line_contents);
-  # print "trailing=", join ",", (keys %maybe_func_def_trailing), "\n";
 
   my ($prev_file, $prev_lineno, $prev_line) = @{$three_parts[0]};
   my $prev_lineno_adjacent = $prev_lineno;
@@ -310,12 +310,7 @@ sub merge_lines(\@) {
 
   for (my $i = 1; $i < scalar(@three_parts); ++$i) {
     my ($file, $lineno, $line) = @{$three_parts[$i]};
-    unless (defined($file) && defined($lineno) && defined($line)){
-      printf "prev line=%s\n", $lines[$i-1];
-      printf "line=%s\n", $lines[$i];
 
-      die "undefined file,lineno,line";
-    }
     if (($file eq $prev_file) && ($prev_lineno_adjacent + 1 == $lineno)) {
       $prev_line = $prev_line . $line;
       $prev_lineno_adjacent += 1;
@@ -349,6 +344,8 @@ sub all_callee($$){
   return @names;
 }
 
+sub simple_name($){$_[0] =~ /(~?\w+\b)$/; $1}
+
 sub extract_all_funcs(\%$$) {
   my ($ignored, $trivial_threshold, $length_threshold)=@_;
 
@@ -365,16 +362,9 @@ sub extract_all_funcs(\%$$) {
   printf "function definition after merge: %d\n", scalar(@func_file_line_def);
 
   my $func_def_re = qr!$FUNC_DEF_RE!;
-  my $func_def_capture_name_re = qr!$FUNC_DEF_CAPTURE_NAME_RE!;
   my $func_call_re = qr!$FUNC_CALL_RE!;
   my @func_def = map {$_->[2]}@func_file_line_def;
-  my @func_name = map {
-    if($_=~$func_def_capture_name_re){
-      $1
-    }else{
-      undef
-    }
-  } @func_def;
+  my @func_name = map {$_ =~ $func_def_re; $1} @func_def;
 
   my $func_call_re_enclosed_by_parentheses = qr!($FUNC_CALL_RE)!;
   printf "process callees: begin\n";
@@ -394,7 +384,7 @@ sub extract_all_funcs(\%$$) {
 
   my %trivials = map{$_=>1}grep{$func_count{$_} > $trivial_threshold || length($_) < $length_threshold } (keys %func_count);
   my %ignored = (%$ignored, %trivials);
-  my %reserved = map{/(\b\w+\b)$/; $_=>$1}grep{!exists $ignored{$_}} (keys %func_count);
+  my %reserved = map{$_=>simple_name($_)}grep{!exists $ignored{$_}} (keys %func_count);
 
   my @idx = grep {
     my $name = $func_name[$_]; 
@@ -404,7 +394,7 @@ sub extract_all_funcs(\%$$) {
   @func_file_line_def = map{$func_file_line_def[$_]} @idx;
   my @func_file_line = map {$_->[0] . ":" . $_->[1]} @func_file_line_def;
   @func_name = map{$func_name[$_]} @idx;
-  my @func_simple_name = map {$_=~/(\b\w+\b)$/; $1} @func_name;
+  my @func_simple_name = map {simple_name($_)} @func_name;
   @func_callees = map {$func_callees[$_]} @idx;
 
   my %calling=();
@@ -416,7 +406,7 @@ sub extract_all_funcs(\%$$) {
 
     my %callee_names = map {$_=>1} grep {exists $reserved{$_}} @{$func_callees[$i]};
     my @callee_names = keys %callee_names;
-    my %callee_name2simple = map {/(\b\w+\b)$/; $_ => $1 } @callee_names;
+    my %callee_name2simple = map {$_ => simple_name($_)} @callee_names;
 
     my %callee_simple_names = map {$_=>1} grep {exists $reserved{$_}} (values %callee_name2simple);
     my @callee_simple_names = sort { $a cmp $b } keys %callee_simple_names;
@@ -597,7 +587,7 @@ sub called_tree($$$$) {
   my $get_id_and_child = sub($$) {
     my ($called, $node) = @_;
     my $name = $node->{name};
-    my $simple_name = ($name =~ /\b(\w+)\b$/, $1);
+    my $simple_name = simple_name($name);
     my $matched = $simple_name =~ /$filter/;
     if (!exists $called_graph->{$simple_name}) {
       return ($matched, $simple_name);
@@ -656,7 +646,7 @@ sub calling_tree($$$$) {
   my $get_id_and_child = sub($$){
     my ($graph, $node) = @_;
     my $name = $node->{name};
-    my $simple_name = ($name =~ /\b(\w+)\b$/, $1);
+    my $simple_name = simple_name($name);
     my $type = $node->{type};
 
     my $matched = $simple_name =~ /$filter/;
