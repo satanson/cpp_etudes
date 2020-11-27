@@ -379,6 +379,16 @@ TEST_F(TestStringFunctions, case2) {
   }
 }
 
+TEST_F(TestStringFunctions, testPrepareUtf8Data){
+  for (int i=1; i<=20; i++){
+    prepare_utf8_data col(4096, {1, 0, 0, 0, 0, 0}, i, i);
+    auto& bin_column = col.binary_column;
+    for (auto k=0; k < bin_column.size(); ++k){
+      ASSERT_EQ(bin_column.get_slice(k).size, i);
+    }
+  }
+}
+
 } // namespace test
 
 int main(int argc, char **argv) {
