@@ -735,6 +735,20 @@ sub calling_tree($$$$$) {
   return &sub_tree($calling_graph, $node, 0, $depth, {}, $get_id_and_child, $install_child);
 }
 
+sub adjust_calling_tree($) {
+  my ($root) = @_;
+  return undef unless defined($root);
+  return $root unless exists $root->{child};
+  my @child = map {&adjust_calling_tree($_)} @{$root->{child}};
+  if (($root->{branch_type} eq "variants") && (scalar(@child) == 1)) {
+    return $child[0];
+  }
+  else {
+    $root->{child} = [ @child ];
+    return $root;
+  }
+}
+
 sub fuzzy_calling_tree($$$$$$) {
   my ($calling_names, $calling_graph, $name_pattern, $filter, $files_excluded, $depth) = @_;
   my @names = grep {/$name_pattern/} @$calling_names;
@@ -750,12 +764,14 @@ sub fuzzy_calling_tree($$$$$$) {
 
 sub unified_calling_tree($$$$) {
   my ($name, $filter, $files_excluded, $depth) = @_;
+  my $root = undef;
   if (exists $calling->{$name}) {
-    return &calling_tree($calling, $name, $filter, $files_excluded, $depth * 2);
+    $root = &calling_tree($calling, $name, $filter, $files_excluded, $depth * 2);
   }
   else {
-    return &fuzzy_calling_tree($calling_names, $calling, $name, $filter, $files_excluded, $depth * 2);
+    $root = &fuzzy_calling_tree($calling_names, $calling, $name, $filter, $files_excluded, $depth * 2);
   }
+  return &adjust_calling_tree($root);
 }
 
 sub format_tree($$\&\&) {
