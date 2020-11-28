@@ -98,6 +98,9 @@ sub all_sub_classes() {
   else {
     @matches = map {chomp;
       $_} qx(ag -G '\.(c|cc|cpp|C|h|hh|hpp|H)\$' --ignore '*test*' --ignore '*benchmark*'  --ignore '*benchmark*' '$cls_re');
+
+    die "Current directory seems not a C/C++ project" if scalar(@matches) == 0;
+
     @matches = merge_lines @matches;
 
     my @file_info_and_line = grep {defined($_)} map {if (/^(\S+)\s*:\s*(.*)/) {[ $1, $2 ]}

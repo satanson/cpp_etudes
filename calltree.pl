@@ -34,6 +34,11 @@ use warnings;
 use strict;
 use Data::Dumper;
 
+sub red_color($) {
+  my ($msg) = @_;
+  return "\e[95;31;1m$msg\e[m";
+}
+
 sub ensure_ag_installed() {
   my ($ag_path) = map {chomp;
     $_} qx(which ag 2>/dev/null);
@@ -43,6 +48,30 @@ sub ensure_ag_installed() {
   }
 }
 
+sub ensure_safe() {
+  my ($cwd, $home) = @ENV{qw/PWD HOME/};
+  my @supported_os = qw/Linux Darwin/;
+  my %supported_os = map {$_ => 1} @supported_os;
+
+  my ($os) = map {
+    if (defined($_)) {
+      chomp;
+      $_
+    }
+    else {"UNKNOWN"}
+  } qx'uname -s 2>/dev/null';
+
+  my $supported_os = join "|", @supported_os;
+  die "Platform '$os' is not supported, run calltree.pl in [$supported_os]" unless exists $supported_os{$os};
+
+  return unless defined($cwd) && defined($home);
+  die "Never run calltree.pl in HOME directory: '$home'" if $cwd eq $home;
+  die "Never run calltree.pl in root directory: '$cwd'" if $cwd eq '/';
+  my @comp = split qr'/+', $cwd;
+  die "Never run calltree.pl in a directory whose depth <= 2" if scalar(@comp) <= 3;
+}
+
+ensure_safe;
 ensure_ag_installed;
 
 my $ignore_pattern = join "", map {" --ignore '$_' "} qw(*test* *benchmark* *CMakeFiles* *contrib/* *thirdparty/* *3rdparty/*);
@@ -292,10 +321,12 @@ sub restore_saved_files() {
   }
 }
 
+
 sub register_abnormal_shutdown_hook() {
   my $abnormal_handler = sub {
     my $cause = shift;
-    print "Abnormal exit caused by $cause\n";
+    $cause = red_color($cause);
+    print qq/Abnormal exit caused by $cause\n/;
     @SIG{keys %SIG} = qw/DEFAULT/ x (keys %SIG);
     restore_saved_files();
     exit 0;
@@ -366,6 +397,8 @@ sub extract_all_funcs(\%$$) {
   } qx(ag -G $cpp_filename_pattern $ignore_pattern '$FUNC_DEF_RE');
 
   printf "extract lines: %d\n", scalar(@matches);
+
+  die "Current directory seems not a C/C++ project" if scalar(@matches) == 0;
 
   my @func_file_line_def = merge_lines @matches;
 
