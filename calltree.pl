@@ -39,6 +39,25 @@ sub red_color($) {
   return "\e[95;31;1m$msg\e[m";
 }
 
+use Cwd qw/abs_path/;
+sub get_path_of_script() {
+  if ($0 !~ qr'/') {
+    my ($path) = map {chomp;
+      $_} qx(which $0 2>/dev/null);
+    return $path;
+  }
+  else {
+    return abs_path($0);
+  }
+}
+
+sub file_newer_than_script($) {
+  my ($file) = @_;
+  my $script_path = get_path_of_script();
+  return 0 unless ((-f $file) && (-f $script_path));
+  return (-M $file) < (-M $script_path);
+}
+
 sub ensure_ag_installed() {
   my ($ag_path) = map {chomp;
     $_} qx(which ag 2>/dev/null);
@@ -74,15 +93,13 @@ sub ensure_safe() {
 ensure_safe;
 ensure_ag_installed;
 
-my $ignore_pattern = join "", map {" --ignore '$_' "} qw(*test* *benchmark* *CMakeFiles* *contrib/* *thirdparty/* *3rdparty/*);
+my $ignore_pattern = join "", map {" --ignore '$_' "} qw(*test* *benchmark* *CMakeFiles* *contrib/* *thirdparty/* *3rd-[pP]arty/* *3rd[pP]arty/*);
 my $cpp_filename_pattern = qq/'\\.(c|cc|cpp|C|h|hh|hpp|H)\$'/;
 
 my $NAME = "\\b[A-Za-z_]\\w*\\b";
 my $WS = "(?:\\s)";
-my $SPACES = "(?:[\t ])";
 my $TWO_COLON = "(?::{2})";
 my $SCOPED_NAME = "$TWO_COLON? (?:$NAME $TWO_COLON)* [~]?$NAME" =~ s/ //gr;
-my $TRAILING_WS = "(?:$WS*(?://|/\\*)?.*)?\$";
 sub gen_nested_pair_re($$$) {
   my ($L, $R, $others) = @_;
   my $simple_case = "$others $L $others $R $others";
@@ -93,20 +110,12 @@ sub gen_nested_pair_re($$$) {
 
 my $NESTED_PARENTHESES = gen_nested_pair_re("\\(", "\\)", "[^()]*");
 my $NESTED_BRACES = gen_nested_pair_re("{", "}", "[^{}]*");
-my $NESTED_ANGLES = gen_nested_pair_re("\\<", "\\>", "[^><]*");
-my $TEMPLATE_ARGS = "\\btemplate $WS* $NESTED_ANGLES" =~ s/ //gr;
-my $FUNC_MODIFIER = "\\b(?:static|virtual|inline|static $WS+ inline|inline $WS+ static)\\b" =~ s/ //gr;
-my $CV_QUALIFIER = "\\b(?:const|volatile|const $WS+ volatile|volatile $WS+ const)\\b" =~ s/ //gr;
-my $REF_PTR = "(?:[*&]+)";
-my $FUNC_RETURN_VALUE = "(?:$CV_QUALIFIER $WS+)? $SCOPED_NAME (?:$WS* $NESTED_ANGLES)? (?: $WS* $CV_QUALIFIER)? (?: $WS*  $REF_PTR $WS* )?" =~ s/ //gr;
 
 sub gen_initializer_list_of_ctor() {
   my $initializer = "$NAME $WS* $NESTED_PARENTHESES";
   my $initializer_list = "$WS* : (?:$WS* $initializer $WS*,$WS*)* $WS* $initializer $WS*";
   return $initializer_list =~ s/ //gr;
 }
-
-my $INITIALIZER_LIST = gen_initializer_list_of_ctor();
 
 sub gen_func_def_re() {
   my $func_def_re = "";
@@ -331,15 +340,14 @@ sub register_abnormal_shutdown_hook() {
     restore_saved_files();
     exit 0;
   };
-  my @sigs = qw/__DIE__ QUIT INT TERM ABRT/;
-  @SIG{@sigs} = ($abnormal_handler) x scalar(@sigs);
+  my @sig = qw/__DIE__ QUIT INT TERM ABRT/;
+  @SIG{@sig} = ($abnormal_handler) x scalar(@sig);
 }
 
 sub merge_lines(\@) {
   my @lines = @{+shift};
   my @three_parts = map {/^([^:]+):(\d+):(.*)$/;
     [ $1, $2, $3 ]} @lines;
-  my @line_contents = map {$_->[2]} @three_parts;
 
   my ($prev_file, $prev_lineno, $prev_line) = @{$three_parts[0]};
   my $prev_lineno_adjacent = $prev_lineno;
@@ -405,7 +413,6 @@ sub extract_all_funcs(\%$$) {
   printf "function definition after merge: %d\n", scalar(@func_file_line_def);
 
   my $func_def_re = qr!$FUNC_DEF_RE!;
-  my $func_call_re = qr!$FUNC_CALL_RE!;
   my @func_def = map {$_->[2]} @func_file_line_def;
   my @func_name = map {$_ =~ $func_def_re;
     $1} @func_def;
@@ -413,7 +420,7 @@ sub extract_all_funcs(\%$$) {
   my $func_call_re_enclosed_by_parentheses = qr!($FUNC_CALL_RE)!;
   printf "process callees: begin\n";
   my @func_callees = map {
-    my ($first, @rest) = all_callee($_, $func_call_re_enclosed_by_parentheses);
+    my (undef, @rest) = all_callee($_, $func_call_re_enclosed_by_parentheses);
     [ @rest ]
   } @func_def;
   printf "process callees: end\n";
@@ -426,8 +433,8 @@ sub extract_all_funcs(\%$$) {
     }
   }
 
-  my %trivials = map {$_ => 1} grep {$func_count{$_} > $trivial_threshold || length($_) < $length_threshold} (keys %func_count);
-  my %ignored = (%$ignored, %trivials);
+  my %trivial = map {$_ => 1} grep {$func_count{$_} > $trivial_threshold || length($_) < $length_threshold} (keys %func_count);
+  my %ignored = (%$ignored, %trivial);
   my %reserved = map {$_ => simple_name($_)} grep {!exists $ignored{$_}} (keys %func_count);
 
   my @idx = grep {
@@ -523,7 +530,7 @@ sub cache_or_extract_all_funcs(\%$$) {
 
   if (defined($saved_ignored_string) && ($saved_ignored_string eq $ignored_string)) {
 
-    if (&all(sub {-f $_}, (values %cached_files))) {
+    if (&all(sub {-f $_ && file_newer_than_script($_)}, (values %cached_files))) {
       my ($calling, $called, $calling_names, $called_names) = (undef, undef, undef, undef);
       foreach my $cached_file (values %cached_files) {
         eval(read_content($cached_file));
@@ -633,7 +640,7 @@ sub sub_tree($$$$$$$) {
 sub called_tree($$$$) {
   my ($called_graph, $name, $filter, $files_excluded, $depth) = @_;
   my $get_id_and_child = sub($$) {
-    my ($called, $node) = @_;
+    my ($called_graph, $node) = @_;
     my $name = $node->{name};
     my $simple_name = simple_name($name);
     my $file_info = $node->{file_info};
@@ -727,7 +734,7 @@ sub calling_tree($$$$$) {
   };
 
   my $get_id_and_child = sub($$) {
-    my ($graph, $node) = @_;
+    my ($calling_graph, $node) = @_;
     my $name = $node->{name};
     my $simple_name = simple_name($name);
     my $branch_type = $node->{branch_type};
@@ -889,6 +896,39 @@ sub format_calling_tree($$) {
   return format_tree($root, $verbose, &get_entry_of_calling_tree, &get_child_of_calling_tree);
 }
 
+
+
+use Digest::SHA qw(sha256_hex);
+sub cached_sha256_file(@) {
+  my @data = (@_);
+  return ".calltree.result.cached." . sha256_hex(@data);
+}
+
+sub cache_or_run(\@\&;@) {
+  my ($key, $func, @args) = @_;
+  die "Invalid data" unless defined($key) && ref($key) eq ref([]);
+  die "Invalid func" unless defined($func);
+  my @key = @$key;
+  my $file = cached_sha256_file(@key);
+  my $expect_key = join "\0", @key;
+
+  if (file_newer_than_script($file)) {
+    my ($cached_key, $cached_data) = (undef, undef);
+    my $content = read_content($file);
+    eval($content) if defined($content);
+    if (defined($cached_key) && defined($cached_data) && $expect_key eq $cached_key) {
+      print "use cached_data\n";
+      return $cached_data;
+    }
+  }
+
+  my $data = $func->(@args);
+  write_content($file, Data::Dumper->Dump([ $expect_key, $data ], [ qw/cached_key cached_data/ ]));
+  return $data;
+}
+
+my @key = (@ARGV);
+
 my $func = shift || die "missing function name";
 my $filter = shift;
 my $backtrace = shift;
@@ -902,13 +942,17 @@ $verbose = (defined($verbose) && $verbose ne "0") ? "verbose" : undef;
 $depth = (defined($depth) && int($depth) > 0) ? int($depth) : 3;
 $files_excluded = (defined($files_excluded) && $files_excluded ne "") ? $files_excluded : '^$';
 
-if ($backtrace) {
-  my $tree = unified_called_tree($func, $filter, $files_excluded, $depth);
-  my @lines = format_called_tree($tree, $verbose);
-  print join qq//, map {"$_\n"} @lines;
+sub show_tree() {
+  if (defined $backtrace) {
+    my $tree = unified_called_tree($func, $filter, $files_excluded, $depth);
+    my @lines = format_called_tree($tree, $verbose);
+    return join qq//, map {"$_\n"} @lines;
+  }
+  else {
+    my $tree = unified_calling_tree($func, $filter, $files_excluded, $depth);
+    my @lines = format_calling_tree($tree, $verbose);
+    return join qq//, map {"$_\n"} @lines;
+  }
 }
-else {
-  my $tree = unified_calling_tree($func, $filter, $files_excluded, $depth);
-  my @lines = format_calling_tree($tree, $verbose);
-  print join qq//, map {"$_\n"} @lines;
-}
+
+print cache_or_run(@key, &show_tree);
