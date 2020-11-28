@@ -96,10 +96,10 @@ ensure_ag_installed;
 my $ignore_pattern = join "", map {" --ignore '$_' "} qw(*test* *benchmark* *CMakeFiles* *contrib/* *thirdparty/* *3rd-[pP]arty/* *3rd[pP]arty/*);
 my $cpp_filename_pattern = qq/'\\.(c|cc|cpp|C|h|hh|hpp|H)\$'/;
 
-my $NAME = "\\b[A-Za-z_]\\w*\\b";
-my $WS = "(?:\\s)";
-my $TWO_COLON = "(?::{2})";
-my $SCOPED_NAME = "$TWO_COLON? (?:$NAME $TWO_COLON)* [~]?$NAME" =~ s/ //gr;
+my $RE_IDENTIFIER = "\\b[A-Za-z_]\\w*\\b";
+my $RE_WS = "(?:\\s)";
+my $RE_TWO_COLON = "(?::{2})";
+my $RE_SCOPED_IDENTIFIER = "$RE_TWO_COLON? (?:$RE_IDENTIFIER $RE_TWO_COLON)* [~]?$RE_IDENTIFIER" =~ s/ //gr;
 sub gen_nested_pair_re($$$) {
   my ($L, $R, $others) = @_;
   my $simple_case = "$others $L $others $R $others";
@@ -108,31 +108,31 @@ sub gen_nested_pair_re($$$) {
   return "(?:$L $others $nested* $others $R)" =~ s/\s+//gr;
 }
 
-my $NESTED_PARENTHESES = gen_nested_pair_re("\\(", "\\)", "[^()]*");
-my $NESTED_BRACES = gen_nested_pair_re("{", "}", "[^{}]*");
+my $RE_NESTED_PARENTHESES = gen_nested_pair_re("\\(", "\\)", "[^()]*");
+my $RE_NESTED_BRACES = gen_nested_pair_re("{", "}", "[^{}]*");
 
 sub gen_initializer_list_of_ctor() {
-  my $initializer = "$NAME $WS* $NESTED_PARENTHESES";
-  my $initializer_list = "$WS* : (?:$WS* $initializer $WS*,$WS*)* $WS* $initializer $WS*";
+  my $initializer = "$RE_IDENTIFIER $RE_WS* $RE_NESTED_PARENTHESES";
+  my $initializer_list = "$RE_WS* : (?:$RE_WS* $initializer $RE_WS*,$RE_WS*)* $RE_WS* $initializer $RE_WS*";
   return $initializer_list =~ s/ //gr;
 }
 
 sub gen_func_def_re() {
   my $func_def_re = "";
-  $func_def_re .= "^.*?($SCOPED_NAME) $WS* $NESTED_PARENTHESES";
-  $func_def_re .= "$WS* $NESTED_BRACES";
+  $func_def_re .= "^.*?($RE_SCOPED_IDENTIFIER) $RE_WS* $RE_NESTED_PARENTHESES ($RE_WS* const)?";
+  $func_def_re .= "$RE_WS* $RE_NESTED_BRACES";
   $func_def_re =~ s/ //g;
   return $func_def_re;
 }
 
-my $FUNC_DEF_RE = gen_func_def_re;
+my $RE_FUNC_DEFINITION = gen_func_def_re;
 
 sub gen_func_call_re() {
-  my $func_call_re = "($NAME) $WS* [(]";
+  my $func_call_re = "($RE_IDENTIFIER) $RE_WS* [(]";
   return $func_call_re =~ s/ //gr;
 }
 
-my $FUNC_CALL_RE = gen_func_call_re;
+my $RE_FUNC_CALL = gen_func_call_re;
 
 sub read_content($) {
   my $file_name = shift;
@@ -377,7 +377,6 @@ sub all_callee($$) {
   # print "\n\n\nline=$line\n";
   while ($line =~ /$func_call_re/g) {
     if (defined($1) && defined($2)) {
-      # print "calling=$1, func_name=$2\n";
       push @calls, $1;
       push @names, $2;
     }
@@ -398,11 +397,11 @@ sub simple_name($) {
 sub extract_all_funcs(\%$$) {
   my ($ignored, $trivial_threshold, $length_threshold) = @_;
 
-  print qq(ag -G $cpp_filename_pattern $ignore_pattern '$FUNC_DEF_RE'), "\n";
+  print qq(ag -G $cpp_filename_pattern $ignore_pattern '$RE_FUNC_DEFINITION'), "\n";
   my @matches = map {
     chomp;
     $_
-  } qx(ag -G $cpp_filename_pattern $ignore_pattern '$FUNC_DEF_RE');
+  } qx(ag -G $cpp_filename_pattern $ignore_pattern '$RE_FUNC_DEFINITION');
 
   printf "extract lines: %d\n", scalar(@matches);
 
@@ -412,12 +411,12 @@ sub extract_all_funcs(\%$$) {
 
   printf "function definition after merge: %d\n", scalar(@func_file_line_def);
 
-  my $func_def_re = qr!$FUNC_DEF_RE!;
+  my $func_def_re = qr!$RE_FUNC_DEFINITION!;
   my @func_def = map {$_->[2]} @func_file_line_def;
   my @func_name = map {$_ =~ $func_def_re;
     $1} @func_def;
 
-  my $func_call_re_enclosed_by_parentheses = qr!($FUNC_CALL_RE)!;
+  my $func_call_re_enclosed_by_parentheses = qr!($RE_FUNC_CALL)!;
   printf "process callees: begin\n";
   my @func_callees = map {
     my (undef, @rest) = all_callee($_, $func_call_re_enclosed_by_parentheses);
@@ -594,10 +593,10 @@ sub sub_tree($$$$$$$) {
 
   my ($matched, $node_id, @child) = $get_id_and_child->($graph, $node);
   return undef unless defined($node_id);
-
+  $node->{leaf} = "internal";
   if (scalar(@child) == 0 || ($level + 1) >= $depth || exists $path->{$node_id}) {
     if (scalar(@child) == 0) {
-      $node->{leaf} = "outmost";
+      $node->{leaf} = "outermost";
     }
     elsif ($level >= $depth) {
       $node->{leaf} = "deep";
@@ -870,15 +869,29 @@ sub get_entry_of_calling_tree($$) {
   my $name = $node->{name};
   my $branch_type = $node->{branch_type};
   my $file_info = $node->{file_info};
+  my $leaf = $node->{leaf};
 
   if ($branch_type eq "matches") {
     $name = "\e[97;35;1m$name\e[m";
   }
   elsif ($branch_type eq "variants") {
-    $name = "\e[91;33;1m+$name\e[m";
+    if ($leaf eq "internal") {
+      $name = "\e[91;33;1m+$name\e[m";
+    } elsif ($leaf eq "outermost") {
+      $name = "\e[95;31;1m$name(builtin)\e[m";
+    } else {
+      $name = "\e[33;32;1m$name\e[m";
+    }
   }
   elsif ($branch_type eq "callees") {
-    $name = "\e[33;32;1m$name\e[m";
+    if ($leaf eq "recursive"){
+      $name = "\e[32;36;1m$name(recursive)\e[m";
+    } else {
+      $name = "\e[33;32;1m$name\e[m";
+    }
+  }
+  else {
+    # never reach here
   }
 
   if (defined($verbose) && defined($file_info) && length($file_info) > 0) {
@@ -895,8 +908,6 @@ sub format_calling_tree($$) {
   my ($root, $verbose) = @_;
   return format_tree($root, $verbose, &get_entry_of_calling_tree, &get_child_of_calling_tree);
 }
-
-
 
 use Digest::SHA qw(sha256_hex);
 sub cached_sha256_file(@) {
@@ -917,7 +928,6 @@ sub cache_or_run(\@\&;@) {
     my $content = read_content($file);
     eval($content) if defined($content);
     if (defined($cached_key) && defined($cached_data) && $expect_key eq $cached_key) {
-      print "use cached_data\n";
       return $cached_data;
     }
   }

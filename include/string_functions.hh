@@ -1067,6 +1067,7 @@ struct StringFunctions {
   static inline int utf8_char_bytes(uint8_t c) {
     return UTF8_BYTE_LENGTH_TABLE[c];
   }
+
   static inline void stat_utf8(std::vector<std::string> batch) {
     std::vector<int> stat(7, 0);
     for (auto &text: batch) {
