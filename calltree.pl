@@ -604,14 +604,15 @@ sub called_tree($$$$) {
     my $name = $node->{name};
     my $simple_name = simple_name($name);
     my $file_info = $node->{file_info};
+    my $unique_id = "$file_info:$name";
 
-    if ($file_info ne "" && $file_info =~ /$files_excluded/){
+    if ($file_info ne "" && $file_info =~ /$files_excluded/) {
       return (undef, undef);
     }
 
     my $matched = $simple_name =~ /$filter/;
     if (!exists $called_graph->{$simple_name}) {
-      return ($matched, $simple_name);
+      return ($matched, $unique_id);
     }
     else {
       # deep copy
@@ -623,7 +624,7 @@ sub called_tree($$$$) {
         };
         $child;
       } @{$called_graph->{$simple_name}};
-      return ($matched, $simple_name, @child);
+      return ($matched, $unique_id, @child);
     }
   };
   my $install_child = sub($$) {
@@ -666,44 +667,61 @@ sub unified_called_tree($$$$) {
 sub calling_tree($$$$$) {
   my ($calling_graph, $name, $filter, $files_excluded, $depth) = @_;
 
+  my $new_variant_node = sub($) {
+    my ($node) = @_;
+    my %clone_node = map {$_ => $node->{$_}} qw/name simple_name file_info/;
+    $clone_node{branch_type} = 'callees';
+    $clone_node{callees} = [ @{$node->{callee_names}} ];
+    \%clone_node;
+  };
+
+  my $new_callee_or_match_node = sub($) {
+    my ($name) = @_;
+    my $simple_name = simple_name($name);
+
+    if (exists $calling_graph->{$simple_name} && scalar(@{$calling_graph->{$simple_name}}) == 1) {
+      return $new_variant_node->($calling->{$simple_name}[0]);
+    }
+
+    my $node = {
+      name        => $name,
+      simple_name => $simple_name,
+      file_info   => "",
+      branch_type => 'variants',
+    };
+
+    return $node;
+  };
+
   my $get_id_and_child = sub($$) {
     my ($graph, $node) = @_;
     my $name = $node->{name};
     my $simple_name = simple_name($name);
-    my $type = $node->{type};
+    my $branch_type = $node->{branch_type};
     my $file_info = $node->{file_info};
+    my $unique_id = "$file_info:$name";
 
     if ($file_info ne "" && $file_info =~ /$files_excluded/) {
       return (undef, undef);
     }
 
     my $matched = $simple_name =~ /$filter/;
-    if ($type eq "variants") {
+    if ($branch_type eq "variants") {
       if (!exists $calling_graph->{$simple_name}) {
-        return ($matched, $simple_name);
+        return ($matched, $unique_id);
       }
       else {
         my @variant_nodes = map {
-          my $func_node = $_;
-          my %variant_node = map {$_ => $func_node->{$_}} qw/name simple_name file_info/;
-          $variant_node{type} = 'callees';
-          $variant_node{callees} = [ @{$func_node->{callee_names}} ];
-          \%variant_node;
+          $new_variant_node->($_)
         } @{$calling_graph->{$simple_name}};
-        return ($matched, "+" . $simple_name, @variant_nodes);
+        return ($matched, $unique_id, @variant_nodes);
       }
     }
     else {
       my @callee_nodes = map {
-        my $callee_node = {
-          name        => $_,
-          simple_name => $_,
-          file_info   => "",
-          type        => 'variants',
-        };
-        $callee_node;
+        $new_callee_or_match_node->($_)
       } @{$node->{callees}};
-      return ($matched, $simple_name, @callee_nodes);
+      return ($matched, $unique_id, @callee_nodes);
     }
   };
 
@@ -712,12 +730,7 @@ sub calling_tree($$$$$) {
     $node->{child} = $child;
   };
 
-  my $node = {
-    name        => $name,
-    simple_name => $name,
-    file_info   => "",
-    type        => "variants",
-  };
+  my $node = $new_callee_or_match_node->($name);
 
   return &sub_tree($calling_graph, $node, 0, $depth, {}, $get_id_and_child, $install_child);
 }
@@ -730,7 +743,7 @@ sub fuzzy_calling_tree($$$$$$) {
     name        => $name_pattern,
     simple_name => $name_pattern,
     file_info   => "",
-    type        => "matches",
+    branch_type => "matches",
     child       => [ @trees ],
   };
 }
@@ -799,16 +812,16 @@ sub get_entry_of_calling_tree($$) {
   my ($node, $verbose) = @_;
 
   my $name = $node->{name};
-  my $type = $node->{type};
+  my $branch_type = $node->{branch_type};
   my $file_info = $node->{file_info};
 
-  if ($type eq "matches") {
+  if ($branch_type eq "matches") {
     $name = "\e[97;35;1m$name\e[m";
   }
-  elsif ($type eq "variants") {
+  elsif ($branch_type eq "variants") {
     $name = "\e[91;33;1m+$name\e[m";
   }
-  elsif ($type eq "callees") {
+  elsif ($branch_type eq "callees") {
     $name = "\e[33;32;1m$name\e[m";
   }
 
