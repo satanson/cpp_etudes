@@ -816,11 +816,11 @@ sub calling_tree($$$$$) {
 
     my $matched = $simple_name =~ /$filter/;
     if ($branch_type eq "variants") {
-      my $variant_nodes=undef;
+      my $variant_nodes = undef;
       if (exists $calling_graph->{$name}) {
         $variant_nodes = $calling_graph->{$name};
       }
-      elsif (exists $calling_graph->{$simple_name}){
+      elsif (exists $calling_graph->{$simple_name}) {
         $variant_nodes = $calling_graph->{$simple_name};
       }
 
@@ -918,14 +918,16 @@ sub format_tree($$\&\&) {
   return @result;
 }
 
+my $isatty = -t STDOUT;
+
 sub get_entry_of_called_tree($$) {
   my ($node, $verbose) = @_;
 
   my $name = $node->{name};
   my $file_info = $node->{file_info};
-  $name = "\e[33;32;1m$name\e[m";
+  $name = $isatty ? "\e[33;32;1m$name\e[m" : $name;
   if (defined($verbose) && defined($file_info) && length($file_info) > 0) {
-    $name = $name . "\t[" . $file_info . "]";
+    $name = "$name\t[$file_info]";
   }
   return $name;
 }
@@ -948,30 +950,40 @@ sub get_entry_of_calling_tree($$) {
   my $file_info = $node->{file_info};
   my $leaf = $node->{leaf};
 
-  if ($branch_type eq "matches") {
-    $name = "\e[97;35;1m$name\e[m";
-  }
-  elsif ($branch_type eq "variants") {
-    if ($leaf eq "internal") {
-      $name = "\e[91;33;1m+$name\e[m";
+  if ($isatty) {
+    if ($branch_type eq "matches") {
+      $name = "\e[97;35;1m$name\e[m";
     }
-    elsif ($leaf eq "outermost") {
-      $name = "\e[95;31;1m$name\e[m\e[91;38;2m\t[out-of-tree]\e[m";
+    elsif ($branch_type eq "variants") {
+      if ($leaf eq "internal") {
+        $name = "\e[91;33;1m+$name\e[m";
+      }
+      elsif ($leaf eq "outermost") {
+        $name = "\e[95;31;1m$name\e[m\e[91;38;2m\t[out-of-tree]\e[m";
+      }
+      else {
+        $name = "\e[33;32;1m$name\e[m";
+      }
     }
-    else {
-      $name = "\e[33;32;1m$name\e[m";
-    }
-  }
-  elsif ($branch_type eq "callees") {
-    if ($leaf eq "recursive") {
-      $name = "\e[32;36;1m$name(recursive)\e[m";
-    }
-    else {
-      $name = "\e[33;32;1m$name\e[m";
+    elsif ($branch_type eq "callees") {
+      if ($leaf eq "recursive") {
+        $name = "\e[32;36;1m$name\t[recursive]\e[m";
+      }
+      else {
+        $name = "\e[33;32;1m$name\e[m";
+      }
     }
   }
   else {
-    # never reach here
+    if ($branch_type eq "variants" && $leaf eq "outermost") {
+      $name = "$name\t[OUT-OF-TREE]";
+    }
+    elsif ($branch_type eq "variants" && $leaf eq "internal") {
+      $name = "+$name";
+    }
+    elsif ($branch_type eq "callees" && $leaf eq "recursive") {
+      $name = "$name\t[RECURSIVE]";
+    }
   }
 
   if (defined($verbose) && defined($file_info) && length($file_info) > 0) {
@@ -1017,7 +1029,7 @@ sub cache_or_run(\@\&;@) {
   return $data;
 }
 
-my @key = (@ARGV);
+my @key = (@ARGV, $isatty);
 
 my $func = shift || die "missing function name";
 my $filter = shift;
