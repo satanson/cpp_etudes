@@ -62,9 +62,18 @@ sub ensure_ag_installed() {
   my ($ag_path) = map {chomp;
     $_} qx(which ag 2>/dev/null);
   if (!defined($ag_path) || (!-e $ag_path)) {
-    printf STDERR "ag is missing, please install ag at first, refer to https://github.com/ggreer/the_silver_searcher\n";
+    printf STDERR "ag is missing, please install ag at first, refer to https://github.com/ggreer/the_silver_searcher; 
+    the fork https://github.com/satanson/the_silver_searcher provides a --multiline-break options will generate exact
+    result because the modified ag insert break(--) between two function definitions that are not separated by blank 
+    lines.";
     exit 1;
   }
+}
+
+sub multiline_break_enabled() {
+  my ($enabled) = map {chomp;
+    $_} qx(echo enabled|ag --multiline-break enabled 2>/dev/null);
+  return defined($enabled) && $enabled eq "enabled";
 }
 
 sub ensure_safe() {
@@ -230,11 +239,6 @@ sub replace_template_args_4layers($) {
   return repeat_apply(4, &replace_template_args_1layer, $_[0]);
 }
 
-my $func_trailing_tag = "//%!+-*/!%";
-sub append_func_trailing_tags($) {
-  return $_[0] =~ s/($RE_FUNC_DEFINITION)/$1 $func_trailing_tag/gmr;
-}
-
 sub preprocess_one_cpp_file($) {
   my $file = shift;
   return unless -f $file;
@@ -248,9 +252,6 @@ sub preprocess_one_cpp_file($) {
 
   $content = remove_keywords_and_attributes($content);
   $content = replace_template_args_4layers($content);
-
-  # get stuck with nested regex
-  # $content = append_func_trailing_tags($content);
 
   my $tmp_file = "$file.tmp.created_by_call_tree";
   write_content($tmp_file, $content);
@@ -357,34 +358,49 @@ sub register_abnormal_shutdown_hook() {
   @SIG{@sig} = ($abnormal_handler) x scalar(@sig);
 }
 
-=pod
-# get stuck with nested regex
-sub merge_lines(\@) {
+sub merge_lines_multiline_break_enabled(\@) {
   my @lines = @{+shift};
-  my @three_parts = map {/^([^:]+):(\d+):(.*)$/;
-    [ $1, $2, $3 ]} @lines;
+  my @three_parts = map {
+    if (/^([^:]+):(\d+):(.*)$/) {
+      [ $1, $2, $3 ]
+    }
+    else {
+      undef
+    }
+  } @lines;
 
-  my $func_trailing_tag_length = - length($func_trailing_tag);
-  my %func_end_idx = map{$_=>1} grep { 
-    substr($lines[$_], $func_trailing_tag_length) eq $func_trailing_tag
-  } (0 .. $#lines);
-
-  my ($prev_file, $prev_lineno, $prev_line) = @{$three_parts[0]};
+  my ($prev_file, $prev_lineno, $prev_line) = (undef, undef, undef);
   my @result = ();
-  for (my $i = 1; $i < scalar(@three_parts); ++$i) {
-    if (exists $func_end_idx{$i-1}) {
-      push @result, [ $prev_file, $prev_lineno, $prev_line ];
-      ($prev_file, $prev_lineno, $prev_line) = @{$three_parts[$i]};
-    } else {
-      $prev_line = $prev_line . $three_parts[$i][2];
+  for (my $i = 0; $i < scalar(@three_parts); ++$i) {
+    if (!defined($three_parts[$i])) {
+      if (defined($prev_file)) {
+        # $i-1 is last line of a match block
+        push @result, [ $prev_file, $prev_lineno, $prev_line ];
+        ($prev_file, $prev_lineno, $prev_line) = (undef, undef, undef);
+      }
+      else {
+        # deplicate multiline-break.
+      }
+    }
+    else {
+      if (defined($prev_file)) {
+        # non-first lines of a match block
+        $prev_line = $prev_line . $three_parts[$i][2];
+      }
+      else {
+        # first line of a match block
+        ($prev_file, $prev_lineno, $prev_line) = @{$three_parts[$i]};
+      }
     }
   }
-  push @result, [ $prev_file, $prev_lineno, $prev_line ];
+
+  if (defined($prev_file)) {
+    push @result, [ $prev_file, $prev_lineno, $prev_line ];
+  }
   return @result;
 }
-=cut
 
-sub merge_lines(\@) {
+sub merge_lines_multiline_break_disabled(\@) {
   my @lines = @{+shift};
   my @three_parts = map {/^([^:]+):(\d+):(.*)$/;
     [ $1, $2, $3 ]} @lines;
@@ -410,11 +426,21 @@ sub merge_lines(\@) {
   return @result;
 }
 
+sub merge_lines(\@) {
+  my @lines = @{+shift};
+  if (multiline_break_enabled()) {
+    print "multiline-break is enabled in ag\n";
+    return merge_lines_multiline_break_enabled(@lines);
+  }
+  else {
+    return merge_lines_multiline_break_disabled(@lines);
+  }
+}
+
 sub all_callee($$) {
   my ($line, $func_call_re) = @_;
   my @calls = ();
   my @names = ();
-  # print "\n\n\nline=$line\n";
   while ($line =~ /$func_call_re/g) {
     if (defined($1) && defined($2)) {
       push @calls, $1;
@@ -437,11 +463,15 @@ sub simple_name($) {
 sub extract_all_funcs(\%$$) {
   my ($ignored, $trivial_threshold, $length_threshold) = @_;
 
-  print qq(ag -G $cpp_filename_pattern $ignore_pattern '$RE_FUNC_DEFINITION'), "\n";
+  my $multiline_break = "";
+  if (multiline_break_enabled()) {
+    $multiline_break = "--multiline-break";
+  }
+  print qq(ag $multiline_break -G $cpp_filename_pattern $ignore_pattern '$RE_FUNC_DEFINITION'), "\n";
   my @matches = map {
     chomp;
     $_
-  } qx(ag -G $cpp_filename_pattern $ignore_pattern '$RE_FUNC_DEFINITION');
+  } qx(ag $multiline_break -G $cpp_filename_pattern $ignore_pattern '$RE_FUNC_DEFINITION');
 
   printf "extract lines: %d\n", scalar(@matches);
 
