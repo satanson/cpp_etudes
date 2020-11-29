@@ -816,15 +816,22 @@ sub calling_tree($$$$$) {
 
     my $matched = $simple_name =~ /$filter/;
     if ($branch_type eq "variants") {
-      if (!exists $calling_graph->{$simple_name}) {
+      my $variant_nodes=undef;
+      if (exists $calling_graph->{$name}) {
+        $variant_nodes = $calling_graph->{$name};
+      }
+      elsif (exists $calling_graph->{$simple_name}){
+        $variant_nodes = $calling_graph->{$simple_name};
+      }
+
+      unless (defined($variant_nodes)) {
         return ($matched, $unique_id);
       }
-      else {
-        my @variant_nodes = map {
-          $new_variant_node->($_)
-        } @{$calling_graph->{$simple_name}};
-        return ($matched, $unique_id, @variant_nodes);
-      }
+
+      my @variant_nodes = map {
+        $new_variant_node->($_)
+      } @$variant_nodes;
+      return ($matched, $unique_id, @variant_nodes);
     }
     else {
       my @callee_nodes = map {
@@ -949,7 +956,7 @@ sub get_entry_of_calling_tree($$) {
       $name = "\e[91;33;1m+$name\e[m";
     }
     elsif ($leaf eq "outermost") {
-      $name = "\e[95;31;1m$name(builtin)\e[m";
+      $name = "\e[95;31;1m$name\e[m\e[91;38;2m\t[out-of-tree]\e[m";
     }
     else {
       $name = "\e[33;32;1m$name\e[m";
