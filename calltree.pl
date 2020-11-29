@@ -119,7 +119,7 @@ sub gen_initializer_list_of_ctor() {
 
 sub gen_func_def_re() {
   my $func_def_re = "";
-  $func_def_re .= "^.*?($RE_SCOPED_IDENTIFIER) $RE_WS* $RE_NESTED_PARENTHESES ($RE_WS* const)?";
+  $func_def_re .= "^.*?($RE_SCOPED_IDENTIFIER) $RE_WS* $RE_NESTED_PARENTHESES";
   $func_def_re .= "$RE_WS* $RE_NESTED_BRACES";
   $func_def_re =~ s/ //g;
   return $func_def_re;
@@ -128,7 +128,7 @@ sub gen_func_def_re() {
 my $RE_FUNC_DEFINITION = gen_func_def_re;
 
 sub gen_func_call_re() {
-  my $func_call_re = "($RE_IDENTIFIER) $RE_WS* [(]";
+  my $func_call_re = "($RE_SCOPED_IDENTIFIER) $RE_WS* [(]";
   return $func_call_re =~ s/ //gr;
 }
 
@@ -222,8 +222,17 @@ sub repeat_apply($\&$) {
   return $result;
 }
 
+sub remove_keywords_and_attributes($) {
+  return $_[0] =~ s/(\b(const|final|override|noexcept)\b)|\[\[\w+\]\]//gr;
+}
+
 sub replace_template_args_4layers($) {
   return repeat_apply(4, &replace_template_args_1layer, $_[0]);
+}
+
+my $func_trailing_tag = "//%!+-*/!%";
+sub append_func_trailing_tags($) {
+  return $_[0] =~ s/($RE_FUNC_DEFINITION)/$1 $func_trailing_tag/gmr;
 }
 
 sub preprocess_one_cpp_file($) {
@@ -237,7 +246,11 @@ sub preprocess_one_cpp_file($) {
     replace_lt(replace_left_angles(replace_nested_char(replace_single_line_comment($_))))
   } split qq/\n/, $content;
 
+  $content = remove_keywords_and_attributes($content);
   $content = replace_template_args_4layers($content);
+
+  # get stuck with nested regex
+  # $content = append_func_trailing_tags($content);
 
   my $tmp_file = "$file.tmp.created_by_call_tree";
   write_content($tmp_file, $content);
@@ -343,6 +356,33 @@ sub register_abnormal_shutdown_hook() {
   my @sig = qw/__DIE__ QUIT INT TERM ABRT/;
   @SIG{@sig} = ($abnormal_handler) x scalar(@sig);
 }
+
+=pod
+# get stuck with nested regex
+sub merge_lines(\@) {
+  my @lines = @{+shift};
+  my @three_parts = map {/^([^:]+):(\d+):(.*)$/;
+    [ $1, $2, $3 ]} @lines;
+
+  my $func_trailing_tag_length = - length($func_trailing_tag);
+  my %func_end_idx = map{$_=>1} grep { 
+    substr($lines[$_], $func_trailing_tag_length) eq $func_trailing_tag
+  } (0 .. $#lines);
+
+  my ($prev_file, $prev_lineno, $prev_line) = @{$three_parts[0]};
+  my @result = ();
+  for (my $i = 1; $i < scalar(@three_parts); ++$i) {
+    if (exists $func_end_idx{$i-1}) {
+      push @result, [ $prev_file, $prev_lineno, $prev_line ];
+      ($prev_file, $prev_lineno, $prev_line) = @{$three_parts[$i]};
+    } else {
+      $prev_line = $prev_line . $three_parts[$i][2];
+    }
+  }
+  push @result, [ $prev_file, $prev_lineno, $prev_line ];
+  return @result;
+}
+=cut
 
 sub merge_lines(\@) {
   my @lines = @{+shift};
@@ -877,16 +917,19 @@ sub get_entry_of_calling_tree($$) {
   elsif ($branch_type eq "variants") {
     if ($leaf eq "internal") {
       $name = "\e[91;33;1m+$name\e[m";
-    } elsif ($leaf eq "outermost") {
+    }
+    elsif ($leaf eq "outermost") {
       $name = "\e[95;31;1m$name(builtin)\e[m";
-    } else {
+    }
+    else {
       $name = "\e[33;32;1m$name\e[m";
     }
   }
   elsif ($branch_type eq "callees") {
-    if ($leaf eq "recursive"){
+    if ($leaf eq "recursive") {
       $name = "\e[32;36;1m$name(recursive)\e[m";
-    } else {
+    }
+    else {
       $name = "\e[33;32;1m$name\e[m";
     }
   }
