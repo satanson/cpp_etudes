@@ -264,7 +264,7 @@ sub get_all_cpp_files() {
   } map {
     chomp;
     $_
-  } qx(ag -G $cpp_filename_pattern $ignore_pattern -l);
+  } qx(ag -U -G $cpp_filename_pattern $ignore_pattern -l);
 }
 
 sub group_files($@) {
@@ -325,7 +325,7 @@ sub restore_saved_files() {
   } map {
     chomp;
     $_
-  } qx(ag -G '.+\\.saved_by_calltree\$' $ignore_pattern -l);
+  } qx(ag -U -G '.+\\.saved_by_calltree\$' $ignore_pattern -l);
 
   foreach my $f (@saved_files) {
     my $original_f = substr($f, 0, length($f) - length(".saved_by_calltree"));
@@ -337,7 +337,7 @@ sub restore_saved_files() {
   } map {
     chomp;
     $_
-  } qx(ag -G '\\.tmp\\.created_by_calltree\$' $ignore_pattern -l);
+  } qx(ag -U -G '\\.tmp\\.created_by_calltree\$' $ignore_pattern -l);
 
   foreach my $f (@tmp_files) {
     unlink $f;
@@ -467,11 +467,11 @@ sub extract_all_funcs(\%$$) {
   if (multiline_break_enabled()) {
     $multiline_break = "--multiline-break";
   }
-  print qq(ag $multiline_break -G $cpp_filename_pattern $ignore_pattern '$RE_FUNC_DEFINITION'), "\n";
+  print qq(ag -U $multiline_break -G $cpp_filename_pattern $ignore_pattern '$RE_FUNC_DEFINITION'), "\n";
   my @matches = map {
     chomp;
     $_
-  } qx(ag $multiline_break -G $cpp_filename_pattern $ignore_pattern '$RE_FUNC_DEFINITION');
+  } qx(ag -U $multiline_break -G $cpp_filename_pattern $ignore_pattern '$RE_FUNC_DEFINITION');
 
   printf "extract lines: %d\n", scalar(@matches);
 

@@ -62,7 +62,6 @@ static inline void make_room(std::vector<T> &v, size_t n) {
   rv.resize(n);
   v.swap(reinterpret_cast<std::vector<T> &>(rv));
 }
-
 static inline void make_room(std::string &v, size_t n) {
   RawString rs;
   rs.resize(n);
