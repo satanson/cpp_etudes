@@ -51,11 +51,14 @@ sub get_path_of_script() {
   }
 }
 
+sub file_newer_than($$) {
+  my ($file_a, $file_b) = @_;
+  return 0 unless ((-f $file_a) && (-f $file_b));
+  return (-M $file_a) < (-M $file_b);
+}
+
 sub file_newer_than_script($) {
-  my ($file) = @_;
-  my $script_path = get_path_of_script();
-  return 0 unless ((-f $file) && (-f $script_path));
-  return (-M $file) < (-M $script_path);
+  return file_newer_than(+shift, get_path_of_script());
 }
 
 sub ensure_ag_installed() {
@@ -571,15 +574,15 @@ sub extract_all_funcs(\%$$) {
 }
 
 
-sub any(\&;@) {
+sub any(&;@) {
   my ($pred, @values) = @_;
   my $n = () = grep {$_} map {$pred->($_)} @values;
   return $n > 0;
 }
 
-sub all(\&;@) {
+sub all(&;@) {
   my ($pred, @values) = @_;
-  return !&any(sub {!$pred->($_)}, @values);
+  return any {!$pred->($_)} @values;
 }
 
 sub cache_or_extract_all_funcs(\%$$) {
@@ -599,13 +602,13 @@ sub cache_or_extract_all_funcs(\%$$) {
 
   if (defined($saved_ignored_string) && ($saved_ignored_string eq $ignored_string)) {
 
-    if (&all(sub {-f $_ && file_newer_than_script($_)}, (values %cached_files))) {
+    if (all {-f $_ && file_newer_than_script($_)} (values %cached_files)) {
       my ($calling, $called, $calling_names, $called_names) = (undef, undef, undef, undef);
       foreach my $cached_file (values %cached_files) {
         eval(read_content($cached_file));
       }
       my @cached_vars = ($calling, $called, $calling_names, $called_names);
-      if (&any(sub {!defined($_)}, @cached_vars)) {
+      if (any {!defined($_)} @cached_vars) {
         my $args = join " or ", map {'$_'} keys %cached_files;
         die "Fail to parse $args";
       }

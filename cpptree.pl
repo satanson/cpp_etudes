@@ -50,27 +50,113 @@ sub ensure_ag_installed() {
 
 ensure_ag_installed;
 
-sub merge_lines(\@) {
+
+my $ignore_pattern = join "", map {" --ignore '$_' "} qw(*test* *benchmark* *CMakeFiles* *contrib/* *thirdparty/* *3rd-[pP]arty/* *3rd[pP]arty/*);
+my $cpp_filename_pattern = qq/'\\.(c|cc|cpp|C|h|hh|hpp|H)\$'/;
+
+sub multiline_break_enabled() {
+  my ($enabled) = map {chomp;
+    $_} qx(echo enabled|ag --multiline-break enabled 2>/dev/null);
+  # return defined($enabled) && $enabled eq "enabled";
+  return 0;
+}
+
+sub merge_lines_multiline_break_enabled(\@) {
   my @lines = @{+shift};
-  my @three_parts = map {/^(\S+):(\d+):(.*)$/;
+  my @three_parts = map {
+    if (/^([^:]+):(\d+):(.*)$/) {
+      [ $1, $2, $3 ]
+    }
+    else {
+      undef
+    }
+  } @lines;
+
+  my ($prev_file, $prev_lineno, $prev_line) = (undef, undef, undef);
+  my @result = ();
+  for (my $i = 0; $i < scalar(@three_parts); ++$i) {
+    if (!defined($three_parts[$i])) {
+      if (defined($prev_file)) {
+        # $i-1 is last line of a match block
+        push @result, [ $prev_file, $prev_lineno, $prev_line ];
+        ($prev_file, $prev_lineno, $prev_line) = (undef, undef, undef);
+      }
+      else {
+        # deplicate multiline-break.
+      }
+    }
+    else {
+      if (defined($prev_file)) {
+        # non-first lines of a match block
+        $prev_line = $prev_line . $three_parts[$i][2];
+      }
+      else {
+        # first line of a match block
+        ($prev_file, $prev_lineno, $prev_line) = @{$three_parts[$i]};
+      }
+    }
+  }
+
+  if (defined($prev_file)) {
+    push @result, [ $prev_file, $prev_lineno, $prev_line ];
+  }
+  return @result;
+}
+
+sub merge_lines_multiline_break_disabled(\@) {
+  my @lines = @{+shift};
+  my @three_parts = map {/^([^:]+):(\d+):(.*)$/;
     [ $1, $2, $3 ]} @lines;
+
   my ($prev_file, $prev_lineno, $prev_line) = @{$three_parts[0]};
   my $prev_lineno_adjacent = $prev_lineno;
   my @result = ();
+
   for (my $i = 1; $i < scalar(@three_parts); ++$i) {
     my ($file, $lineno, $line) = @{$three_parts[$i]};
+
     if (($file eq $prev_file) && ($prev_lineno_adjacent + 1 == $lineno)) {
       $prev_line = $prev_line . $line;
       $prev_lineno_adjacent += 1;
     }
     else {
-      push @result, join(":", $prev_file, $prev_lineno, $prev_line);
+      push @result, [ $prev_file, $prev_lineno, $prev_line ];
       ($prev_file, $prev_lineno, $prev_line) = ($file, $lineno, $line);
       $prev_lineno_adjacent = $prev_lineno;
     }
   }
-  push @result, join(":", $prev_file, $prev_lineno, $prev_line);
+  push @result, [ $prev_file, $prev_lineno, $prev_line ];
   return @result;
+}
+
+sub merge_lines(\@) {
+  my @lines = @{+shift};
+  if (multiline_break_enabled()) {
+    print "multiline-break is enabled in ag\n";
+    return merge_lines_multiline_break_enabled(@lines);
+  }
+  else {
+    return merge_lines_multiline_break_disabled(@lines);
+  }
+}
+
+use Cwd qw/abs_path/;
+sub get_path_of_script() {
+  if ($0 !~ qr'/') {
+    my ($path) = map {chomp;
+      $_} qx(which $0 2>/dev/null);
+    return $path;
+  }
+  else {
+    return abs_path($0);
+  }
+}
+
+sub file_newer_than_script($) {
+  my ($file) = @_;
+  my $script_path = get_path_of_script();
+  return 0 unless ((-f $file) && (-f $script_path));
+  return (-M $file) < (-M $script_path);
 }
 
 sub all_sub_classes() {
@@ -90,18 +176,28 @@ sub all_sub_classes() {
 
   my $cache_file = ".cpptree.list";
   my @matches = ();
-  if ((-f $cache_file) && (((-M $cache_file) * 3600 * 24) < 600)) {
+
+  my $multiline_break = "";
+  if (multiline_break_enabled()) {
+    $multiline_break = "--multiline-break";
+  }
+
+  if ((-f $cache_file) && file_newer_than_script($cache_file)) {
     @matches = map {chomp;
       $_} qx(cat $cache_file);
     qx(touch $cache_file);
   }
   else {
+
+    print qq(ag $multiline_break -U -G $cpp_filename_pattern $ignore_pattern '$cls_re'), "\n";
     @matches = map {chomp;
-      $_} qx(ag -G '\.(c|cc|cpp|C|h|hh|hpp|H)\$' --ignore '*test*' --ignore '*benchmark*'  --ignore '*benchmark*' '$cls_re');
+      $_} qx(ag $multiline_break -U -G $cpp_filename_pattern $ignore_pattern '$cls_re');
 
     die "Current directory seems not a C/C++ project" if scalar(@matches) == 0;
+    printf "Extract lines: %s\n", scalar(@matches);
 
-    @matches = merge_lines @matches;
+    @matches = map {join ":", @$_} merge_lines @matches;
+    printf "Merged into lines: %s\n", scalar(@matches);
 
     my @file_info_and_line = grep {defined($_)} map {if (/^(\S+)\s*:\s*(.*)/) {[ $1, $2 ]}
     else {undef}} @matches;
