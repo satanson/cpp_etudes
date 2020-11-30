@@ -582,7 +582,7 @@ sub any(&;@) {
 
 sub all(&;@) {
   my ($pred, @values) = @_;
-  return any {!$pred->($_)} @values;
+  return !(any {!$pred->($_)} @values);
 }
 
 sub cache_or_extract_all_funcs(\%$$) {
@@ -656,10 +656,29 @@ my @ignored = (
   qw(set get),
 );
 
+sub get_env_or_default(&$$) {
+  my ($chk, $key, $default) = @_;
+  if (exists $ENV{$key}) {
+    my $value = $ENV{$key};
+    map {$chk->($_)} ($value);
+    return $value;
+  }
+  else {
+    return $default;
+  }
+}
+
+my $env_trivial_threshold = get_env_or_default {
+  die "Invariant 'calltree_trivial_threshold($_) > 0' is violated" unless int($_) > 0;
+} qw/calltree_trivial_threshold 50/;
+
+my $env_length_threshold = get_env_or_default {
+  die "Invalid 'calltree_length_threshold($_) > 1' is violated" unless int($_) > 1;
+} qw/calltree_length_threshold 3/;
+
 my %ignored = map {$_ => 1} @ignored;
-
-my ($calling, $called, $calling_names, $called_names) = cache_or_extract_all_funcs(%ignored, 50, 3);
-
+my ($calling, $called, $calling_names, $called_names)
+  = cache_or_extract_all_funcs(%ignored, $env_trivial_threshold, $env_length_threshold);
 
 sub sub_tree($$$$$$$) {
   my ($graph, $node, $level, $depth, $path, $get_id_and_child, $install_child) = @_;
@@ -722,7 +741,7 @@ sub called_tree($$$$) {
       return (undef, undef);
     }
 
-    my $matched = $simple_name =~ /$filter/;
+    my $matched = $name =~ /$filter/;
     if (!exists $called_graph->{$simple_name}) {
       return ($matched, $unique_id);
     }
@@ -1032,7 +1051,7 @@ sub cache_or_run(\@\&;@) {
   return $data;
 }
 
-my @key = (@ARGV, $isatty);
+my @key = (@ARGV, $isatty, $env_trivial_threshold, $env_length_threshold);
 
 my $func = shift || die "missing function name";
 my $filter = shift;
