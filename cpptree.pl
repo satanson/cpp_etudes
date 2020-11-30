@@ -50,15 +50,13 @@ sub ensure_ag_installed() {
 
 ensure_ag_installed;
 
-
 my $ignore_pattern = join "", map {" --ignore '$_' "} qw(*test* *benchmark* *CMakeFiles* *contrib/* *thirdparty/* *3rd-[pP]arty/* *3rd[pP]arty/*);
 my $cpp_filename_pattern = qq/'\\.(c|cc|cpp|C|h|hh|hpp|H)\$'/;
 
 sub multiline_break_enabled() {
   my ($enabled) = map {chomp;
     $_} qx(echo enabled|ag --multiline-break enabled 2>/dev/null);
-  # return defined($enabled) && $enabled eq "enabled";
-  return 0;
+  return defined($enabled) && $enabled eq "enabled";
 }
 
 sub merge_lines_multiline_break_enabled(\@) {
@@ -163,8 +161,8 @@ sub all_sub_classes() {
   my $attr_re = "\\[\\[[^\\[\\]]+\\]\\]";
   my $access_specifier_re = "final|private|public|protected";
   my $template_arguments_re = "<([^<>]*(?:<(?1)>|[^<>])[^<>]*)?>";
-  my $cls_re = "^\\s*(template\\s*$template_arguments_re)?\\s*\\b(class|struct)\\b\\s*([a-zA-Z]\\w+[a-zA-Z])\\s*[^{};*()=]*?{";
-  my $cls_filter_re = "^(\\S+)\\s*:\\s*(?:class|struct)\\s+\\w+(\\s+:\\s+(\\s*[:\\w]+\\s*,\\s*)*[:\\w]+)?s*\$";
+  my $cls_re = "^\\s*(template\\s*$template_arguments_re)?\\s*\\b(class|struct)\\b\\s*([a-zA-Z_]\\w*)\\s*[^{};*()=]*?{";
+  my $cls_filter_re = "^(\\S+)\\s*:\\s*(?:class|struct)\\s+\\w+(\\s+:\\s+(\\s*[:\\w]+\\s*,\\s*)*[:\\w]+)?s*";
 
   my $class0_re = "(?:class|struct)\\s+(\\w+)";
   my $class1_re = "(?:class|struct)\\s+(\\w+)\\s*:\\s*([:\\w]+)";
@@ -190,8 +188,10 @@ sub all_sub_classes() {
   else {
 
     print qq(ag $multiline_break -U -G $cpp_filename_pattern $ignore_pattern '$cls_re'), "\n";
-    @matches = map {chomp;
-      $_} qx(ag $multiline_break -U -G $cpp_filename_pattern $ignore_pattern '$cls_re');
+    @matches = map {
+      chomp;
+      $_
+    } qx(ag $multiline_break -U -G $cpp_filename_pattern $ignore_pattern '$cls_re');
 
     die "Current directory seems not a C/C++ project" if scalar(@matches) == 0;
     printf "Extract lines: %s\n", scalar(@matches);
@@ -199,8 +199,12 @@ sub all_sub_classes() {
     @matches = map {join ":", @$_} merge_lines @matches;
     printf "Merged into lines: %s\n", scalar(@matches);
 
-    my @file_info_and_line = grep {defined($_)} map {if (/^(\S+)\s*:\s*(.*)/) {[ $1, $2 ]}
-    else {undef}} @matches;
+    my @file_info_and_line = grep {
+      defined($_)
+    } map {
+      if (/^(\S+)\s*:\s*(.*)/) {[ $1, $2 ]}
+      else {undef}
+    } @matches;
     my @file_info = map {$_->[0]} @file_info_and_line;
     my @line = map {$_->[1]} @file_info_and_line;
 
@@ -209,10 +213,16 @@ sub all_sub_classes() {
       @line = map {s/$re//g;
         $_} @line;
     }
+    printf "Transformed lines:%s\n", scalar(@line);
 
     @matches = map {$file_info[$_] . ":" . $line[$_]} (0 .. $#line);
 
+    for my $m (@matches) {
+      print "match: $m\n";
+    }
     @matches = grep {/$cls_filter_re/} @matches;
+
+    printf "Matches after filtering: %s\n", scalar(@matches);
     open my $cache_file_handle, "+>", $cache_file or die "$!";
     print $cache_file_handle join("\n", @matches);
     close($cache_file_handle);
@@ -267,7 +277,7 @@ my $filter = shift;
 my $verbose = shift;
 my $depth = shift;
 
-$filter = ".*"  unless (defined($filter) && $filter ne "");
+$filter = ".*" unless (defined($filter) && $filter ne "");
 $verbose = undef if (defined($verbose) && $verbose == 0);
 $depth = 100000 unless defined($depth);
 
@@ -309,23 +319,24 @@ sub sub_class($$;$) {
   my $root = { file_info => $file_info, name => $cls, child => [] };
   if (!exists $tree->{$cls} || $level >= $depth) {
     $level--;
-    return $cls=~/$filter/?$root:undef;
+    return $cls =~ /$filter/ ? $root : undef;
   }
 
   my $child = $tree->{$cls};
-  my @child_nodes=();
+  my @child_nodes = ();
 
   foreach my $chd (@$child) {
     push @child_nodes, &sub_class($chd->[0], $chd->[1], $filter);
   }
 
-  @child_nodes = grep{defined($_)} @child_nodes;
+  @child_nodes = grep {defined($_)} @child_nodes;
   $level--;
 
-  if (@child_nodes){
-    $root->{child} = [@child_nodes];
+  if (@child_nodes) {
+    $root->{child} = [ @child_nodes ];
     return $root;
-  } else {
+  }
+  else {
     return undef;
   }
 }
