@@ -217,9 +217,6 @@ sub all_sub_classes() {
 
     @matches = map {$file_info[$_] . ":" . $line[$_]} (0 .. $#line);
 
-    for my $m (@matches) {
-      print "match: $m\n";
-    }
     @matches = grep {/$cls_filter_re/} @matches;
 
     printf "Matches after filtering: %s\n", scalar(@matches);
