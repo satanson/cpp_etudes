@@ -455,6 +455,16 @@ sub simple_name($) {
   $1
 }
 
+sub scope($) {
+  $_[0] =~ /\b(\w+)\b::\s*(~?\w+\b)$/;
+  $1
+}
+
+sub filename($) {
+  $_[0] =~ m{/([^/]+)\.\w+:\d+};
+  $1;
+}
+
 sub extract_all_funcs(\%$$) {
   my ($ignored, $trivial_threshold, $length_threshold) = @_;
 
@@ -510,6 +520,8 @@ sub extract_all_funcs(\%$$) {
     my $file_info = $func_file_line[$i];
     my $caller_name = $func_name[$i];
     my $caller_simple_name = $func_simple_name[$i];
+    my $scope = scope($caller_name);
+    my $filename = filename($file_info);
 
     my @callees = @{$func_callees[$i]};
     foreach my $seq (0 .. $#callees) {$callees[$seq]{seq} = $seq}
@@ -530,7 +542,9 @@ sub extract_all_funcs(\%$$) {
     my $caller_node = {
       name        => $caller_name,
       simple_name => $caller_simple_name,
+      scope       => $scope,
       file_info   => $file_info,
+      filename    => $filename,
       callees     => [ @callees ],
     };
 
@@ -723,6 +737,109 @@ sub sub_tree($$$$$$$) {
   }
 }
 
+use List::Util qw/min max/;
+sub lev_dist($$) {
+  my ($a, $b) = @_;
+  return -1 unless defined($a) && defined($b);
+  my ($a_len, $b_len) = (length($a), length($b));
+  return $b_len if $a_len == 0;
+  return $a_len if $b_len == 0;
+
+  my @a = split //, lc $a;
+  my @b = split //, lc $b;
+
+  my ($ii, $jj) = ($a_len + 1, $b_len + 1);
+  my @d = map {[ (0) x $jj ]} 1 .. $ii;
+
+  for (my $i = 0; $i < $ii; ++$i) {
+    $d[$i][0] = $i;
+  }
+
+  for (my $j = 0; $j <= $jj; ++$j) {
+    $d[0][$j] = $j;
+  }
+
+  for (my $i = 1; $i < $ii; ++$i) {
+    for (my $j = 1; $j < $jj; ++$j) {
+      my ($ci, $cj) = ($a[$i - 1], $b[$j - 1]);
+      if ($ci ge $cj) {
+        $d[$i][$j] = $d[$i - 1][$j - 1];
+      }
+      else {
+        $d[$i][$j] = 1 + min($d[$i - 1][$j], $d[$i][$j - 1], $d[$i - 1][$j - 1]);
+      }
+    }
+  }
+  return $d[-1][-1];
+}
+
+sub lev_dist_score($$) {
+  my ($a, $b) = @_;
+  return 0 unless defined($a) && defined($b) && length($a) > 0 && length($b) > 0;
+  my $dist = lev_dist($a, $b);
+  return $dist == -1 ? 0 : 1000 - $dist;
+}
+
+sub substr_score($$) {
+  my ($a, $b) = @_;
+  return 0 unless defined($a) && defined($b) && length($a) > 0 && length($b) > 0;
+  $a = lc $a;
+  $b = lc $b;
+  if ((index $b, $a) != -1 && (index $a, $b) != -1) {
+    return 1000;
+  }
+  else {
+    return 0;
+  }
+}
+
+sub abbr_score($$) {
+  my ($a, $b) = @_;
+  return 0 unless defined($a) && defined($b) && length($a) > 0 && length($b) > 0;
+  $a = lc $a;
+  $b = lc join "", grep {"A" le $_ le "Z"} split //, $b;
+  return 0 unless length($b) > 0;
+  my $score = substr_score($a, $b);
+  return $score == 0 ? 0 : 999;
+}
+
+sub score(\%;@) {
+  my ($data, @rules) = (@_, sub {0});
+  max(map {$_->($data)} @rules);
+}
+
+sub default_score(\%) {
+  my $data = shift;
+
+  my %rules = (
+    rule_prefix_scope_abbr        => sub($) {
+      my $d = shift;
+      abbr_score($d->{prefix}, $d->{scope});
+    },
+    rule_prefix_scope_substr      => sub($) {
+      my $d = shift;
+      substr_score($d->{prefix}, $d->{scope});
+    },
+    rule_prefix_scope_lev_dist    => sub($) {
+      my $d = shift;
+      lev_dist_score($d->{prefix}, $d->{scope});
+    },
+    rule_prefix_filename_abbr     => sub($) {
+      my $d = shift;
+      abbr_score($d->{prefix}, $d->{filename});
+    },
+    rule_prefix_filename_substr   => sub($) {
+      my $d = shift;
+      substr_score($d->{prefix}, $d->{filename});
+    },
+    rule_prefix_filename_lev_dist => sub($) {
+      my $d = shift;
+      lev_dist_score($d->{prefix}, $d->{filename});
+    },
+  );
+  return score(%$data, values %rules);
+}
+
 sub called_tree($$$$) {
   my ($called_graph, $name, $filter, $files_excluded, $depth) = @_;
   my $get_id_and_child = sub($$) {
@@ -790,30 +907,44 @@ sub unified_called_tree($$$$) {
   }
 }
 
+sub is_pure_name($) {
+  all {'a' le $_ le 'z'}  split //, +shift
+}
+
 sub calling_tree($$$$$) {
   my ($calling_graph, $name, $filter, $files_excluded, $depth) = @_;
 
   my $new_variant_node = sub($) {
     my ($node) = @_;
-    my %clone_node = map {$_ => $node->{$_}} qw/name simple_name file_info/;
-    $clone_node{branch_type} = 'callees';
-    $clone_node{call} = $clone_node{name};
-    $clone_node{callees} = [ map {+{ %$_ }} @{$node->{callees}} ];
-    \%clone_node;
+    my $call = $node->{name};
+    my $callees = [ map {+{ %$_ }} @{$node->{callees}} ];
+    my $clone_node = +{
+      (%$node),
+      branch_type => "callees",
+      call        => $call,
+      callees     => $callees,
+    };
+    return $clone_node;
   };
 
   my $new_callee_or_match_node = sub($) {
     my ($callee) = @_;
     my $name = $callee->{name};
+    my $call = $callee->{call};
     my $simple_name = simple_name($name);
 
-    #if (exists $calling_graph->{$name} && scalar(@{$calling_graph->{$name}}) == 1) {
-    #  return $new_variant_node->($calling->{$name}[0]);
-    #}
+    unless (is_pure_name($name)) {
+      if (exists $calling_graph->{$name} && scalar(@{$calling_graph->{$name}}) == 1) {
+        my $node = $new_variant_node->($calling->{$name}[0]);
+        $node->{origin_call} = $call;
+        return $node;
+      }
 
-    #if (exists $calling_graph->{$simple_name} && scalar(@{$calling_graph->{$simple_name}}) == 1) {
-    #  return $new_variant_node->($calling->{$simple_name}[0]);
-    #}
+      if (exists $calling_graph->{$simple_name} && scalar(@{$calling_graph->{$simple_name}}) == 1) {
+        my $node = $new_variant_node->($calling->{$simple_name}[0]);
+        $node->{origin_call} = $call;
+      }
+    }
 
     my $node = +{
       (%$callee),
@@ -847,14 +978,43 @@ sub calling_tree($$$$$) {
         $variant_nodes = $calling_graph->{$simple_name};
       }
 
-      unless (defined($variant_nodes)) {
+      unless (defined($variant_nodes) && scalar(@$variant_nodes) > 0) {
         return ($matched, $unique_id);
       }
 
       my @variant_nodes = map {
         $new_variant_node->($_)
       } @$variant_nodes;
-      return ($matched, $unique_id, @variant_nodes);
+
+      if (exists $node->{prefix}) {
+        my $prefix = $node->{prefix};
+        my @variant_nodes_and_scores =
+          sort {
+            $b->[0] <=> $a->[0]
+          } map {
+            my %d = (
+              prefix   => $prefix,
+              scope    =>, $_->{scope},
+              filename => $_->{filename},
+            );
+            [ default_score(%d), $_ ]
+          } @variant_nodes;
+        # exact match
+        my @exact_variant_nodes = map {$_->[1]} grep {$_->[0] >= 999} @variant_nodes_and_scores;
+        if (scalar(@exact_variant_nodes) > 0) {
+          return ($matched, $unique_id, @exact_variant_nodes);
+        }
+        # approximate match
+        my @approx_variant_nodes = map {$_->[1]} grep {$_->[0] >= 990} @variant_nodes_and_scores;
+        if (scalar(@approx_variant_nodes) > 0) {
+          return ($matched, $unique_id, @approx_variant_nodes);
+        }
+        # no match
+        return ($matched, $unique_id, @variant_nodes);
+      }
+      else {
+        return ($matched, $unique_id, @variant_nodes);
+      }
     }
     else {
       my @callee_nodes = map {
@@ -878,9 +1038,12 @@ sub adjust_calling_tree($) {
   my ($root) = @_;
   return undef unless defined($root);
   return $root unless exists $root->{child};
+  return $root if is_pure_name($root->{name});
   my @child = map {&adjust_calling_tree($_)} @{$root->{child}};
   if (($root->{branch_type} eq "variants") && (scalar(@child) == 1)) {
-    return $child[0];
+    my $node = $child[0];
+    $node->{origin_call} = $root->{call};
+    return $node;
   }
   else {
     $root->{child} = [ @child ];
@@ -910,8 +1073,8 @@ sub unified_calling_tree($$$$) {
   else {
     $root = &fuzzy_calling_tree($calling_names, $calling, $name, $filter, $files_excluded, $depth * 2);
   }
-  #return &adjust_calling_tree($root);
-  return $root;
+  #return $root;
+  return &adjust_calling_tree($root);
 }
 
 sub format_tree($$\&\&) {
@@ -991,11 +1154,16 @@ sub get_entry_of_calling_tree($$) {
       }
     }
     elsif ($branch_type eq "callees") {
+      my $origin_call = "";
+      if (exists $node->{origin_call} && defined($node->{origin_call})) {
+        $origin_call = $node->{origin_call};
+        $origin_call = "\e[91;33;1m[+] $origin_call\e[m @ ";
+      }
       if ($leaf eq "recursive") {
-        $name = "\e[32;36;1m$name\t[recursive]\e[m";
+        $name = "$origin_call\e[32;36;1m$name\t[recursive]\e[m";
       }
       else {
-        $name = "\e[33;32;1m$name\e[m";
+        $name = "$origin_call\e[33;32;1m$name\e[m";
       }
     }
   }
