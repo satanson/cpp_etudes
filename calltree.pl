@@ -33,6 +33,7 @@
 use warnings;
 use strict;
 use Data::Dumper;
+use Storable qw/freeze thaw/;
 
 sub red_color($) {
   my ($msg) = @_;
@@ -626,7 +627,8 @@ sub cache_or_extract_all_funcs(\%$$) {
   my $suffix = "$trivial_threshold.$length_threshold";
   my $script_basename = script_basename();
   my $ignored_file = ".$script_basename.ignored.$suffix";
-  my %cached_files = map {$_ => ".$script_basename.$_.$suffix"} qw/calling called calling_names called_names/;
+  my @cached_keys = qw/calling called calling_names called_names/;
+  my %cached_files = map {$_ => ".$script_basename.$_.$suffix"} @cached_keys;
 
   my $ignored_string = join ",", sort {$a cmp $b} (keys %$ignored);
   my $saved_ignored_string = read_content($ignored_file);
@@ -634,16 +636,16 @@ sub cache_or_extract_all_funcs(\%$$) {
   if (defined($saved_ignored_string) && ($saved_ignored_string eq $ignored_string)) {
 
     if (all {-f $_ && file_newer_than_script($_)} (values %cached_files)) {
-      my ($calling, $called, $calling_names, $called_names) = (undef, undef, undef, undef);
-      foreach my $cached_file (values %cached_files) {
-        eval(read_content($cached_file));
+
+      my %cached_vars = ();
+      foreach my $cached_key (keys %cached_files) {
+        $cached_vars{$cached_key} = thaw(read_content($cached_files{$cached_key}));
       }
-      my @cached_vars = ($calling, $called, $calling_names, $called_names);
-      if (any {!defined($_)} @cached_vars) {
+      if (any {!defined($_)} values %cached_vars) {
         my $args = join " or ", map {'$_'} keys %cached_files;
         die "Fail to parse $args";
       }
-      return @cached_vars;
+      return @cached_vars{@cached_keys};
     }
   }
 
@@ -659,24 +661,18 @@ sub cache_or_extract_all_funcs(\%$$) {
 
   my $calling_names = [ sort {$a cmp $b} keys %$calling ];
   my $called_names = [ sort {$a cmp $b} keys %$called ];
-
-  my @keyed_cached_vars = (
-    [ calling => $calling ],
-    [ called => $called ],
-    [ calling_names => $calling_names ],
-    [ called_names => $called_names ],
-  );
+  my %cached_vars = ();
+  @cached_vars{@cached_keys} = ($calling, $called, $calling_names, $called_names);
 
   write_content $ignored_file, $ignored_string;
 
-  local $Data::Dumper::Purity = 1;
-  foreach my $e (@keyed_cached_vars) {
-    my ($key, $cached_var) = @$e;
-    my $cache_file = $cached_files{$key};
-    print "write $key into $cache_file\n";
-    write_content($cached_files{$key}, Data::Dumper->Dump([ $cached_var ], [ $key ]));
+  foreach my $key (@cached_keys) {
+    my $cached_file = $cached_files{$key};
+    my $cached_var = $cached_vars{$key};
+    print "write $key into $cached_file\n";
+    write_content($cached_file, freeze($cached_var));
   }
-  return map {$_->[1]} @keyed_cached_vars;
+  return @cached_vars{@cached_keys};
 }
 
 my @ignored = (
@@ -1228,16 +1224,17 @@ sub cache_or_run(\@\&;@) {
   my $expect_key = join "\0", @key;
 
   if (file_newer_than_script($file)) {
-    my ($cached_key, $cached_data) = (undef, undef);
-    my $content = read_content($file);
-    eval($content) if defined($content);
+    my $thawed_data = thaw(read_content($file));
+    my $cached_key = $thawed_data->{cached_key};
+    my $cached_data = $thawed_data->{cached_data};
     if (defined($cached_key) && defined($cached_data) && $expect_key eq $cached_key) {
       return $cached_data;
     }
   }
 
   my $data = $func->(@args);
-  write_content($file, Data::Dumper->Dump([ $expect_key, $data ], [ qw/cached_key cached_data/ ]));
+  my $frozen_data = freeze({ cached_key => $expect_key, cached_data => $data });
+  write_content($file, $frozen_data);
   return $data;
 }
 
