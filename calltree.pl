@@ -36,18 +36,18 @@ use Data::Dumper;
 
 sub red_color($) {
   my ($msg) = @_;
-  return "\e[95;31;1m$msg\e[m";
+  "\e[95;31;1m$msg\e[m"
 }
 
 sub any(&;@) {
   my ($pred, @values) = @_;
   my $n = () = grep {$_} map {$pred->($_)} @values;
-  return $n > 0;
+  $n > 0;
 }
 
 sub all(&;@) {
   my ($pred, @values) = @_;
-  return !(any {!$pred->($_)} @values);
+  !(any {!$pred->($_)} @values);
 }
 use Cwd qw/abs_path/;
 sub get_path_of_script() {
@@ -68,7 +68,7 @@ sub file_newer_than($$) {
 }
 
 sub file_newer_than_script($) {
-  return file_newer_than(+shift, get_path_of_script());
+  file_newer_than(+shift, get_path_of_script());
 }
 
 sub ensure_ag_installed() {
@@ -105,7 +105,7 @@ sub ensure_safe() {
   my $supported_os = join "|", @supported_os;
   die "Platform '$os' is not supported, run calltree.pl in [$supported_os]" unless exists $supported_os{$os};
 
-  return unless defined($cwd) && defined($home);
+  die "Undefined cwd or home" unless defined($cwd) && defined($home);
   die "Never run calltree.pl in HOME directory: '$home'" if $cwd eq $home;
   die "Never run calltree.pl in root directory: '$cwd'" if $cwd eq '/';
   my @comp = split qr'/+', $cwd;
@@ -157,6 +157,15 @@ sub gen_re_func_call() {
 
 my $RE_FUNC_CALL = gen_re_func_call;
 
+sub gen_re_gcc_attribute() {
+  my $attr = "(?: $RE_IDENTIFIER (?: $RE_WS* \\([^()]+\\) )? )";
+  my $attr_list = "(?: $attr (?: $RE_WS* , $RE_WS* $attr $RE_WS*)*)";
+  my $gcc_attribute = "__attribute__ $RE_WS* \\( \\(? $RE_WS*  $attr_list $RE_WS* \\)? \\)";
+  return $gcc_attribute =~ s/ //gr;
+}
+
+my $RE_GCC_ATTRIBUTE = gen_re_gcc_attribute();
+
 sub read_content($) {
   my $file_name = shift;
   if (-f $file_name) {
@@ -197,15 +206,15 @@ my $RE_LEFT_ANGLES = qr'<[<=]+';
 my $RE_TEMPLATE_ARGS_1LAYER = qr'(<\s*(((::)?(\w+::)*\w+\s*,\s*)*(::)?(\w+::)*\w+\s*)>)';
 
 sub empty_string_with_blank_lines($) {
-  return q/""/ . (join "\n", map {""} split "\n", $_[0]);
+  q/""/ . (join "\n", map {""} split "\n", $_[0]);
 }
 
 sub blank_lines($) {
-  return join "\n", map {""} split "\n", $_[0];
+  join "\n", map {""} split "\n", $_[0];
 }
 
 sub replace_single_char($) {
-  return $_[0] =~ s/$RE_SINGLE_CHAR/'x'/gr;
+  $_[0] =~ s/$RE_SINGLE_CHAR/'x'/gr;
 }
 
 sub replace_quoted_string($) {
@@ -213,27 +222,27 @@ sub replace_quoted_string($) {
 }
 
 sub replace_slash_star_comment($) {
-  return $_[0] =~ s/$RE_SLASH_STAR_COMMENT/&blank_lines($1)/gemr;
+  $_[0] =~ s/$RE_SLASH_STAR_COMMENT/&blank_lines($1)/gemr;
 }
 
 sub replace_nested_char($) {
-  return $_[0] =~ s/$RE_NESTED_CHARS_IN_SINGLE_QUOTES/'x'/gr;
+  $_[0] =~ s/$RE_NESTED_CHARS_IN_SINGLE_QUOTES/'x'/gr;
 }
 
 sub replace_single_line_comment($) {
-  return $_[0] =~ s/$RE_SINGLE_LINE_COMMENT//gr;
+  $_[0] =~ s/$RE_SINGLE_LINE_COMMENT//gr;
 }
 
 sub replace_left_angles($) {
-  return $_[0] =~ s/$RE_LEFT_ANGLES/++/gr;
+  $_[0] =~ s/$RE_LEFT_ANGLES/++/gr;
 }
 
 sub replace_lt($) {
-  return $_[0] =~ s/\s+<\s+/ + /gr;
+  $_[0] =~ s/\s+<\s+/ + /gr;
 }
 
 sub replace_template_args_1layer($) {
-  return ($_[0] =~ s/$RE_TEMPLATE_ARGS_1LAYER/&blank_lines($1)/gemr, $1);
+  ($_[0] =~ s/$RE_TEMPLATE_ARGS_1LAYER/&blank_lines($1)/gemr, $1);
 }
 
 sub repeat_apply($\&$) {
@@ -246,11 +255,14 @@ sub repeat_apply($\&$) {
 }
 
 sub remove_keywords_and_attributes($) {
-  return $_[0] =~ s/(\b(const|final|override|noexcept)\b)|\[\[\w+\]\]//gr;
+  $_[0] =~ s/(\b(const|final|override|noexcept)\b)|\[\[\w+\]\]//gr;
 }
 
 sub replace_template_args_4layers($) {
-  return repeat_apply(4, &replace_template_args_1layer, $_[0]);
+  repeat_apply(4, &replace_template_args_1layer, $_[0]);
+}
+sub remove_gcc_attributes($) {
+  $_[0] =~ s/$RE_GCC_ATTRIBUTE//gr;
 }
 
 sub preprocess_one_cpp_file($) {
@@ -265,6 +277,7 @@ sub preprocess_one_cpp_file($) {
   } split qq/\n/, $content;
 
   $content = remove_keywords_and_attributes($content);
+  $content = remove_gcc_attributes($content);
   $content = replace_template_args_4layers($content);
 
   my $tmp_file = "$file.tmp.created_by_call_tree";
