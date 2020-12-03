@@ -72,6 +72,38 @@ sub file_newer_than_script($) {
   file_newer_than(+shift, get_path_of_script());
 }
 
+sub get_cached_or_run(&$$;@) {
+  my ($func, $validate_func, $cached_file, @args) = @_;
+  if (file_newer_than_script($cached_file)) {
+    my $result = thaw(read_content($cached_file));
+    if (defined($result) && ref($result) eq ref([]) && $validate_func->(@$result)) {
+      return @$result;
+    }
+  }
+  my @result = $func->(@args);
+  write_content($cached_file, freeze([ @result ]));
+  return @result;
+}
+
+sub get_cache_or_run_keyed(\@$$;@) {
+  my ($key, $file, $func, @args) = @_;
+
+  die "Invalid data" unless defined($key) && ref($key) eq ref([]);
+  die "Invalid func" unless defined($func);
+
+  my @key = @$key;
+  my $expect_key = join "\0", @key;
+
+  my $check_key = sub(\%) {
+    my $data = shift;
+    return exists $data->{cached_key} && $data->{cached_key} eq $expect_key;
+  };
+  my ($data) = get_cached_or_run {
+    +{ cached_key => $expect_key, cached_data => [ $func->(@args) ] }
+  } $check_key, $file;
+  return @{$data->{cached_data}};
+}
+
 sub ensure_ag_installed() {
   my ($ag_path) = map {chomp;
     $_} qx(which ag 2>/dev/null);
@@ -614,65 +646,36 @@ sub extract_all_funcs(\%$$) {
       }
     }
   }
-  return (\%calling, \%called);
+  my $calling_names = [ sort {$a cmp $b} keys %calling ];
+  my $called_names = [ sort {$a cmp $b} keys %called ];
+  return (\%calling, \%called, $calling_names, $called_names);
 }
 
-sub cache_or_extract_all_funcs(\%$$) {
+sub get_cached_or_extract_all_funcs(\%$$) {
   my ($ignored, $trivial_threshold, $length_threshold) = @_;
-
   restore_saved_files();
-
   $trivial_threshold = int($trivial_threshold);
   $length_threshold = int($length_threshold);
+
   my $suffix = "$trivial_threshold.$length_threshold";
   my $script_basename = script_basename();
-  my $ignored_file = ".$script_basename.ignored.$suffix";
-  my @cached_keys = qw/calling called calling_names called_names/;
-  my %cached_files = map {$_ => ".$script_basename.$_.$suffix"} @cached_keys;
-
-  my $ignored_string = join ",", sort {$a cmp $b} (keys %$ignored);
-  my $saved_ignored_string = read_content($ignored_file);
-
-  if (defined($saved_ignored_string) && ($saved_ignored_string eq $ignored_string)) {
-
-    if (all {-f $_ && file_newer_than_script($_)} (values %cached_files)) {
-
-      my %cached_vars = ();
-      foreach my $cached_key (keys %cached_files) {
-        $cached_vars{$cached_key} = thaw(read_content($cached_files{$cached_key}));
-      }
-      if (any {!defined($_)} values %cached_vars) {
-        my $args = join " or ", map {'$_'} keys %cached_files;
-        die "Fail to parse $args";
-      }
-      return @cached_vars{@cached_keys};
-    }
-  }
-
-  print "preprocess_all_cpp_files\n";
-  preprocess_all_cpp_files();
-  print "register_abnormal_shutdown_hook\n";
-  register_abnormal_shutdown_hook();
-  print "extract_all_funcs: begin\n";
-  my ($calling, $called) = extract_all_funcs(%$ignored, $trivial_threshold, $length_threshold);
-  print "extract_all_funcs: end\n";
-  @SIG{keys %SIG} = qw/DEFAULT/ x (keys %SIG);
-  restore_saved_files();
-
-  my $calling_names = [ sort {$a cmp $b} keys %$calling ];
-  my $called_names = [ sort {$a cmp $b} keys %$called ];
-  my %cached_vars = ();
-  @cached_vars{@cached_keys} = ($calling, $called, $calling_names, $called_names);
-
-  write_content $ignored_file, $ignored_string;
-
-  foreach my $key (@cached_keys) {
-    my $cached_file = $cached_files{$key};
-    my $cached_var = $cached_vars{$key};
-    print "write $key into $cached_file\n";
-    write_content($cached_file, freeze($cached_var));
-  }
-  return @cached_vars{@cached_keys};
+  my $file = ".$script_basename.summary.$suffix.dat";
+  my @key = (sort {$a cmp $b} (keys %$ignored), $trivial_threshold, $length_threshold);
+  my $do_summary = sub() {
+    print "preprocess_all_cpp_files\n";
+    preprocess_all_cpp_files();
+    print "register_abnormal_shutdown_hook\n";
+    register_abnormal_shutdown_hook();
+    print "extract_all_funcs: begin\n";
+    my @result =
+      extract_all_funcs(%$ignored, $trivial_threshold, $length_threshold);
+    print "extract_all_funcs: end\n";
+    @SIG{keys %SIG} = qw/DEFAULT/ x (keys %SIG);
+    restore_saved_files();
+    return @result;
+  };
+  my @result = get_cache_or_run_keyed(@key, $file, $do_summary);
+  return @result;
 }
 
 my @ignored = (
@@ -706,7 +709,7 @@ my $env_length_threshold = get_env_or_default {
 
 my %ignored = map {$_ => 1} @ignored;
 my ($calling, $called, $calling_names, $called_names)
-  = cache_or_extract_all_funcs(%ignored, $env_trivial_threshold, $env_length_threshold);
+  = get_cached_or_extract_all_funcs(%ignored, $env_trivial_threshold, $env_length_threshold);
 
 sub sub_tree($$$$$$$) {
   my ($graph, $node, $level, $depth, $path, $get_id_and_child, $install_child) = @_;
@@ -759,8 +762,9 @@ sub sub_tree($$$$$$$) {
 use List::Util qw/min max/;
 sub lev_dist($$) {
   my ($a, $b) = @_;
-  return -1 unless defined($a) && defined($b);
-  my ($a_len, $b_len) = (length($a), length($b));
+  my ($a_len, $b_len) = (0, 0);
+  $a_len = length($a) if defined($a);
+  $b_len = length($b) if defined($b);
   return $b_len if $a_len == 0;
   return $a_len if $b_len == 0;
 
@@ -774,14 +778,14 @@ sub lev_dist($$) {
     $d[$i][0] = $i;
   }
 
-  for (my $j = 0; $j <= $jj; ++$j) {
+  for (my $j = 0; $j < $jj; ++$j) {
     $d[0][$j] = $j;
   }
 
   for (my $i = 1; $i < $ii; ++$i) {
     for (my $j = 1; $j < $jj; ++$j) {
       my ($ci, $cj) = ($a[$i - 1], $b[$j - 1]);
-      if ($ci ge $cj) {
+      if ($ci eq $cj) {
         $d[$i][$j] = $d[$i - 1][$j - 1];
       }
       else {
@@ -804,7 +808,7 @@ sub substr_score($$) {
   return 0 unless defined($a) && defined($b) && length($a) > 0 && length($b) > 0;
   $a = lc $a;
   $b = lc $b;
-  if ((index $b, $a) != -1 && (index $a, $b) != -1) {
+  if ((index $b, $a) != -1) {
     return 1000;
   }
   else {
@@ -816,10 +820,14 @@ sub abbr_score($$) {
   my ($a, $b) = @_;
   return 0 unless defined($a) && defined($b) && length($a) > 0 && length($b) > 0;
   $a = lc $a;
-  $b = lc join "", grep {"A" le $_ le "Z"} split //, $b;
-  return 0 unless length($b) > 0;
-  my $score = substr_score($a, $b);
-  return $score == 0 ? 0 : 999;
+  my $b0 = lc join "", grep {"A" le $_ le "Z"} split //, $b;
+  my $b1 = lc join "", grep {my $chr = $_;
+    all {$chr ne $_} qw/a e i o u/} split //, $b;
+  my $score0 = 0;
+  my $score1 = 0;
+  $score0 = substr_score($a, $b0) if length($b0) > 1;
+  $score1 = substr_score($a, $b1) if length($b1) > 1;
+  return max($score0, $score1);
 }
 
 sub score(\%;@) {
@@ -1020,7 +1028,7 @@ sub calling_tree($$$$$) {
           return ($matched, $unique_id, @exact_variant_nodes);
         }
         # approximate match
-        my @approx_variant_nodes = map {$_->[1]} grep {$_->[0] >= 990} @variant_nodes_and_scores;
+        my @approx_variant_nodes = map {$_->[1]} grep {$_->[0] >= 995} @variant_nodes_and_scores;
         if (scalar(@approx_variant_nodes) > 0) {
           return ($matched, $unique_id, @approx_variant_nodes);
         }
@@ -1212,30 +1220,8 @@ sub format_calling_tree($$) {
 use Digest::SHA qw(sha256_hex);
 sub cached_sha256_file(@) {
   my @data = (@_);
-  return ".calltree.result.cached." . sha256_hex(@data);
-}
-
-sub cache_or_run(\@\&;@) {
-  my ($key, $func, @args) = @_;
-  die "Invalid data" unless defined($key) && ref($key) eq ref([]);
-  die "Invalid func" unless defined($func);
-  my @key = @$key;
-  my $file = cached_sha256_file(@key);
-  my $expect_key = join "\0", @key;
-
-  if (file_newer_than_script($file)) {
-    my $thawed_data = thaw(read_content($file));
-    my $cached_key = $thawed_data->{cached_key};
-    my $cached_data = $thawed_data->{cached_data};
-    if (defined($cached_key) && defined($cached_data) && $expect_key eq $cached_key) {
-      return $cached_data;
-    }
-  }
-
-  my $data = $func->(@args);
-  my $frozen_data = freeze({ cached_key => $expect_key, cached_data => $data });
-  write_content($file, $frozen_data);
-  return $data;
+  my $script_basename = script_basename();
+  return ".$script_basename.result.cached." . sha256_hex(@data);
 }
 
 my @key = (@ARGV, $isatty, $env_trivial_threshold, $env_length_threshold);
@@ -1266,4 +1252,4 @@ sub show_tree() {
   }
 }
 
-print cache_or_run(@key, &show_tree);
+print get_cache_or_run_keyed(@key, cached_sha256_file(@key), \&show_tree);

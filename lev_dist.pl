@@ -23,14 +23,14 @@ sub lev_dist($$){
     $d[$i][0] = $i;
   }
 
-  for (my $j=0; $j <= $jj; ++$j){
+  for (my $j=0; $j < $jj; ++$j){
     $d[0][$j] = $j;
   }
 
   for (my $i=1; $i < $ii; ++$i){
     for (my $j=1; $j < $jj; ++$j){
       my ($ci, $cj) = ($a[$i-1], $b[$j-1]);
-      if ($ci ge $cj) {
+      if ($ci eq $cj) {
         $d[$i][$j] = $d[$i-1][$j-1];
       } else {
         $d[$i][$j] = 1 + min($d[$i-1][$j], $d[$i][$j-1], $d[$i-1][$j-1]);
@@ -40,8 +40,8 @@ sub lev_dist($$){
   return $d[-1][-1];
 }
 
-my $a = "result";
-my @b = qw/result res resultabc PTransmitDataParams  PTransmitChunkParams PFetchDataResult/;
+my $a = "load_id";
+my @b = qw/reader undef/;
 
 for my $b (@b) {
   my $dist = lev_dist($a,$b);
