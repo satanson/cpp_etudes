@@ -161,7 +161,7 @@ sub all_sub_classes() {
   my $attr_re = "\\[\\[[^\\[\\]]+\\]\\]";
   my $access_specifier_re = "final|private|public|protected";
   my $template_arguments_re = "<([^<>]*(?:<(?1)>|[^<>])[^<>]*)?>";
-  my $cls_re = "^\\s*(template\\s*$template_arguments_re)?\\s*\\b(class|struct)\\b\\s*([a-zA-Z_]\\w*)\\s*[^{};*()=]*?{";
+  my $cls_re = "^\\s*(template\\s*$template_arguments_re)?(?:\\s*typedef)?\\s*\\b(class|struct)\\b\\s*([a-zA-Z_]\\w*)\\s*[^{};*()=]*?{";
   my $cls_filter_re = "^(\\S+)\\s*:\\s*(?:class|struct)\\s+\\w+(\\s+:\\s+(\\s*[:\\w]+\\s*,\\s*)*[:\\w]+)?s*";
 
   my $class0_re = "(?:class|struct)\\s+(\\w+)";
@@ -197,6 +197,7 @@ sub all_sub_classes() {
     printf "Extract lines: %s\n", scalar(@matches);
 
     @matches = map {join ":", @$_} merge_lines @matches;
+    @matches = map {s/\btypedef\b//gr} @matches;
     printf "Merged into lines: %s\n", scalar(@matches);
 
     my @file_info_and_line = grep {

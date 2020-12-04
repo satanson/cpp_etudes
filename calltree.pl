@@ -934,8 +934,8 @@ sub unified_called_tree($$$$) {
   }
 }
 
-sub calling_tree($$$$$) {
-  my ($calling_graph, $name, $filter, $files_excluded, $depth) = @_;
+sub calling_tree($$$$$$) {
+  my ($calling_graph, $name, $filter, $files_excluded, $depth, $uniques) = @_;
 
   my $new_variant_node = sub($) {
     my ($node) = @_;
@@ -986,6 +986,7 @@ sub calling_tree($$$$$) {
     my $branch_type = $node->{branch_type};
     my $file_info = $node->{file_info};
     my $unique_id = "$file_info:$call";
+    $uniques->{"$file_info.$name"} = 1;
 
     if ($file_info ne "" && $file_info =~ /$files_excluded/) {
       return (undef, undef);
@@ -1077,7 +1078,17 @@ sub adjust_calling_tree($) {
 sub fuzzy_calling_tree($$$$$$) {
   my ($calling_names, $calling_graph, $name_pattern, $filter, $files_excluded, $depth) = @_;
   my @names = grep {/$name_pattern/} @$calling_names;
-  my @trees = grep {defined($_)} map {&calling_tree($calling_graph, $_, $filter, $files_excluded, $depth)} @names;
+  my @trees = ();
+  my $uniques = {};
+  for my $name (@names) {
+    my $child0 = $calling_graph->{$name}[0];
+    my $child0_file_info = $child0->{file_info};
+    my $child0_name = $child0->{name};
+    my $child0_unique_id = "$child0_file_info.$child0_name";
+    next if exists $uniques->{$child0_unique_id};
+    my $tree = calling_tree($calling_graph, $name, $filter, $files_excluded, $depth, $uniques);
+    push @trees, $tree if defined($tree);
+  }
   return {
     name        => $name_pattern,
     simple_name => $name_pattern,
@@ -1091,12 +1102,11 @@ sub unified_calling_tree($$$$) {
   my ($name, $filter, $files_excluded, $depth) = @_;
   my $root = undef;
   if (exists $calling->{$name}) {
-    $root = &calling_tree($calling, $name, $filter, $files_excluded, $depth * 2);
+    $root = &calling_tree($calling, $name, $filter, $files_excluded, $depth * 2, {});
   }
   else {
     $root = &fuzzy_calling_tree($calling_names, $calling, $name, $filter, $files_excluded, $depth * 2);
   }
-  #return $root;
   return &adjust_calling_tree($root);
 }
 
@@ -1167,26 +1177,31 @@ sub get_entry_of_calling_tree($$) {
     elsif ($branch_type eq "variants") {
       my $call = $node->{call};
       if ($leaf eq "internal") {
-        $name = "\e[91;33;1m[+] $call\e[m";
+        $name = "\e[91;33;1m+ $call\e[m";
       }
       elsif ($leaf eq "outermost") {
         $name = "\e[95;31;1m$call\e[m\e[91;38;2m\t[out-of-tree]\e[m";
+      }
+      elsif ($leaf eq "recursive") {
+        $name = "\e[32;36;1m$name\t[recursive]\e[m";
       }
       else {
         $name = "\e[33;32;1m$call\e[m";
       }
     }
     elsif ($branch_type eq "callees") {
-      my $origin_call = "";
+      my $before_at = "";
       if (exists $node->{origin_call} && defined($node->{origin_call})) {
-        $origin_call = $node->{origin_call};
-        $origin_call = "\e[91;33;1m[+] $origin_call\e[m @ ";
+        my $origin_call = $node->{origin_call};
+        if ($origin_call ne $name) {
+          $before_at = "\e[91;33;1m$origin_call\e[m @ ";
+        }
       }
       if ($leaf eq "recursive") {
-        $name = "$origin_call\e[32;36;1m$name\t[recursive]\e[m";
+        $name = "$before_at\e[32;36;1m$name\t[recursive]\e[m";
       }
       else {
-        $name = "$origin_call\e[33;32;1m$name\e[m";
+        $name = "$before_at\e[33;32;1m$name\e[m";
       }
     }
   }
@@ -1195,7 +1210,7 @@ sub get_entry_of_calling_tree($$) {
       $name = "$name\t[OUT-OF-TREE]";
     }
     elsif ($branch_type eq "variants" && $leaf eq "internal") {
-      $name = "+$name";
+      $name = "$name [+]";
     }
     elsif ($branch_type eq "callees" && $leaf eq "recursive") {
       $name = "$name\t[RECURSIVE]";
