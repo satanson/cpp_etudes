@@ -1255,14 +1255,28 @@ sub get_entry_of_calling_tree($$) {
   return $name;
 }
 
+sub group_by(&;@) {
+  my ($part_func, @values) = @_;
+  my @pairs = map {[ $part_func->($_), $_ ]} @values;
+  my %group = ();
+  for my $p (@pairs) {
+    my ($key, $val) = ($p->[0], $p->[1]);
+    if (!exists $group{$key}) {
+      $group{$key} = [];
+    }
+    push @{$group{$key}}, $val;
+  }
+  return %group;
+}
+
 sub outermost_tree($$) {
   my ($name, $files_excluded) = @_;
   my %names = map {
     $_ => 1
   } grep {
-    ($_ =~ /$name/) && ($_ !~ /^~/) && !is_pure_name($_)
-  } map {
-    simple_name($_)
+    !is_pure_name($_)
+  } grep {
+    ($_ =~ /$name/)
   } @$calling_names;
 
   my @names = grep {!exists $called->{$_}} sort {$a cmp $b} keys %names;
@@ -1277,6 +1291,12 @@ sub outermost_tree($$) {
     $_
   } @trees;
 
+  my %trees = group_by {$_->{file_info}} @trees;
+  @trees = sort {
+    $a->{name} cmp $b->{name}
+  } map {
+    $_->[0];
+  } values %trees;
   return {
     name        => $name,
     simple_name => $name,
