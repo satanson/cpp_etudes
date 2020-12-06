@@ -169,12 +169,22 @@ sub gen_nested_pair_re($$$) {
 my $RE_NESTED_PARENTHESES = gen_nested_pair_re("\\(", "\\)", "[^()]*");
 my $RE_NESTED_BRACES = gen_nested_pair_re("{", "}", "[^{}]*");
 
-sub gen_initializer_list_of_ctor() {
-  my $initializer = "$RE_IDENTIFIER $RE_WS* $RE_NESTED_PARENTHESES";
-  my $initializer_list = "$RE_WS* : (?:$RE_WS* $initializer $RE_WS*,$RE_WS*)* $RE_WS* $initializer $RE_WS*";
-  return $initializer_list =~ s/ //gr;
+sub gen_re_list($$$) {
+  my ($re_delimiter, $re_item, $optional) = @_;
+  my $re = "(?: $re_item (?: $RE_WS* $re_delimiter $RE_WS* $re_item)*? ) $optional";
+  return $re =~ s/ //gr;
 }
 
+sub gen_re_initializer_list_of_ctor() {
+  my $re_csv = gen_re_list(",", "(?:[^,]+?)", "??");
+  my $initializer = "(?: $RE_IDENTIFIER  $RE_WS*  (?: (?: \\( $RE_WS*  $re_csv  $RE_WS* \\) ) | (?: \\{ $RE_WS*  $re_csv  $RE_WS* \\} ) ) )";
+  my $re_csv_initializer = gen_re_list(",", "(?: $initializer )", "");
+  my $initializer_list = "(?: (?<=\\) ) $RE_WS* : $RE_WS* $re_csv_initializer $RE_WS* (?={) )";
+
+  return $initializer_list =~ s/ //gr;
+
+}
+my $RE_INITIALIZER_LIST = gen_re_initializer_list_of_ctor();
 sub gen_re_overload_operator() {
   my $operators = "[-+*/%^&|~!=<>]=?|(?:(?:<<|>>|\\|\\||&&)=?)|<=>|->\\*|->|\\(\\s*\\)|\\[\\s*\\]|\\+\\+|--|,";
   my $re = "(?:operator \\s* (?:$operators)\\s*(?=\\())";
@@ -184,6 +194,7 @@ my $RE_OVERLOAD_OPERATOR = gen_re_overload_operator();
 sub gen_re_func_def() {
   my $re_func_def = "";
   $re_func_def .= "^.*?($RE_SCOPED_IDENTIFIER|$RE_OVERLOAD_OPERATOR) $RE_WS* $RE_NESTED_PARENTHESES";
+  $re_func_def .= "(?:$RE_INITIALIZER_LIST)?";
   $re_func_def .= "$RE_WS* $RE_NESTED_BRACES";
   $re_func_def =~ s/ //g;
   return $re_func_def;
@@ -246,6 +257,8 @@ my $RE_NESTED_CHARS_IN_SINGLE_QUOTES = qr/'[{}<>()]'/;
 my $RE_SINGLE_LINE_COMMENT = qr'/[/\\].*';
 my $RE_LEFT_ANGLES = qr'<[<=]+';
 my $RE_TEMPLATE_ARGS_1LAYER = qr'(<\s*(((::)?(\w+::)*\w+\s*,\s*)*(::)?(\w+::)*\w+\s*)>)';
+my $RE_CSV_TOKEN = gen_re_list(",", $RE_SCOPED_IDENTIFIER, "??");
+my $RE_NOEXCEPT_THROW = qr"(\\b(noexcept|throw)\\b)(\\s*\\(\\s*$RE_CSV_TOKEN\\s*\\))?";
 
 sub empty_string_with_blank_lines($) {
   q/""/ . (join "\n", map {""} split "\n", $_[0]);
@@ -297,7 +310,11 @@ sub repeat_apply($\&$) {
 }
 
 sub remove_keywords_and_attributes($) {
-  $_[0] =~ s/(\b(const|final|override|noexcept)\b)|\[\[\w+\]\]//gr;
+  $_[0] =~ s/(\b(volatile|const|final|override)\b)|\[\[\w+\]\]//gr;
+}
+
+sub remove_noexcept_and_throw($) {
+  $_[0] =~ s/$RE_NOEXCEPT_THROW//gr;
 }
 
 sub replace_template_args_4layers($) {
@@ -321,6 +338,7 @@ sub preprocess_one_cpp_file($) {
   $content = remove_keywords_and_attributes($content);
   $content = remove_gcc_attributes($content);
   $content = replace_template_args_4layers($content);
+  $content = remove_noexcept_and_throw($content);
 
   my $tmp_file = "$file.tmp.created_by_call_tree";
   write_content($tmp_file, $content);
@@ -670,7 +688,7 @@ sub get_cached_or_extract_all_funcs(\%$$) {
   my $suffix = "$trivial_threshold.$length_threshold";
   my $script_basename = script_basename();
   my $file = ".$script_basename.summary.$suffix.dat";
-  my @key = (sort {$a cmp $b} (keys %$ignored), $trivial_threshold, $length_threshold);
+  my @key = ((sort {$a cmp $b} keys %$ignored), $trivial_threshold, $length_threshold);
   my $do_summary = sub() {
     print "preprocess_all_cpp_files\n";
     preprocess_all_cpp_files();
