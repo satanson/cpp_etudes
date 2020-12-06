@@ -200,7 +200,15 @@ sub gen_re_func_def() {
   return $re_func_def;
 }
 
+sub gen_re_func_def_name() {
+  my $re_func_def = "";
+  $re_func_def .= "^.*?($RE_SCOPED_IDENTIFIER|$RE_OVERLOAD_OPERATOR) $RE_WS* $RE_NESTED_PARENTHESES";
+  $re_func_def =~ s/ //g;
+  return $re_func_def;
+}
+
 my $RE_FUNC_DEFINITION = gen_re_func_def;
+my $RE_FUNC_DEFINITION_NAME = gen_re_func_def_name;
 
 sub gen_re_func_call() {
   my $cs_tokens = "$RE_WS* (?:(?: $RE_SCOPED_IDENTIFIER $RE_WS* , $RE_WS*)* $RE_SCOPED_IDENTIFIER $RE_WS*)?";
@@ -578,9 +586,9 @@ sub extract_all_funcs(\%$$) {
 
   printf "function definition after merge: %d\n", scalar(@func_file_line_def);
 
-  my $re_func_def = qr!$RE_FUNC_DEFINITION!;
+  my $re_func_def_name = qr!$RE_FUNC_DEFINITION_NAME!;
   my @func_def = map {$_->[2]} @func_file_line_def;
-  my @func_name = map {$_ =~ $re_func_def;
+  my @func_name = map {$_ =~ $re_func_def_name;
     $1} @func_def;
 
   my $re_func_call = qr!$RE_FUNC_CALL!;
@@ -1280,7 +1288,7 @@ sub outermost_tree($$) {
   } @$calling_names;
 
   my @names = grep {!exists $called->{$_}} sort {$a cmp $b} keys %names;
-  my @trees = map {calling_tree($calling, $_, "\\w+", $files_excluded, 2, {})} @names;
+  my @trees = grep {defined($_)} map {calling_tree($calling, $_, "\\w+", $files_excluded, 2, {})} @names;
   @trees = map {
     ($_->{branch_type} eq "variants" ? @{$_->{child}} : $_);
   } @trees;
@@ -1317,7 +1325,7 @@ sub innermost_tree($$) {
   } @$called_names;
 
   my @names = grep {!exists $calling->{$_}} sort {$a cmp $b} keys %names;
-  my @trees = map {called_tree($called, $_, "\\w+", $files_excluded, 1)} @names;
+  my @trees = grep {defined($_)} map {called_tree($called, $_, "\\w+", $files_excluded, 1)} @names;
 
   @trees = map {
     $_->{child} = [];
