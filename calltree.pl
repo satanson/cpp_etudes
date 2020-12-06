@@ -148,7 +148,10 @@ sub ensure_safe() {
 ensure_safe;
 ensure_ag_installed;
 
-my $ignore_pattern = join "", map {" --ignore '$_' "} qw(*test* *benchmark* *CMakeFiles* *contrib/* *thirdparty/* *3rd-[pP]arty/* *3rd[pP]arty/*);
+my $ignore_pattern = join "", map {" --ignore '$_' "}
+  qw(*test* *benchmark* *CMakeFiles* *contrib/* *third_party/*
+    *thirdparty/* *3rd-[pP]arty/* *3rd[pP]arty/* *deps/*);
+
 my $cpp_filename_pattern = qq/'\\.(c|cc|cpp|C|h|hh|hpp|H)\$'/;
 
 my $RE_IDENTIFIER = "\\b[A-Za-z_]\\w*\\b";
@@ -172,9 +175,15 @@ sub gen_initializer_list_of_ctor() {
   return $initializer_list =~ s/ //gr;
 }
 
+sub gen_re_overload_operator() {
+  my $operators = "[-+*/%^&|~!=<>]=?|(?:(?:<<|>>|\\|\\||&&)=?)|<=>|->\\*|->|\\(\\s*\\)|\\[\\s*\\]|\\+\\+|--|,";
+  my $re = "(?:operator \\s* (?:$operators)\\s*(?=\\())";
+  return $re =~ s/ //gr;
+}
+my $RE_OVERLOAD_OPERATOR = gen_re_overload_operator();
 sub gen_re_func_def() {
   my $re_func_def = "";
-  $re_func_def .= "^.*?($RE_SCOPED_IDENTIFIER) $RE_WS* $RE_NESTED_PARENTHESES";
+  $re_func_def .= "^.*?($RE_SCOPED_IDENTIFIER|$RE_OVERLOAD_OPERATOR) $RE_WS* $RE_NESTED_PARENTHESES";
   $re_func_def .= "$RE_WS* $RE_NESTED_BRACES";
   $re_func_def =~ s/ //g;
   return $re_func_def;
@@ -506,8 +515,9 @@ sub extract_all_callees($$) {
 }
 
 sub simple_name($) {
-  $_[0] =~ /(~?\w+\b)$/;
-  $1
+  my $name = shift;
+  $name =~ s/ //g;
+  $name =~ /(~?\w+\b)$/ ? $1 : $name;
 }
 
 sub scope($) {
@@ -680,11 +690,14 @@ sub get_cached_or_extract_all_funcs(\%$$) {
 
 my @ignored = (
   qw(for if while switch catch),
-  qw(log warn log trace debug defined warn error fatal),
+  qw(VLOG LOG log warn log trace debug defined warn error fatal),
   qw(static_cast reinterpret_cast const_cast dynamic_cast),
   qw(return assert sizeof alignas),
   qw(constexpr),
   qw(set get),
+  qw(printf assert ASSERT),
+  qw(CHECK DCHECK_LT DCHECK DCHECK_EQ DCHECK_GT DCHECK_NE),
+  qw(UNLIKELY LIKELY unlikely likely)
 );
 
 sub get_env_or_default(&$$) {
@@ -867,7 +880,7 @@ sub default_score(\%) {
   return score(%$data, values %rules);
 }
 
-sub called_tree($$$$) {
+sub called_tree($$$$$) {
   my ($called_graph, $name, $filter, $files_excluded, $depth) = @_;
   my $get_id_and_child = sub($$) {
     my ($called_graph, $node) = @_;
@@ -1180,7 +1193,8 @@ sub get_entry_of_calling_tree($$) {
         $name = "\e[91;33;1m+ $call\e[m";
       }
       elsif ($leaf eq "outermost") {
-        $name = "\e[95;31;1m$call\e[m\e[91;38;2m\t[out-of-tree]\e[m";
+        #$name = "\e[95;31;1m$call\e[m\e[91;38;2m\t[out-of-tree]\e[m";
+        $name = "\e[95;31;1m$call\e[m";
       }
       elsif ($leaf eq "recursive") {
         $name = "\e[32;36;1m$name\t[recursive]\e[m";
@@ -1223,6 +1237,63 @@ sub get_entry_of_calling_tree($$) {
   return $name;
 }
 
+sub outermost_tree($$) {
+  my ($name, $files_excluded) = @_;
+  my %names = map {
+    $_ => 1
+  } grep {
+    ($_ =~ /$name/) && ($_ !~ /^~/) && !is_pure_name($_)
+  } map {
+    simple_name($_)
+  } @$calling_names;
+
+  my @names = grep {!exists $called->{$_}} sort {$a cmp $b} keys %names;
+  my @trees = map {calling_tree($calling, $_, "\\w+", $files_excluded, 2, {})} @names;
+  @trees = map {
+    ($_->{branch_type} eq "variants" ? @{$_->{child}} : $_);
+  } @trees;
+
+  @trees = map {
+    $_->{child} = [];
+    $_->{leaf} = "internal";
+    $_
+  } @trees;
+
+  return {
+    name        => $name,
+    simple_name => $name,
+    file_info   => "",
+    branch_type => "matches",
+    child       => [ @trees ],
+  };
+}
+
+sub innermost_tree($$) {
+  my ($name, $files_excluded) = @_;
+  my %names = map {
+    $_ => 1
+  } grep {
+    ($_ =~ /$name/) && ($_ !~ /^~/);
+  } map {
+    simple_name($_)
+  } @$called_names;
+
+  my @names = grep {!exists $calling->{$_}} sort {$a cmp $b} keys %names;
+  my @trees = map {called_tree($called, $_, "\\w+", $files_excluded, 1)} @names;
+
+  @trees = map {
+    $_->{child} = [];
+    $_
+  } @trees;
+
+  return {
+    name        => $name,
+    simple_name => $name,
+    file_info   => "",
+    child       => [ @trees ],
+  };
+}
+
 sub get_child_of_calling_tree($) {
   my $node = shift;
   return exists $node->{child} ? @{$node->{child}} : ();
@@ -1243,26 +1314,36 @@ my @key = (@ARGV, $isatty, $env_trivial_threshold, $env_length_threshold);
 
 my $func = shift || die "missing function name";
 my $filter = shift;
-my $backtrace = shift;
+my $mode = shift;
 my $verbose = shift;
 my $depth = shift;
 my $files_excluded = shift;
 
 $filter = (defined($filter) && $filter ne "") ? $filter : ".*";
-$backtrace = (defined($backtrace) && $backtrace eq "0") ? undef : "backtrace";
+$mode = (defined($mode) && int($mode) >= 0) ? int($mode) : 1;
 $verbose = (defined($verbose) && $verbose ne "0") ? "verbose" : undef;
 $depth = (defined($depth) && int($depth) > 0) ? int($depth) : 3;
 $files_excluded = (defined($files_excluded) && $files_excluded ne "") ? $files_excluded : '^$';
 
 sub show_tree() {
-  if (defined $backtrace) {
+  if ($mode == 0) {
+    my $tree = unified_calling_tree($func, $filter, $files_excluded, $depth);
+    my @lines = format_calling_tree($tree, $verbose);
+    return join qq//, map {"$_\n"} @lines;
+  }
+  elsif ($mode == 1) {
     my $tree = unified_called_tree($func, $filter, $files_excluded, $depth);
     my @lines = format_called_tree($tree, $verbose);
     return join qq//, map {"$_\n"} @lines;
   }
-  else {
-    my $tree = unified_calling_tree($func, $filter, $files_excluded, $depth);
+  elsif ($mode == 2) {
+    my $tree = outermost_tree($func, $files_excluded);
     my @lines = format_calling_tree($tree, $verbose);
+    return join qq//, map {"$_\n"} @lines;
+  }
+  elsif ($mode == 3) {
+    my $tree = innermost_tree($func, $files_excluded);
+    my @lines = format_called_tree($tree, $verbose);
     return join qq//, map {"$_\n"} @lines;
   }
 }
