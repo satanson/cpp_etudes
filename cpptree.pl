@@ -350,7 +350,7 @@ sub fuzzy_sub_class($;$) {
   #print Dumper(\@names);
   my @child = grep {defined($_)} map {&sub_class(@$_, $filter)} @names;
   my $tallest = max(map{$_->{tall}} @child); 
-  my @child = grep {$_->{tall} == $tallest } @child;
+  @child = grep {$_->{tall} == $tallest } @child;
   $root->{child} = [@child];
   return $root;
 }
