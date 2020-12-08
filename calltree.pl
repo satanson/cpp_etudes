@@ -268,6 +268,7 @@ my $RE_LEFT_ANGLES = qr'<[<=]+';
 my $RE_TEMPLATE_ARGS_1LAYER = qr'(<\s*(((::)?(\w+::)*\w+\s*,\s*)*(::)?(\w+::)*\w+\s*)>)';
 my $RE_CSV_TOKEN = gen_re_list(",", $RE_SCOPED_IDENTIFIER, "??");
 my $RE_NOEXCEPT_THROW = qr"(\\b(noexcept|throw)\\b)(\\s*\\(\\s*$RE_CSV_TOKEN\\s*\\))?";
+my $RE_MACRO_DEF = qr/(#define([^\n\r]*\\(\n\r?|\r\n?))*([^\n\r]*[^\n\r\\])?(\n\r?|\r\n?))/;
 
 sub empty_string_with_blank_lines($) {
   q/""/ . (join "\n", map {""} split "\n", $_[0]);
@@ -329,8 +330,13 @@ sub remove_noexcept_and_throw($) {
 sub replace_template_args_4layers($) {
   repeat_apply(4, &replace_template_args_1layer, $_[0]);
 }
+
 sub remove_gcc_attributes($) {
   $_[0] =~ s/$RE_GCC_ATTRIBUTE//gr;
+}
+
+sub replace_macro_defs($) {
+  $_[0] =~ s/$RE_MACRO_DEF/&blank_lines($1)/gemr;
 }
 
 sub preprocess_one_cpp_file($) {
@@ -348,6 +354,7 @@ sub preprocess_one_cpp_file($) {
   $content = remove_gcc_attributes($content);
   $content = replace_template_args_4layers($content);
   $content = remove_noexcept_and_throw($content);
+  $content = replace_macro_defs($content);
 
   my $tmp_file = "$file.tmp.created_by_call_tree";
   write_content($tmp_file, $content);
@@ -748,8 +755,8 @@ my $env_length_threshold = get_env_or_default {
 } qw/calltree_length_threshold 3/;
 
 my %ignored = map {$_ => 1} @ignored;
-my ($calling, $called, $calling_names, $called_names)
-  = get_cached_or_extract_all_funcs(%ignored, $env_trivial_threshold, $env_length_threshold);
+
+my ($calling, $called, $calling_names, $called_names) = (undef, undef, undef, undef);
 
 sub sub_tree($$$$$$$) {
   my ($graph, $node, $level, $depth, $path, $get_id_and_child, $install_child) = @_;
@@ -1200,7 +1207,7 @@ sub get_child_of_called_tree($) {
 sub format_called_tree($$) {
   my ($root, $verbose) = @_;
   my @lines = format_tree($root, $verbose, &get_entry_of_called_tree, &get_child_of_called_tree);
-  return map {"  $_"}("", @lines,  "");
+  return map {"  $_"} ("", @lines, "");
 }
 
 sub get_entry_of_calling_tree($$) {
@@ -1349,7 +1356,7 @@ sub get_child_of_calling_tree($) {
 sub format_calling_tree($$) {
   my ($root, $verbose) = @_;
   my @lines = format_tree($root, $verbose, &get_entry_of_calling_tree, &get_child_of_calling_tree);
-  return map {"  $_"}("", @lines,  "");
+  return map {"  $_"} ("", @lines, "");
 }
 
 use Digest::SHA qw(sha256_hex);
@@ -1375,6 +1382,8 @@ $depth = (defined($depth) && int($depth) > 0) ? int($depth) : 3;
 $files_excluded = (defined($files_excluded) && $files_excluded ne "") ? $files_excluded : '^$';
 
 sub show_tree() {
+  ($calling, $called, $calling_names, $called_names) =
+    get_cached_or_extract_all_funcs(%ignored, $env_trivial_threshold, $env_length_threshold);
   if ($mode == 0) {
     my $tree = unified_calling_tree($func, $filter, $files_excluded, $depth);
     my @lines = format_calling_tree($tree, $verbose);
