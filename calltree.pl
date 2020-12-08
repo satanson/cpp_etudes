@@ -50,6 +50,7 @@ sub all(&;@) {
   my ($pred, @values) = @_;
   !(any {!$pred->($_)} @values);
 }
+
 use Cwd qw/abs_path/;
 sub get_path_of_script() {
   if ($0 !~ qr'/') {
@@ -562,7 +563,7 @@ sub script_basename() {
 }
 
 sub is_pure_name($) {
-  all {'a' le $_ le 'z'}  split //, +shift
+  all {'a' le $_ && $_ le 'z'}  split //, +shift
 }
 
 sub extract_all_funcs(\%$$) {
@@ -859,7 +860,7 @@ sub abbr_score($$) {
   my ($a, $b) = @_;
   return 0 unless defined($a) && defined($b) && length($a) > 0 && length($b) > 0;
   $a = lc $a;
-  my $b0 = lc join "", grep {"A" le $_ le "Z"} split //, $b;
+  my $b0 = lc join "", grep {"A" le $_ && $_ le "Z"} split //, $b;
   my $b1 = lc join "", grep {my $chr = $_;
     all {$chr ne $_} qw/a e i o u/} split //, $b;
   my $score0 = 0;
