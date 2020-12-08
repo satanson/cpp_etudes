@@ -308,13 +308,14 @@ sub remove_all_loops($) {
   return $tree;
 }
 
+use List::Util qw/max/;
 my $level = 0;
 sub sub_class($$;$) {
   my ($file_info, $cls, $filter) = @_;
   $filter = ".*" unless defined($filter);
   $level++;
   #print "level=$level, file_info=$file_info, cls=$cls\n";
-  my $root = { file_info => $file_info, name => $cls, child => [] };
+  my $root = { file_info => $file_info, name => $cls, child => [], tall => 1 };
   if (!exists $tree->{$cls} || $level >= $depth) {
     $level--;
     return $cls =~ /$filter/ ? $root : undef;
@@ -332,6 +333,7 @@ sub sub_class($$;$) {
 
   if (@child_nodes) {
     $root->{child} = [ @child_nodes ];
+    $root->{tall} = 1 + max(map{$_->{tall}} @child_nodes);
     return $root;
   }
   else {
@@ -346,7 +348,10 @@ sub fuzzy_sub_class($;$) {
   my @names = map {my $name = $_;
     map {[ $_, $name ]} @{$table->{$name}}} grep {/$cls_pattern/} (keys %$table);
   #print Dumper(\@names);
-  $root->{child} = [ grep {defined($_)} map {&sub_class(@$_, $filter)} @names ];
+  my @child = grep {defined($_)} map {&sub_class(@$_, $filter)} @names;
+  my $tallest = max(map{$_->{tall}} @child); 
+  my @child = grep {$_->{tall} == $tallest } @child;
+  $root->{child} = [@child];
   return $root;
 }
 
