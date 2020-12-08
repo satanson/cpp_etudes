@@ -1198,7 +1198,8 @@ sub get_child_of_called_tree($) {
 
 sub format_called_tree($$) {
   my ($root, $verbose) = @_;
-  return format_tree($root, $verbose, &get_entry_of_called_tree, &get_child_of_called_tree);
+  my @lines = format_tree($root, $verbose, &get_entry_of_called_tree, &get_child_of_called_tree);
+  return map {"  $_"}("", @lines,  "");
 }
 
 sub get_entry_of_calling_tree($$) {
@@ -1346,7 +1347,8 @@ sub get_child_of_calling_tree($) {
 }
 sub format_calling_tree($$) {
   my ($root, $verbose) = @_;
-  return format_tree($root, $verbose, &get_entry_of_calling_tree, &get_child_of_calling_tree);
+  my @lines = format_tree($root, $verbose, &get_entry_of_calling_tree, &get_child_of_calling_tree);
+  return map {"  $_"}("", @lines,  "");
 }
 
 use Digest::SHA qw(sha256_hex);

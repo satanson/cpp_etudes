@@ -15,6 +15,7 @@ set(TESTS
         test_trim.cc
         test_reverse.cc
         test_repeat.cc
+        test_decimalv3.cc
         )
 foreach (src ${TESTS})
     get_filename_component(exe ${src} NAME_WE)
