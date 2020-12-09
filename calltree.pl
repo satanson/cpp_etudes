@@ -33,7 +33,7 @@
 use warnings;
 use strict;
 use Data::Dumper;
-use Storable qw/freeze thaw/;
+use Storable qw/freeze thaw nstore retrieve/;
 
 sub red_color($) {
   my ($msg) = @_;
@@ -76,13 +76,13 @@ sub file_newer_than_script($) {
 sub get_cached_or_run(&$$;@) {
   my ($func, $validate_func, $cached_file, @args) = @_;
   if (file_newer_than_script($cached_file)) {
-    my $result = thaw(read_content($cached_file));
+    my $result = retrieve($cached_file);
     if (defined($result) && ref($result) eq ref([]) && $validate_func->(@$result)) {
       return @$result;
     }
   }
   my @result = $func->(@args);
-  write_content($cached_file, freeze([ @result ]));
+  nstore [@result], $cached_file;
   return @result;
 }
 
