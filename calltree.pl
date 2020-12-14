@@ -268,14 +268,14 @@ my $RE_LEFT_ANGLES = qr'<[<=]+';
 my $RE_TEMPLATE_ARGS_1LAYER = qr'(<\s*(((::)?(\w+::)*\w+\s*,\s*)*(::)?(\w+::)*\w+\s*)>)';
 my $RE_CSV_TOKEN = gen_re_list(",", $RE_SCOPED_IDENTIFIER, "??");
 my $RE_NOEXCEPT_THROW = qr"(\\b(noexcept|throw)\\b)(\\s*\\(\\s*$RE_CSV_TOKEN\\s*\\))?";
-my $RE_MACRO_DEF = qr/(#define([^\n\r]*\\(\n\r?|\r\n?))*([^\n\r]*[^\n\r\\])?(\n\r?|\r\n?))/;
+my $RE_MACRO_DEF = qr/(#define([^\n\r]*\\(\n\r?|\r\n?))*([^\n\r]*[^\n\r\\])?((\n\r?)|(\r\n?)|$))/;
 
 sub empty_string_with_blank_lines($) {
   q/""/ . (join "\n", map {""} split "\n", $_[0]);
 }
 
 sub blank_lines($) {
-  join "\n", map {""} split "\n", $_[0];
+  $_[0] =~ tr/\n\r//cdr;
 }
 
 sub replace_single_char($) {
