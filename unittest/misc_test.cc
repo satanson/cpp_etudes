@@ -9,6 +9,8 @@
 #include <gtest/gtest.h>
 #include <iostream>
 #include <immintrin.h>
+#include <memory>
+#include <guard.hh>
 using namespace std;
 class MiscTest : public ::testing::Test {
 
@@ -83,36 +85,36 @@ struct A {
 };
 
 template<typename ...Args>
-void print0(Args&& ... args) {
-  (std::cout<<...<<std::forward<Args>(args))<<std::endl;
+void print0(Args &&... args) {
+  (std::cout<<...<<std::forward<Args>(args)) << std::endl;
 }
 
 TEST_F(MiscTest, testRValueReference) {
-  print0(1,2,4,5,"abc");
+  print0(1, 2, 4, 5, "abc");
 }
 
 TEST_F(MiscTest, floatAdd) {
   float a = 0.3f;
   float b = 0;
-  for (int i=0; i< 1000'0000;++i){
-    b+=a;
+  for (int i = 0; i < 1000'0000; ++i) {
+    b += a;
   }
-  std::cout<<b<<std::endl;
+  std::cout << b << std::endl;
 }
 
-TEST_F(MiscTest, tuple){
+TEST_F(MiscTest, tuple) {
 }
 
 template<bool abc, typename F, typename... Args>
-int foobar(int a, F f, Args&&... args){
-  if constexpr (abc){
+int foobar(int a, F f, Args &&... args) {
+  if constexpr (abc) {
     return a * f(std::forward<Args>(args)...);
   } else {
     return a + f(std::forward<Args>(args)...);
   }
 }
 
-template <bool is_abc>
+template<bool is_abc>
 struct AA { ;
   static void evaluate() {
     if constexpr (is_abc) {
@@ -123,23 +125,63 @@ struct AA { ;
   }
 };
 
-template <template<bool> typename F> void g(bool abc){
-  if (abc){
+template<template<bool> typename F>
+void g(bool abc) {
+  if (abc) {
     F<true>::evalute();
   } else {
     F<false>::evalute();
   }
 }
 
-TEST_F(MiscTest, foobar){
-  std::string s("abcd");
-  const char * begin = s.data();
-  const char* p = begin;
-  p = p + 1;
-  std::string s2(p, p+2);
-  std::cout<<s2<<std::endl;
+template<template<typename, size_t...> typename Collector, size_t...Args>
+std::shared_ptr<void> create_abc() {
+  using Array = Collector<int, Args...>;
+  return (std::shared_ptr<void>) std::make_shared<Array>();
 }
 
+TEST_F(MiscTest, foobar) {
+  std::shared_ptr<void> a = create_abc<std::array, 10>();
+}
+
+template<typename T, typename = guard::Guard>
+struct AAA {
+  static inline void apply() {
+    std::cout << "AAA T" << std::endl;
+  }
+};
+
+template<typename T>
+struct AAA<T, guard::TypeGuard<T, float, double>> {
+  static inline void apply() {
+    std::cout << "AAA float or double" << std::endl;
+  }
+};
+
+template<typename T>
+struct AAA<T, guard::TypeGuard<T, char, short, long, long long>> {
+  static inline void apply() {
+    std::cout << "AAA other int" << std::endl;
+  }
+};
+
+template<>
+struct AAA<int, int> {
+  static inline void apply() {
+    std::cout << "AAA int" << std::endl;
+  }
+};
+
+TEST_F(MiscTest, testConcept) {
+  AAA<char>::apply();
+  AAA<float>::apply();
+  AAA<double>::apply();
+  AAA<int>::apply();
+  AAA<long>::apply();
+  AAA<bool>::apply();
+  AAA<unsigned int>::apply();
+  AAA<unsigned long>::apply();
+}
 int main(int argc, char **argv) {
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
