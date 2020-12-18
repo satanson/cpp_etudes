@@ -150,21 +150,18 @@ struct AAA {
     std::cout << "AAA T" << std::endl;
   }
 };
-
 template<typename T>
 struct AAA<T, guard::TypeGuard<T, float, double>> {
   static inline void apply() {
     std::cout << "AAA float or double" << std::endl;
   }
 };
-
 template<typename T>
 struct AAA<T, guard::TypeGuard<T, char, short, long, long long>> {
   static inline void apply() {
     std::cout << "AAA other int" << std::endl;
   }
 };
-
 template<>
 struct AAA<int, int> {
   static inline void apply() {
@@ -182,6 +179,41 @@ TEST_F(MiscTest, testConcept) {
   AAA<unsigned int>::apply();
   AAA<unsigned long>::apply();
 }
+using FieldType =int32_t;
+union ExtendFieldType {
+  FieldType field_type;
+  struct {
+#if __BYTE_ORDER == LITTLE_ENDIAN
+    int16_t type;
+    int8_t precision;
+    int8_t scale;
+#else
+    int8_t scale;
+        int8_t precision;
+        int16_t type;
+#endif
+  } extend;
+
+  ExtendFieldType(FieldType field_type) : field_type(field_type) {
+  }
+  ExtendFieldType(FieldType field_type, int precision, int scale)
+      : extend({.type = (int16_t)field_type,
+                   .precision = (int8_t)precision,
+                   .scale = (int8_t)scale}) {}
+  ExtendFieldType(ExtendFieldType const&) = default;
+  ExtendFieldType& operator=(ExtendFieldType&) = default;
+  FieldType type() const { return extend.type; }
+  int precision() const { return extend.precision; }
+  int scale() const { return extend.scale; }
+};
+
+TEST_F(MiscTest, testExtendField){
+  auto field = ExtendFieldType(10,27,9);
+  ASSERT_EQ(field.type(), 10);
+  ASSERT_EQ(field.precision(), 27);
+  ASSERT_EQ(field.scale(), 9);
+}
+
 int main(int argc, char **argv) {
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
