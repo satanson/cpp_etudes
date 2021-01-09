@@ -7,17 +7,15 @@
 //
 
 #include <gtest/gtest.h>
-#include <iostream>
-#include <immintrin.h>
-#include <memory>
 #include <guard.hh>
+#include <immintrin.h>
+#include <iostream>
+#include <memory>
 using namespace std;
-class MiscTest : public ::testing::Test {
-
-};
+class MiscTest : public ::testing::Test {};
 namespace abc {
 class MiscTest {};
-}
+} // namespace abc
 TEST_F(MiscTest, testTypeId) {
   cout << typeid(int).name() << endl;
   cout << typeid(0).name() << endl;
@@ -68,30 +66,22 @@ struct Str {
     }
     n = 0;
   }
-
 };
 
-Str returnStr(std::string const &a) {
-  return Str(a);
-}
+Str returnStr(std::string const &a) { return Str(a); }
 
-Str &&returnStrRvalueRef(Str &a) {
-  return static_cast<Str &&>(a);
-}
+Str &&returnStrRvalueRef(Str &a) { return static_cast<Str &&>(a); }
 
 struct A {
   int a;
   int b;
 };
 
-template<typename ...Args>
-void print0(Args &&... args) {
-  (std::cout<<...<<std::forward<Args>(args)) << std::endl;
+template <typename... Args> void print0(Args &&... args) {
+  (std::cout << ... << std::forward<Args>(args)) << std::endl;
 }
 
-TEST_F(MiscTest, testRValueReference) {
-  print0(1, 2, 4, 5, "abc");
-}
+TEST_F(MiscTest, testRValueReference) { print0(1, 2, 4, 5, "abc"); }
 
 TEST_F(MiscTest, floatAdd) {
   float a = 0.3f;
@@ -102,10 +92,9 @@ TEST_F(MiscTest, floatAdd) {
   std::cout << b << std::endl;
 }
 
-TEST_F(MiscTest, tuple) {
-}
+TEST_F(MiscTest, tuple) {}
 
-template<bool abc, typename F, typename... Args>
+template <bool abc, typename F, typename... Args>
 int foobar(int a, F f, Args &&... args) {
   if constexpr (abc) {
     return a * f(std::forward<Args>(args)...);
@@ -114,8 +103,8 @@ int foobar(int a, F f, Args &&... args) {
   }
 }
 
-template<bool is_abc>
-struct AA { ;
+template <bool is_abc> struct AA {
+  ;
   static void evaluate() {
     if constexpr (is_abc) {
       std::cout << "is_abc" << std::endl;
@@ -125,8 +114,7 @@ struct AA { ;
   }
 };
 
-template<template<bool> typename F>
-void g(bool abc) {
+template <template <bool> typename F> void g(bool abc) {
   if (abc) {
     F<true>::evalute();
   } else {
@@ -134,39 +122,30 @@ void g(bool abc) {
   }
 }
 
-template<template<typename, size_t...> typename Collector, size_t...Args>
+template <template <typename, size_t...> typename Collector, size_t... Args>
 std::shared_ptr<void> create_abc() {
   using Array = Collector<int, Args...>;
-  return (std::shared_ptr<void>) std::make_shared<Array>();
+  return (std::shared_ptr<void>)std::make_shared<Array>();
 }
 
 TEST_F(MiscTest, foobar) {
   std::shared_ptr<void> a = create_abc<std::array, 10>();
 }
 
-template<typename T, typename = guard::Guard>
-struct AAA {
-  static inline void apply() {
-    std::cout << "AAA T" << std::endl;
-  }
+template <typename T, typename = guard::Guard> struct AAA {
+  static inline void apply() { std::cout << "AAA T" << std::endl; }
 };
-template<typename T>
-struct AAA<T, guard::TypeGuard<T, float, double>> {
+template <typename T> struct AAA<T, guard::TypeGuard<T, float, double>> {
   static inline void apply() {
     std::cout << "AAA float or double" << std::endl;
   }
 };
-template<typename T>
+template <typename T>
 struct AAA<T, guard::TypeGuard<T, char, short, long, long long>> {
-  static inline void apply() {
-    std::cout << "AAA other int" << std::endl;
-  }
+  static inline void apply() { std::cout << "AAA other int" << std::endl; }
 };
-template<>
-struct AAA<int, int> {
-  static inline void apply() {
-    std::cout << "AAA int" << std::endl;
-  }
+template <> struct AAA<int, int> {
+  static inline void apply() { std::cout << "AAA int" << std::endl; }
 };
 
 TEST_F(MiscTest, testConcept) {
@@ -179,7 +158,7 @@ TEST_F(MiscTest, testConcept) {
   AAA<unsigned int>::apply();
   AAA<unsigned long>::apply();
 }
-using FieldType =int32_t;
+using FieldType = int32_t;
 union ExtendFieldType {
   FieldType field_type;
   struct {
@@ -189,29 +168,66 @@ union ExtendFieldType {
     int8_t scale;
 #else
     int8_t scale;
-        int8_t precision;
-        int16_t type;
+    int8_t precision;
+    int16_t type;
 #endif
   } extend;
 
-  ExtendFieldType(FieldType field_type) : field_type(field_type) {
-  }
+  ExtendFieldType(FieldType field_type) : field_type(field_type) {}
   ExtendFieldType(FieldType field_type, int precision, int scale)
       : extend({.type = (int16_t)field_type,
-                   .precision = (int8_t)precision,
-                   .scale = (int8_t)scale}) {}
-  ExtendFieldType(ExtendFieldType const&) = default;
-  ExtendFieldType& operator=(ExtendFieldType&) = default;
+                .precision = (int8_t)precision,
+                .scale = (int8_t)scale}) {}
+  ExtendFieldType(ExtendFieldType const &) = default;
+  ExtendFieldType &operator=(ExtendFieldType &) = default;
   FieldType type() const { return extend.type; }
   int precision() const { return extend.precision; }
   int scale() const { return extend.scale; }
 };
 
-TEST_F(MiscTest, testExtendField){
-  auto field = ExtendFieldType(10,27,9);
+TEST_F(MiscTest, testExtendField) {
+  auto field = ExtendFieldType(10, 27, 9);
   ASSERT_EQ(field.type(), 10);
   ASSERT_EQ(field.precision(), 27);
   ASSERT_EQ(field.scale(), 9);
+}
+
+template <typename Op> struct FunctorA {
+  template <typename T, typename... Args>
+  static inline T evaluate(const T &t, Args &&... args) {
+    return Op::template evaluate(t, 'A', std::forward<Args>(args)...);
+  }
+};
+
+template <typename Op> struct FunctorB {
+  template <typename T, typename... Args>
+  static inline T evaluate(const T &t, Args &&... args) {
+    return Op::evaluate(t, 'B', std::forward<Args>(args)...);
+  }
+};
+
+struct FunctorC {
+  template <typename... Args>
+  static inline std::string evaluate(std::string const &s, Args &&... args) {
+    std::string result(s);
+    ((result.append(std::to_string(std::forward<Args>(args)))), ...);
+    return result;
+  }
+};
+
+TEST_F(MiscTest, testEvaluate) {
+  auto s = FunctorA<FunctorB<FunctorC>>::evaluate<std::string>("abc", 1, 2);
+  std::cout << s << std::endl;
+  const int arg0 = 100;
+  const int arg1 = 999;
+  const int &arg0_ref = arg0;
+  const int &arg1_ref = arg1;
+  auto s1 =
+      FunctorA<FunctorB<FunctorC>>::evaluate<std::string>("abc", arg0, arg1);
+  std::cout << s1 << std::endl;
+  auto s2 = FunctorA<FunctorB<FunctorC>>::evaluate<std::string>("abc", arg0_ref,
+                                                                arg1_ref);
+  std::cout << s2 << std::endl;
 }
 
 int main(int argc, char **argv) {
