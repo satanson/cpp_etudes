@@ -42,6 +42,7 @@ private:
   ReaderObj &operator=(const ReaderObj &) = delete;
   ReaderObj &operator=(ReaderObj &&) = delete;
   AbsReader *reader;
+  int _scale = 0;
   DeleteFunc deleter;
 };
 
