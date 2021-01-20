@@ -1,7 +1,7 @@
 #!/bin/bash
 
-basedir=$(cd $(dirname ${BASH_SOURCE:-$0});pwd);
-cd ${basedir}
+#basedir=$(cd $(dirname ${BASH_SOURCE:-$0});pwd);
+#cd ${basedir}
 
 branch_exists(){
   local br=${1:?"branch"};shift
