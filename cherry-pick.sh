@@ -95,11 +95,30 @@ branch_cherry_pick_one(){
   local cmt=${1:?"commit"};shift
   git cherry-pick ${cmt}
 }
+branch_fetch(){
+  local br=${1:?"branch"};shift
+  git fetch origin ${br}:${br}
+}
 
-cherry_pick(){
+cherry_pick() {
   local br0=${1:?"base branch"};shift
   local br1=${1:?"target branch"};shift
   local n=${1:?"num"};shift
+  local fetch_latest=${1:?"fetch_latest"};shift
+  
+  # force fetch latest branch
+  if [  "x${fetch_latest}x" = "xfetchx" ];then
+    if (branch_exists ${br0}); then
+      branch_backup ${br0}
+    fi
+    ensure_branch_not_exists ${br0}
+    branch_fetch ${br0}
+  fi
+
+  # fetch if not exists br0
+  if (branch_not_exists ${br0});then
+    branch_fetch ${br0}
+  fi
 
   ensure_branch_exists ${br0}
   ensure_branch_exists ${br1}
@@ -128,6 +147,7 @@ set -e -o pipefail
 baseBranch=${1:?"missing <baseBranch>"};shift
 targetBranch=${1:?"missing <targetBranch>"};shift
 commitNum=${1:?"missing <commitNum>"};shift
+fetchLatest=${1:?"missing <fetchLatest>"};shift
 
-echo "cherry-pick $commitNum commits from $targetBranch to $baseBranch"
-cherry_pick ${baseBranch} ${targetBranch} ${commitNum}
+echo "cherry-pick ${commitNum} commits from ${targetBranch} to ${baseBranch} fetchLatest=${fetchLatest}"
+cherry_pick ${baseBranch} ${targetBranch} ${commitNum} ${fetchLatest}
