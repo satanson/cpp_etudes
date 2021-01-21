@@ -116,7 +116,7 @@ cherry_pick() {
   fi
 
   # fetch if not exists br0
-  if (branch_not_exists ${br0});then
+  if ! (branch_exists ${br0});then
     branch_fetch ${br0}
   fi
 
