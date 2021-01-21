@@ -3,6 +3,7 @@
 # Copyright (c) 2020 Ran Panfeng.  All rights reserved.
 # Author: satanson
 # Email: ranpanf@gmail.com
+# Github repository: https://github.com/satanson/cpp_etudes.git
 
 # Usage:  show function call hierarchy of cpp project in the style of Linux utility tree.
 #
