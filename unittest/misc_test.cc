@@ -231,6 +231,18 @@ TEST_F(MiscTest, testEvaluate) {
   std::cout << s2 << std::endl;
 }
 
+TEST_F(MiscTest, testMod) {
+  int32_t a = -9;
+  int32_t b = -7;
+  std::cout << a % b << endl;
+}
+TEST_F(MiscTest, testTuple) {
+  std::tuple<std::string, std::string> t0 = {std::string(4096, 'x'),
+                                             std::string(4096, 'y')};
+  std::tuple<std::string, std::string> t1 = {std::get<1>(t0), std::get<0>(t0)};
+  std::cout<<"t0.0="<<std::get<0>(t0) <<"t0.1="<<std::get<1>(t0)<<std::endl;
+  std::cout<<"t1.0="<<std::get<0>(t1) <<"t1.1="<<std::get<1>(t1)<<std::endl;
+}
 int main(int argc, char **argv) {
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
