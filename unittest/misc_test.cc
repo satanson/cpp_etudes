@@ -11,6 +11,7 @@
 #include <guard.hh>
 #include <immintrin.h>
 #include <iostream>
+#include <math.h>
 #include <memory>
 using namespace std;
 class MiscTest : public ::testing::Test {};
@@ -240,9 +241,79 @@ TEST_F(MiscTest, testTuple) {
   std::tuple<std::string, std::string> t0 = {std::string(4096, 'x'),
                                              std::string(4096, 'y')};
   std::tuple<std::string, std::string> t1 = {std::get<1>(t0), std::get<0>(t0)};
-  std::cout<<"t0.0="<<std::get<0>(t0) <<"t0.1="<<std::get<1>(t0)<<std::endl;
-  std::cout<<"t1.0="<<std::get<0>(t1) <<"t1.1="<<std::get<1>(t1)<<std::endl;
+  std::cout << "t0.0=" << std::get<0>(t0) << "t0.1=" << std::get<1>(t0)
+            << std::endl;
+  std::cout << "t1.0=" << std::get<0>(t1) << "t1.1=" << std::get<1>(t1)
+            << std::endl;
 }
+typedef __int128 int128_t;
+typedef unsigned __int128 uint128_t;
+
+TYPE_GUARD(Int8Int16Guard, is_int8_int16, int8_t, int16_t)
+TYPE_GUARD(Int32Guard, is_int32, int32_t)
+TYPE_GUARD(Int64Guard, is_int64, int64_t)
+TYPE_GUARD(Int128Guard, is_int128, int128_t);
+TYPE_GUARD(IntGuard, is_int, int8_t, int16_t, int32_t, int64_t, int128_t)
+
+template <typename T> T mod(T a, T b) {
+  using TT = std::remove_cv_t<std::remove_reference_t<T>>;
+  if constexpr (is_int8_int16<TT>) {
+    return TT(fmodf(a, b));
+  } else if constexpr (is_int32<TT>) {
+    return TT(fmod(a, b));
+  } else if constexpr (is_int64<TT>) {
+    return TT(fmodl(a, b));
+  } else if constexpr (is_int128<TT>) {
+    return a % b;
+  } else {
+    static_assert(is_int<TT>, "invalid type");
+  }
+}
+
+template <typename T> T min_mod_neg_one() {
+  T a = T(1) << ((sizeof(T) * 8) - 1);
+  T b = T(-1);
+  return mod<T>(a, b);
+}
+
+template <typename T> T min_div_neg_one() {
+  T a = T(1) << ((sizeof(T) * 8) - 1);
+  T b = T(-1);
+  return a / b;
+}
+
+void print_int128_t(int128_t v) {
+  uint128_t a = v;
+  int64_t all_one = -1;
+  uint64_t u_all_one = all_one;
+  uint128_t lowbits_mask = u_all_one;
+  std::cout << "high 64bits=" << uint64_t((a >> 64) & lowbits_mask);
+  std::cout << ", low 64bits=" << uint64_t(a & lowbits_mask) << std::endl;
+}
+
+TEST_F(MiscTest, testFmod) { std::cout << sizeof(long double) << std::endl; }
+
+TEST_F(MiscTest, testModOperationWithNegativeDivisor) {
+  std::cout << (int)min_mod_neg_one<int8_t>() << std::endl;
+  std::cout << min_mod_neg_one<int16_t>() << std::endl;
+  std::cout << min_mod_neg_one<int32_t>() << std::endl; // SIGFPE
+  std::cout << min_mod_neg_one<int64_t>() << std::endl; // SIGFPE
+  print_int128_t(min_mod_neg_one<int128_t>());
+
+  std::cout << (int)min_div_neg_one<int8_t>() << std::endl;
+  std::cout << min_div_neg_one<int16_t>() << std::endl;
+  std::cout << min_div_neg_one<int32_t>() << std::endl; // SIGFPE
+  std::cout << min_div_neg_one<int64_t>() << std::endl; // SIGFPE
+  print_int128_t(min_mod_neg_one<int128_t>());
+  int128_t max_int128 = int128_t(1) << ((sizeof(int128_t) * 8) - 1);
+  int128_t neg_one_int128 = int128_t(-1);
+  print_int128_t(max_int128);
+  print_int128_t(neg_one_int128);
+}
+TEST_F(MiscTest, testLimit){
+  print_int128_t(std::numeric_limits<int128_t>::min());
+}
+
 int main(int argc, char **argv) {
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
