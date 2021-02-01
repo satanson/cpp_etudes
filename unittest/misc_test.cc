@@ -310,8 +310,143 @@ TEST_F(MiscTest, testModOperationWithNegativeDivisor) {
   print_int128_t(max_int128);
   print_int128_t(neg_one_int128);
 }
-TEST_F(MiscTest, testLimit){
+TEST_F(MiscTest, testLimit) {
   print_int128_t(std::numeric_limits<int128_t>::min());
+}
+
+TEST_F(MiscTest, testAlignOfInt128) { ASSERT_EQ(alignof(int128_t), 16); }
+
+TEST_F(MiscTest, testFloatOverflow) {
+  float a = 2.85228E7;
+  int32_t b = 10000;
+  int32_t c = a * b;
+  std::cout << c << std::endl;
+
+  float a0 = 2.85228E15;
+  int64_t b0 = 1000000L;
+  int64_t c0 = a0 * b0;
+  std::cout << c0 << std::endl;
+
+  float a1 = 2.85228E35;
+  int128_t b1 = 10000L;
+  int128_t c1 = a1 * b1;
+  print_int128_t(c1);
+}
+
+TEST_F(MiscTest, testFloat2Decimal128) {
+  float f = -0.88404423f;
+  int128_t d = int128_t(1);
+  int128_t a = static_cast<int128_t>(static_cast<double>(f) * d);
+  print_int128_t(a);
+}
+
+template <typename T, int n> struct EXP10 {
+  using type = T;
+  static constexpr type value = EXP10<T, n - 1>::value * static_cast<type>(10);
+};
+
+template <typename T> struct EXP10<T, 0> {
+  using type = T;
+  static constexpr type value = static_cast<type>(1);
+};
+
+inline constexpr int128_t exp10_int128(int n) {
+  constexpr int128_t values[] = {
+      EXP10<int128_t, 0>::value,  EXP10<int128_t, 1>::value,
+      EXP10<int128_t, 2>::value,  EXP10<int128_t, 3>::value,
+      EXP10<int128_t, 4>::value,  EXP10<int128_t, 5>::value,
+      EXP10<int128_t, 6>::value,  EXP10<int128_t, 7>::value,
+      EXP10<int128_t, 8>::value,  EXP10<int128_t, 9>::value,
+      EXP10<int128_t, 10>::value, EXP10<int128_t, 11>::value,
+      EXP10<int128_t, 12>::value, EXP10<int128_t, 13>::value,
+      EXP10<int128_t, 14>::value, EXP10<int128_t, 15>::value,
+      EXP10<int128_t, 16>::value, EXP10<int128_t, 17>::value,
+      EXP10<int128_t, 18>::value, EXP10<int128_t, 19>::value,
+      EXP10<int128_t, 20>::value, EXP10<int128_t, 21>::value,
+      EXP10<int128_t, 22>::value, EXP10<int128_t, 23>::value,
+      EXP10<int128_t, 24>::value, EXP10<int128_t, 25>::value,
+      EXP10<int128_t, 26>::value, EXP10<int128_t, 27>::value,
+      EXP10<int128_t, 28>::value, EXP10<int128_t, 29>::value,
+      EXP10<int128_t, 30>::value, EXP10<int128_t, 31>::value,
+      EXP10<int128_t, 32>::value, EXP10<int128_t, 33>::value,
+      EXP10<int128_t, 34>::value, EXP10<int128_t, 35>::value,
+      EXP10<int128_t, 36>::value, EXP10<int128_t, 37>::value,
+      EXP10<int128_t, 38>::value,
+  };
+  return values[n];
+}
+inline constexpr int128_t get_scale_factor(int n) { return exp10_int128(n); }
+TEST_F(MiscTest, testFloat2Decimal128Overflow) {
+  float f = 1.72587728E8;
+  int128_t a = get_scale_factor(30);
+  int128_t b = static_cast<int128_t>(a * static_cast<double>(f));
+  bool overflow = abs(f) >= double(1) && b == int128_t(0);
+  std::cout << overflow << std::endl;
+  print_int128_t(a);
+  print_int128_t(b);
+  int64_t h = 9355999482096867328L;
+  int128_t h128 = h;
+  h128 <<= 64;
+  std::cout << "<0:" << (h128 < 0) << ",   >0:" << (h128 > 0) << std::endl;
+}
+template <typename T> void func000() {
+  if constexpr (is_int128<T>) {
+    ASSERT_TRUE("abc" == "abc");
+  } else {
+    ASSERT_TRUE("abc" == "abc");
+  }
+}
+void func0002() {
+  bool is_const = true;
+  switch (0)
+  case 0:
+  default:
+    if (const ::testing::AssertionResult gtest_ar_ =
+            ::testing::AssertionResult((is_const)))
+      ;
+    else
+      return ::testing::internal::AssertHelper(
+                 ::testing::TestPartResult::kFatalFailure,
+                 "/home/disk2/rpf/DorisDB_rpf/be/test/exprs/vectorized/"
+                 "decimal_cast_expr_test_helper.h",
+                 147,
+                 ::testing::internal::GetBoolAssertionFailureMessage(
+                     gtest_ar_, "is_const", "false", "true")
+                     .c_str()) = ::testing::Message();
+}
+TEST_F(MiscTest, testFloat1) {
+  float f = -0.88404423F;
+  int128_t a = get_scale_factor(0);
+  int128_t b = static_cast<int128_t>(a * static_cast<double>(f));
+  bool overflow = abs(f) >= double(1) && b == int128_t(0);
+  print_int128_t(b);
+  std::cout << overflow << std::endl;
+  func000<int128_t>();
+  func000<int32_t>();
+  func0002();
+}
+
+template <bool flag>
+class ConstructorParamsWithMaybeUnusedModifier {
+  int c;
+public:
+  ConstructorParamsWithMaybeUnusedModifier([[maybe_unused]] int a, [[maybe_unused]] int b){
+    if constexpr(flag){
+      c = a+b;
+    } else {
+      c = 10;
+    }
+  }
+  int get_c(){
+    return c;
+  }
+};
+
+TEST_F(MiscTest, constructorParamsWithMaybeUnusedModifier){
+  ConstructorParamsWithMaybeUnusedModifier<true> trueObj(1,1);
+  ConstructorParamsWithMaybeUnusedModifier<false> falseObj(1,2);
+  std::cout<<trueObj.get_c()<<std::endl;
+  std::cout<<falseObj.get_c()<<std::endl;
 }
 
 int main(int argc, char **argv) {
