@@ -21,7 +21,7 @@ constexpr bool value_in = ((v == args) || ...);
 
 template<typename T, typename... Args>
 using TypeGuard =
-std::enable_if_t<((std::is_same_v<T, Args>) || ...), guard::Guard>;
+std::enable_if_t<((std::is_same_v<T, Args>) || ...), T>;
 
 #define TYPE_GUARD(guard_name, pred_name, ...)                                 \
   template <typename T> struct pred_name##_struct {                            \
@@ -32,7 +32,7 @@ std::enable_if_t<((std::is_same_v<T, Args>) || ...), guard::Guard>;
   template <typename T> using guard_name = guard::TypeGuard<T, ##__VA_ARGS__>;
 
 template<typename T, T v, T... args>
-using ValueGuard = std::enable_if_t<((v == args) || ...), guard::Guard>;
+using ValueGuard = std::enable_if_t<((v == args) || ...), T>;
 
 #define VALUE_GUARD(type, guard_name, pred_name, ...)                          \
   template <type v> struct pred_name##_struct {                                \

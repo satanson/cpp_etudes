@@ -18,6 +18,7 @@ set(TESTS
         test_decimalv3.cc
         test_guard.cc
         test_delegation.cc
+        test_meta_macro.cc
         )
 foreach (src ${TESTS})
     get_filename_component(exe ${src} NAME_WE)
