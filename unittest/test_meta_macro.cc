@@ -135,9 +135,9 @@ TEST_F(MetaMacroTest, test_macro_2) {
     M_MODIFIER_DEF_STMT(const, int, e1, e2, e3, e4, e5, e6, e7, e8, e9, e10);
 }
 
-#define DEF_FOOBAR_1(pair, n, m1) pair(n,m1)
-#define DEF_FOOBAR_2(pair, n, m1, m2) pair(n,m1),pair(n,m2)
-#define DEF_FOOBAR_4(pair, n, m1, m2, m3, m4) pair(n,m1),pair(n,m2),pair(n,m3),pair(n,m4)
+#define DEF_FOOBAR_1(pair, n, m1) pair(n,m1),
+#define DEF_FOOBAR_2(pair, n, m1, m2) pair(n,m1),pair(n,m2),
+#define DEF_FOOBAR_4(pair, n, m1, m2, m3, m4) pair(n,m1),pair(n,m2),pair(n,m3),pair(n,m4),
 #define DEF_FOOBAR_3(pair, n, ...) META_MACRO_CASE_DEF(DEF_FOOBAR_, 2, pair, n, ##__VA_ARGS__)
 #define DEF_FOOBAR_5(pair, n, ...) META_MACRO_CASE_DEF(DEF_FOOBAR_, 2, pair, n, ##__VA_ARGS__)
 #define DEF_FOOBAR_6(pair, n, ...) META_MACRO_CASE_DEF(DEF_FOOBAR_, 2, pair, n, ##__VA_ARGS__)
@@ -151,16 +151,16 @@ TEST_F(MetaMacroTest, test_macro_2) {
 TEST_F(MetaMacroTest, test_macro_3) {
     using pair_int_int = std::pair<int, int>;
     std::vector<std::pair<int, int>> pairs = {
-        DEF_FOOBAR(pair_int_int, 1, 1),
-        DEF_FOOBAR(pair_int_int, 2, 1, 2),
-        DEF_FOOBAR(pair_int_int, 3, 1, 2, 3),
-        DEF_FOOBAR(pair_int_int, 4, 1, 2, 3, 4),
-        DEF_FOOBAR(pair_int_int, 5, 1, 2, 3, 4, 5),
-        DEF_FOOBAR(pair_int_int, 6, 1, 2, 3, 4, 5, 6),
-        DEF_FOOBAR(pair_int_int, 7, 1, 2, 3, 4, 5, 6, 7),
-        DEF_FOOBAR(pair_int_int, 8, 1, 2, 3, 4, 5, 6, 7, 8),
-        DEF_FOOBAR(pair_int_int, 9, 1, 2, 3, 4, 5, 6, 7, 8, 9),
-        DEF_FOOBAR(pair_int_int, 10, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10),
+        DEF_FOOBAR(pair_int_int, 1, 1)
+        DEF_FOOBAR(pair_int_int, 2, 1, 2)
+        DEF_FOOBAR(pair_int_int, 3, 1, 2, 3)
+        DEF_FOOBAR(pair_int_int, 4, 1, 2, 3, 4)
+        DEF_FOOBAR(pair_int_int, 5, 1, 2, 3, 4, 5)
+        DEF_FOOBAR(pair_int_int, 6, 1, 2, 3, 4, 5, 6)
+        DEF_FOOBAR(pair_int_int, 7, 1, 2, 3, 4, 5, 6, 7)
+        DEF_FOOBAR(pair_int_int, 8, 1, 2, 3, 4, 5, 6, 7, 8)
+        DEF_FOOBAR(pair_int_int, 9, 1, 2, 3, 4, 5, 6, 7, 8, 9)
+        DEF_FOOBAR(pair_int_int, 10, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
     };
     for (int i=1; i <= 10; ++i){
         for (int j=1; j <= i; ++j){
