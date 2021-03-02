@@ -134,46 +134,127 @@ TEST_F(MetaMacroTest, test_macro_2) {
     M_MODIFIER_DEF_STMT(const, int, d1, d2, d3, d4);
     M_MODIFIER_DEF_STMT(const, int, e1, e2, e3, e4, e5, e6, e7, e8, e9, e10);
 }
-
-#define DEF_FOOBAR_1(pair, n, m1) pair(n,m1),
-#define DEF_FOOBAR_2(pair, n, m1, m2) pair(n,m1),pair(n,m2),
-#define DEF_FOOBAR_4(pair, n, m1, m2, m3, m4) pair(n,m1),pair(n,m2),pair(n,m3),pair(n,m4),
-#define DEF_FOOBAR_3(pair, n, ...) META_MACRO_CASE_DEF(DEF_FOOBAR_, 2, pair, n, ##__VA_ARGS__)
-#define DEF_FOOBAR_5(pair, n, ...) META_MACRO_CASE_DEF(DEF_FOOBAR_, 2, pair, n, ##__VA_ARGS__)
-#define DEF_FOOBAR_6(pair, n, ...) META_MACRO_CASE_DEF(DEF_FOOBAR_, 2, pair, n, ##__VA_ARGS__)
-#define DEF_FOOBAR_7(pair, n, ...) META_MACRO_CASE_DEF(DEF_FOOBAR_, 2, pair, n, ##__VA_ARGS__)
-#define DEF_FOOBAR_8(pair, n, ...) META_MACRO_CASE_DEF(DEF_FOOBAR_, 2, pair, n, ##__VA_ARGS__)
-#define DEF_FOOBAR_9(pair, n, ...) META_MACRO_CASE_DEF(DEF_FOOBAR_, 2, pair, n, ##__VA_ARGS__)
-#define DEF_FOOBAR_10(pair, n, ...) META_MACRO_CASE_DEF(DEF_FOOBAR_, 2, pair, n, ##__VA_ARGS__)
-
-#define DEF_FOOBAR(pair, n, ...) META_MACRO_SELECT(DEF_FOOBAR_, 2, pair, n, ##__VA_ARGS__)
+#define DEF_FOOBAR_CTOR(a, b) std::pair<int, int>(a, b)
+#define DEF_FOOBAR(n, ...)                                                     \
+  DEF_BINARY_RELATION_ENTRY_SEP_COMMA(DEF_FOOBAR_CTOR, n, ##__VA_ARGS__)
 
 TEST_F(MetaMacroTest, test_macro_3) {
     using pair_int_int = std::pair<int, int>;
     std::vector<std::pair<int, int>> pairs = {
-        DEF_FOOBAR(pair_int_int, 1, 1)
-        DEF_FOOBAR(pair_int_int, 2, 1, 2)
-        DEF_FOOBAR(pair_int_int, 3, 1, 2, 3)
-        DEF_FOOBAR(pair_int_int, 4, 1, 2, 3, 4)
-        DEF_FOOBAR(pair_int_int, 5, 1, 2, 3, 4, 5)
-        DEF_FOOBAR(pair_int_int, 6, 1, 2, 3, 4, 5, 6)
-        DEF_FOOBAR(pair_int_int, 7, 1, 2, 3, 4, 5, 6, 7)
-        DEF_FOOBAR(pair_int_int, 8, 1, 2, 3, 4, 5, 6, 7, 8)
-        DEF_FOOBAR(pair_int_int, 9, 1, 2, 3, 4, 5, 6, 7, 8, 9)
-        DEF_FOOBAR(pair_int_int, 10, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
+        DEF_FOOBAR(1, 1),
+        DEF_FOOBAR(2, 1, 2),
+        DEF_FOOBAR(3, 1, 2, 3),
+        DEF_FOOBAR(4, 1, 2, 3, 4),
+        DEF_FOOBAR(5, 1, 2, 3, 4, 5),
+        DEF_FOOBAR(6, 1, 2, 3, 4, 5, 6),
+        DEF_FOOBAR(7, 1, 2, 3, 4, 5, 6, 7),
+        DEF_FOOBAR(8, 1, 2, 3, 4, 5, 6, 7, 8),
+        DEF_FOOBAR(9, 1, 2, 3, 4, 5, 6, 7, 8, 9),
+        DEF_FOOBAR(10, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10),
     };
-    for (int i=1; i <= 10; ++i){
-        for (int j=1; j <= i; ++j){
-            int k=((i-1)*i/2 + j)-1;
-            auto& p=pairs[k];
-            std::cout<<"k="<<k<<", (i="<<i<<", j="<<j<<"), (p.first="<<p.first<<", p.second="<<p.second<<")"<<std::endl;
-            ASSERT_EQ(i, p.first);
-            ASSERT_EQ(j, p.second);
-        }
+    for (int i = 1; i <= 10; ++i) {
+      for (int j = 1; j <= i; ++j) {
+        int k = ((i - 1) * i / 2 + j) - 1;
+        auto &p = pairs[k];
+        std::cout << "k=" << k << ", (i=" << i << ", j=" << j
+                  << "), (p.first=" << p.first << ", p.second=" << p.second
+                  << ")" << std::endl;
+        ASSERT_EQ(i, p.first);
+        ASSERT_EQ(j, p.second);
+      }
     }
 }
 
-//DEF_FOOBAR_7(pair,2,1,2,3,4,5,6,7)
+template <typename T1, typename T2> struct IsAssignable {
+  static constexpr bool value = false;
+};
+
+#define IS_ASSIGNABLE_CTOR(a, b)                                               \
+  template <> struct IsAssignable<a, b> { static constexpr bool value = true; };
+
+template <typename T1, typename T2>
+constexpr bool is_assignable = IsAssignable<T1, T2>::value;
+
+#define IS_ASSIGNABLE(a, ...)                                                  \
+  DEF_BINARY_RELATION_ENTRY_SEP_NONE(IS_ASSIGNABLE_CTOR, a, ##__VA_ARGS__)
+#define IS_ASSIGNABLE_R(a, ...)                                                \
+  DEF_BINARY_RELATION_ENTRY_SEP_SEMICOLON_R(IS_ASSIGNABLE_CTOR, a,             \
+                                            ##__VA_ARGS__)
+
+IS_ASSIGNABLE(int8_t, int16_t, int32_t, int64_t);
+IS_ASSIGNABLE_R(double, float, int8_t, int16_t, int32_t, uint8_t, uint16_t,
+                uint32_t);
+
+TEST_F(MetaMacroTest, test_constexpr) {
+  static_assert(is_assignable<int8_t, int16_t>);
+  static_assert(!is_assignable<int16_t, int8_t>);
+  static_assert(is_assignable<int8_t, int32_t>);
+  static_assert(!is_assignable<int32_t, int8_t>);
+  static_assert(is_assignable<int8_t, int64_t>);
+  static_assert(!is_assignable<int64_t, int8_t>);
+  static_assert(!is_assignable<uint64_t, uint8_t>);
+  static_assert(is_assignable<float, double>);
+  static_assert(!is_assignable<double, float>);
+  std::cout << "TEST PASS" << std::endl;
+}
+enum type_enum {
+  TYPE_INT8,
+  TYPE_INT16,
+  TYPE_INT32,
+  TYPE_INT64,
+  TYPE_UINT8,
+  TYPE_UINT16,
+  TYPE_UINT32,
+  TYPE_UINT64,
+  TYPE_FLOAT,
+  TYPE_DOUBLE,
+  TYPE_DECIMAL32,
+  TYPE_DECIMAL64,
+  TYPE_DECIMAL128,
+};
+enum type2_enum {
+  TYPE2_INVALID,
+  TYPE2_INT64,
+  TYPE2_DOUBLE,
+};
+
+#define IS_ASSIGNABLE_ENTRY_CTOR(a, b)                                         \
+  { a, b }
+#define IS_ASSIGNABLE_ENTRY(a, ...)                                            \
+  DEF_BINARY_RELATION_ENTRY_SEP_COMMA(IS_ASSIGNABLE_ENTRY_CTOR, a,             \
+                                      ##__VA_ARGS__)
+#define IS_ASSIGNABLE_ENTRY_R(a, ...)                                          \
+  DEF_BINARY_RELATION_ENTRY_SEP_COMMA_R(IS_ASSIGNABLE_ENTRY_CTOR, a,           \
+                                        ##__VA_ARGS__)
+
+static std::unordered_map<type_enum, type2_enum> global_assignable_table{
+    IS_ASSIGNABLE_ENTRY(TYPE_INT8, TYPE2_INT64),
+    IS_ASSIGNABLE_ENTRY_R(TYPE2_INT64, TYPE_UINT8, TYPE_INT16, TYPE_UINT16,
+                          TYPE_INT32, TYPE_UINT32, TYPE_INT64, TYPE_UINT64),
+    IS_ASSIGNABLE_ENTRY_R(TYPE2_DOUBLE, TYPE_FLOAT, TYPE_DOUBLE),
+};
+
+TEST_F(MetaMacroTest, test_assignable_table) {
+  type2_enum type2 = TYPE2_INVALID;
+  std::vector<type_enum> type1_ints = {TYPE_INT8,   TYPE_UINT8, TYPE_INT16,
+                                       TYPE_UINT16, TYPE_INT32, TYPE_UINT32,
+                                       TYPE_INT64,  TYPE_UINT64};
+  for (auto &type1 : type1_ints) {
+    ASSERT_TRUE(global_assignable_table.count(type1) > 0);
+    type2 = global_assignable_table[type1];
+    ASSERT_EQ(type2, TYPE2_INT64);
+  }
+
+  std::vector<type_enum> type1_floats = {TYPE_FLOAT, TYPE_DOUBLE};
+  for (auto &type1 : type1_floats) {
+    ASSERT_TRUE(global_assignable_table.count(type1) > 0);
+    type2 = global_assignable_table[type1];
+    ASSERT_EQ(type2, TYPE2_DOUBLE);
+  }
+  ASSERT_TRUE(global_assignable_table.count(TYPE_DECIMAL32) == 0);
+  ASSERT_TRUE(global_assignable_table.count(TYPE_DECIMAL64) == 0);
+  ASSERT_TRUE(global_assignable_table.count(TYPE_DECIMAL128) == 0);
+}
 
 }//namespace test
 
