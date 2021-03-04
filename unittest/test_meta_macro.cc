@@ -153,26 +153,26 @@ TEST_F(MetaMacroTest, test_macro_3) {
         DEF_FOOBAR(10, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10),
     };
     for (int i = 1; i <= 10; ++i) {
-      for (int j = 1; j <= i; ++j) {
-        int k = ((i - 1) * i / 2 + j) - 1;
-        auto &p = pairs[k];
-        std::cout << "k=" << k << ", (i=" << i << ", j=" << j
-                  << "), (p.first=" << p.first << ", p.second=" << p.second
-                  << ")" << std::endl;
-        ASSERT_EQ(i, p.first);
-        ASSERT_EQ(j, p.second);
-      }
+        for (int j = 1; j <= i; ++j) {
+            int k = ((i - 1) * i / 2 + j) - 1;
+            auto &p = pairs[k];
+            std::cout << "k=" << k << ", (i=" << i << ", j=" << j
+                      << "), (p.first=" << p.first << ", p.second=" << p.second
+                      << ")" << std::endl;
+            ASSERT_EQ(i, p.first);
+            ASSERT_EQ(j, p.second);
+        }
     }
 }
 
-template <typename T1, typename T2> struct IsAssignable {
-  static constexpr bool value = false;
+template<typename T1, typename T2> struct IsAssignable {
+    static constexpr bool value = false;
 };
 
 #define IS_ASSIGNABLE_CTOR(a, b)                                               \
   template <> struct IsAssignable<a, b> { static constexpr bool value = true; };
 
-template <typename T1, typename T2>
+template<typename T1, typename T2>
 constexpr bool is_assignable = IsAssignable<T1, T2>::value;
 
 #define IS_ASSIGNABLE(a, ...)                                                  \
@@ -186,36 +186,36 @@ IS_ASSIGNABLE_R(double, float, int8_t, int16_t, int32_t, uint8_t, uint16_t,
                 uint32_t);
 
 TEST_F(MetaMacroTest, test_constexpr) {
-  static_assert(is_assignable<int8_t, int16_t>);
-  static_assert(!is_assignable<int16_t, int8_t>);
-  static_assert(is_assignable<int8_t, int32_t>);
-  static_assert(!is_assignable<int32_t, int8_t>);
-  static_assert(is_assignable<int8_t, int64_t>);
-  static_assert(!is_assignable<int64_t, int8_t>);
-  static_assert(!is_assignable<uint64_t, uint8_t>);
-  static_assert(is_assignable<float, double>);
-  static_assert(!is_assignable<double, float>);
-  std::cout << "TEST PASS" << std::endl;
+    static_assert(is_assignable < int8_t, int16_t > );
+    static_assert(!is_assignable < int16_t, int8_t > );
+    static_assert(is_assignable < int8_t, int32_t > );
+    static_assert(!is_assignable < int32_t, int8_t > );
+    static_assert(is_assignable < int8_t, int64_t > );
+    static_assert(!is_assignable < int64_t, int8_t > );
+    static_assert(!is_assignable < uint64_t, uint8_t > );
+    static_assert(is_assignable < float, double > );
+    static_assert(!is_assignable < double, float > );
+    std::cout << "TEST PASS" << std::endl;
 }
 enum type_enum {
-  TYPE_INT8,
-  TYPE_INT16,
-  TYPE_INT32,
-  TYPE_INT64,
-  TYPE_UINT8,
-  TYPE_UINT16,
-  TYPE_UINT32,
-  TYPE_UINT64,
-  TYPE_FLOAT,
-  TYPE_DOUBLE,
-  TYPE_DECIMAL32,
-  TYPE_DECIMAL64,
-  TYPE_DECIMAL128,
+    TYPE_INT8,
+    TYPE_INT16,
+    TYPE_INT32,
+    TYPE_INT64,
+    TYPE_UINT8,
+    TYPE_UINT16,
+    TYPE_UINT32,
+    TYPE_UINT64,
+    TYPE_FLOAT,
+    TYPE_DOUBLE,
+    TYPE_DECIMAL32,
+    TYPE_DECIMAL64,
+    TYPE_DECIMAL128,
 };
 enum type2_enum {
-  TYPE2_INVALID,
-  TYPE2_INT64,
-  TYPE2_DOUBLE,
+    TYPE2_INVALID,
+    TYPE2_INT64,
+    TYPE2_DOUBLE,
 };
 
 #define IS_ASSIGNABLE_ENTRY_CTOR(a, b)                                         \
@@ -235,27 +235,58 @@ static std::unordered_map<type_enum, type2_enum> global_assignable_table{
 };
 
 TEST_F(MetaMacroTest, test_assignable_table) {
-  type2_enum type2 = TYPE2_INVALID;
-  std::vector<type_enum> type1_ints = {TYPE_INT8,   TYPE_UINT8, TYPE_INT16,
-                                       TYPE_UINT16, TYPE_INT32, TYPE_UINT32,
-                                       TYPE_INT64,  TYPE_UINT64};
-  for (auto &type1 : type1_ints) {
-    ASSERT_TRUE(global_assignable_table.count(type1) > 0);
-    type2 = global_assignable_table[type1];
-    ASSERT_EQ(type2, TYPE2_INT64);
-  }
+    type2_enum type2 = TYPE2_INVALID;
+    std::vector<type_enum> type1_ints = {TYPE_INT8, TYPE_UINT8, TYPE_INT16,
+        TYPE_UINT16, TYPE_INT32, TYPE_UINT32,
+        TYPE_INT64, TYPE_UINT64};
+    for (auto &type1 : type1_ints) {
+        ASSERT_TRUE(global_assignable_table.count(type1) > 0);
+        type2 = global_assignable_table[type1];
+        ASSERT_EQ(type2, TYPE2_INT64);
+    }
 
-  std::vector<type_enum> type1_floats = {TYPE_FLOAT, TYPE_DOUBLE};
-  for (auto &type1 : type1_floats) {
-    ASSERT_TRUE(global_assignable_table.count(type1) > 0);
-    type2 = global_assignable_table[type1];
-    ASSERT_EQ(type2, TYPE2_DOUBLE);
-  }
-  ASSERT_TRUE(global_assignable_table.count(TYPE_DECIMAL32) == 0);
-  ASSERT_TRUE(global_assignable_table.count(TYPE_DECIMAL64) == 0);
-  ASSERT_TRUE(global_assignable_table.count(TYPE_DECIMAL128) == 0);
+    std::vector<type_enum> type1_floats = {TYPE_FLOAT, TYPE_DOUBLE};
+    for (auto &type1 : type1_floats) {
+        ASSERT_TRUE(global_assignable_table.count(type1) > 0);
+        type2 = global_assignable_table[type1];
+        ASSERT_EQ(type2, TYPE2_DOUBLE);
+    }
+    ASSERT_TRUE(global_assignable_table.count(TYPE_DECIMAL32) == 0);
+    ASSERT_TRUE(global_assignable_table.count(TYPE_DECIMAL64) == 0);
+    ASSERT_TRUE(global_assignable_table.count(TYPE_DECIMAL128) == 0);
 }
 
+template<typename T1, typename T2, typename T3>
+struct IsBinaryFunction {
+    static constexpr bool value = false;
+};
+template<typename T1, typename T2, typename T3>
+constexpr bool is_binary_function = IsBinaryFunction<T1, T2, T3>::value;
+
+#define IS_BINARY_FUNCTION_CTOR(a, b, c) \
+template <>                         \
+struct IsBinaryFunction<a,b,c> {    \
+static constexpr bool value = true;                                    \
+};
+
+#define IS_BINARY_FUNCTION_L_R(a, b, ...) \
+DEF_TERNARY_RELATION_ENTRY_SEP_NONE_012(IS_BINARY_FUNCTION_CTOR, a, b, ##__VA_ARGS__)
+
+#define IS_BINARY_FUNCTION_L_RES(a, b, ...) \
+DEF_TERNARY_RELATION_ENTRY_SEP_NONE_021(IS_BINARY_FUNCTION_CTOR, a, b, ##__VA_ARGS__)
+
+#define IS_BINARY_FUNCTION_R_RES(a, b, ...) \
+DEF_TERNARY_RELATION_ENTRY_SEP_NONE_120(IS_BINARY_FUNCTION_CTOR, a, b, ##__VA_ARGS__)
+
+#define IS_BINARY_FUNCTION_R_L(a, b, ...) \
+DEF_TERNARY_RELATION_ENTRY_SEP_NONE_102(IS_BINARY_FUNCTION_CTOR, a, b, ##__VA_ARGS__)
+
+#define IS_BINARY_FUNCTION_RES_L(a, b, ...) \
+DEF_TERNARY_RELATION_ENTRY_SEP_NONE_201(IS_BINARY_FUNCTION_CTOR, a, b, ##__VA_ARGS__)
+
+#define IS_BINARY_FUNCTION_RES_R(a, b, ...) \
+DEF_TERNARY_RELATION_ENTRY_SEP_NONE_210(IS_BINARY_FUNCTION_CTOR, a, b, ##__VA_ARGS__)
+IS_BINARY_FUNCTION_L_RES(int, int, float, double, int8_t);
 }//namespace test
 
 int main(int argc, char **argv) {
