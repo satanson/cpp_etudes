@@ -465,8 +465,6 @@ TEST_F(TestGuard, testCallFoobar){
   auto b = call_foobar<Foobar02>();
   std::cout<<"b="<<b<<std::endl;
 }
-template <typename A,typename B> struct ClassOne{};
-template <typename B,typename C,typename D> struct ClassOne{};
 
 int main(int argc, char **argv) {
   ::testing::InitGoogleTest(&argc, argv);
