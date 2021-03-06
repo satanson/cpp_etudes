@@ -424,3 +424,30 @@
 
 #define DEF_TERNARY_RELATION_ENTRY_SEP_NONE_210(ctor, a, b, ...)                    \
   DEF_TERNARY_RELATION_ENTRY_SEP_210(ctor, NONE_MARK, a, b, ##__VA_ARGS__)
+
+// pair list processing
+
+#define META_MACRO_PAIR_LIST_MAP_0(ctor)
+#define META_MACRO_PAIR_LIST_MAP_2(ctor, a0, b0) ctor(a0, b0)
+#define META_MACRO_PAIR_LIST_MAP_4(ctor, a0, b0, a1, b1)                       \
+  ctor(a0, b0), ctor(a1, b1)
+#define META_MACRO_PAIR_LIST_MAP_6(ctor, a0, b0, a1, b1, a2, b2)               \
+  ctor(a0, b0), ctor(a1, b1), ctor(a2, b2)
+#define META_MACRO_PAIR_LIST_MAP_8(ctor, a0, b0, a1, b1, a2, b2, a3, b3)       \
+  ctor(a0, b0), ctor(a1, b1), ctor(a2, b2), ctor(a3, b3)
+#define META_MACRO_PAIR_LIST_MAP_10(ctor, a0, b0, a1, b1, a2, b2, a3, b3, a4,  \
+                                    b4)                                        \
+  ctor(a0, b0), ctor(a1, b1), ctor(a2, b2), ctor(a3, b3), ctor(a4, b4)
+
+#define META_MACRO_PAIR_FIRST(a, b) a
+#define META_MACRO_PAIR_LIST_FIRST(...)                                        \
+  META_MACRO_SELECT(META_MACRO_PAIR_LIST_MAP_, 1, META_MACRO_PAIR_FIRST,       \
+                    ##__VA_ARGS__)
+#define META_MACRO_PAIR_SECOND(a, b) b
+#define META_MACRO_PAIR_LIST_SECOND(...)                                       \
+  META_MACRO_SELECT(META_MACRO_PAIR_LIST_MAP_, 1, META_MACRO_PAIR_SECOND,      \
+                    ##__VA_ARGS__)
+#define META_MACRO_PAIR_CONCAT_WS(a, b) a b
+#define META_MACRO_PAIR_LIST_CONCAT_WS(...)                                    \
+  META_MACRO_SELECT(META_MACRO_PAIR_LIST_MAP_, 1, META_MACRO_PAIR_CONCAT_WS,   \
+                    ##__VA_ARGS__)

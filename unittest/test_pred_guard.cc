@@ -10,17 +10,13 @@
 #include <gtest/gtest.h>
 #include <guard.hh>
 #include "pred_guard.hh"
-#include "meta_macro.hh"
 
 namespace test {
 class PredGuardTest : public ::testing::Test {};
-DEF_PRED_TYPE_GUARD(DirectlyCopyableGuard, is_directly_copyable, S, T)
+DEF_PRED_GUARD(DirectlyCopyableGuard, is_directly_copyable, typename, S,
+               typename, T)
 #define IS_DIRECTLY_COPYABLE_CTOR(S, T) DEF_PRED_CASE_CTOR(is_directly_copyable, S, T)
 #define IS_DIRECTLY_COPYABLE(S, ...) DEF_BINARY_RELATION_ENTRY_SEP_NONE(IS_DIRECTLY_COPYABLE_CTOR, S, ##__VA_ARGS__)
-
-DEF_PRED_TYPE_GUARD(AssignableGuard, is_assignable, S, T)
-#define IS_ASSIGNABLE_CTOR(S, T) DEF_PRED_CASE_CTOR(is_assignable, S, T)
-#define IS_ASSIGNABLE(S, ...) DEF_BINARY_RELATION_ENTRY_SEP_NONE(IS_ASSIGNABLE_CTOR, S, ##__VA_ARGS__)
 
 IS_DIRECTLY_COPYABLE(uint8_t, int8_t, uint8_t);
 IS_DIRECTLY_COPYABLE(int8_t, int8_t, uint8_t);
@@ -30,6 +26,11 @@ IS_DIRECTLY_COPYABLE(uint32_t, int32_t, uint32_t);
 IS_DIRECTLY_COPYABLE(int32_t, int32_t, uint32_t);
 IS_DIRECTLY_COPYABLE(uint64_t, int64_t, uint64_t);
 IS_DIRECTLY_COPYABLE(int64_t, int64_t, uint64_t);
+
+DEF_PRED_GUARD(AssignableGuard, is_assignable, typename, S, typename, T)
+#define IS_ASSIGNABLE_CTOR(S, T) DEF_PRED_CASE_CTOR(is_assignable, S, T)
+#define IS_ASSIGNABLE(S, ...)                                                  \
+  DEF_BINARY_RELATION_ENTRY_SEP_NONE(IS_ASSIGNABLE_CTOR, S, ##__VA_ARGS__)
 
 IS_ASSIGNABLE(uint8_t, uint16_t, int16_t, uint32_t, int32_t, int64_t, uint64_t)
 IS_ASSIGNABLE(int8_t, uint16_t, int16_t, uint32_t, int32_t, int64_t, uint64_t)
@@ -134,11 +135,12 @@ enum DataType {
     DT_UINT64,
 };
 
-DEF_PRED_VALUE_GUARD(DataType, DirectlyCopyableBinDTGuard, dt_is_directly_copyable, S, T)
+DEF_PRED_GUARD(DirectlyCopyableBinDTGuard, dt_is_directly_copyable, DataType, S,
+               DataType, T)
 #define DT_IS_DIRECTLY_COPYABLE_CTOR(S, T)  DEF_PRED_CASE_CTOR(dt_is_directly_copyable, S, T)
 #define DT_IS_DIRECTLY_COPYABLE(S, ...) DEF_BINARY_RELATION_ENTRY_SEP_NONE(DT_IS_DIRECTLY_COPYABLE_CTOR, S, ##__VA_ARGS__)
 
-DEF_PRED_VALUE_GUARD(DataType, AssignableBinDTGuard, dt_is_assignable, S, T)
+DEF_PRED_GUARD(AssignableBinDTGuard, dt_is_assignable, DataType, S, DataType, T)
 #define DT_IS_ASSIGNABLE_CTOR(S, T)  DEF_PRED_CASE_CTOR(dt_is_assignable, S, T)
 #define DT_IS_ASSIGNABLE(S, ...) DEF_BINARY_RELATION_ENTRY_SEP_NONE(DT_IS_ASSIGNABLE_CTOR, S, ##__VA_ARGS__)
 
@@ -178,7 +180,9 @@ CPP_TYPE_TRAITS_CTOR(DT_UINT32, uint32_t)
 CPP_TYPE_TRAITS_CTOR(DT_INT64, int64_t)
 CPP_TYPE_TRAITS_CTOR(DT_UINT64, uint64_t)
 
-template<DataType S, DataType T, typename=guard::Guard> struct DtArrayCopy {};
+template <DataType S, DataType T, typename = guard::Guard> struct DtArrayCopy {
+  static void evaluate(const void *src, void *dst, size_t n) {}
+};
 
 template<DataType S, DataType T>
 struct DtArrayCopy<S, T, DirectlyCopyableBinDTGuard<S, T>> {
