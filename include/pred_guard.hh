@@ -29,11 +29,9 @@ namespace guard {
                                                                                \
   PRED_GUARD(guard_name, pred_name, ##__VA_ARGS__)
 
-#define DEF_PRED_CASE_CTOR(pred_name, ...) \
-template<> \
-struct pred_name##_struct<__VA_ARGS__> { \
-    static constexpr bool value = true;  \
-};
+#define DEF_PRED_CASE_CTOR(pred_name, ...)                                     \
+  template <> struct pred_name##_struct<__VA_ARGS__> {                         \
+    static constexpr bool value = true;                                        \
+  };
 
-}//namespace guard
-
+} // namespace guard

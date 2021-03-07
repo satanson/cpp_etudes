@@ -9,39 +9,50 @@
 
 #pragma once
 
-#define META_MACRO_SELECT_21ST(a1, a2, a3, a4, a5, b6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17, a18, a19, a20, a21, ...) a21
+#define META_MACRO_SELECT_21ST(a1, a2, a3, a4, a5, b6, a7, a8, a9, a10, a11,   \
+                               a12, a13, a14, a15, a16, a17, a18, a19, a20,    \
+                               a21, ...)                                       \
+  a21
 
-#define META_MACRO_VA_ARGS_NUM_MINUS_0(...)                                                       \
-  META_MACRO_SELECT_21ST(1,2,3,4,5,6,7,8,9,10, ##__VA_ARGS__, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0)
+#define META_MACRO_VA_ARGS_NUM_MINUS_0(...)                                    \
+  META_MACRO_SELECT_21ST(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, ##__VA_ARGS__, 10, 9,  \
+                         8, 7, 6, 5, 4, 3, 2, 1, 0)
 
-#define META_MACRO_VA_ARGS_NUM_MINUS_1(...)                                                       \
-  META_MACRO_SELECT_21ST(1,2,3,4,5,6,7,8,9, ##__VA_ARGS__, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0)
+#define META_MACRO_VA_ARGS_NUM_MINUS_1(...)                                    \
+  META_MACRO_SELECT_21ST(1, 2, 3, 4, 5, 6, 7, 8, 9, ##__VA_ARGS__, 10, 9, 8,   \
+                         7, 6, 5, 4, 3, 2, 1, 0)
 
-#define META_MACRO_VA_ARGS_NUM_MINUS_2(...)                                                       \
-  META_MACRO_SELECT_21ST(1,2,3,4,5,6,7,8,##__VA_ARGS__, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0)
+#define META_MACRO_VA_ARGS_NUM_MINUS_2(...)                                    \
+  META_MACRO_SELECT_21ST(1, 2, 3, 4, 5, 6, 7, 8, ##__VA_ARGS__, 10, 9, 8, 7,   \
+                         6, 5, 4, 3, 2, 1, 0)
 
-#define META_MACRO_VA_ARGS_NUM_MINUS_3(...)                                                       \
-  META_MACRO_SELECT_21ST(1,2,3,4,5,6,7,##__VA_ARGS__, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0)
+#define META_MACRO_VA_ARGS_NUM_MINUS_3(...)                                    \
+  META_MACRO_SELECT_21ST(1, 2, 3, 4, 5, 6, 7, ##__VA_ARGS__, 10, 9, 8, 7, 6,   \
+                         5, 4, 3, 2, 1, 0)
 
-#define META_MACRO_VA_ARGS_NUM_MINUS_4(...)                                                       \
-  META_MACRO_SELECT_21ST(1,2,3,4,5,6,##__VA_ARGS__, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0)
+#define META_MACRO_VA_ARGS_NUM_MINUS_4(...)                                    \
+  META_MACRO_SELECT_21ST(1, 2, 3, 4, 5, 6, ##__VA_ARGS__, 10, 9, 8, 7, 6, 5,   \
+                         4, 3, 2, 1, 0)
 
-#define META_MACRO_VA_ARGS_NUM_MINUS_5(...)                                                       \
-  META_MACRO_SELECT_21ST(1,2,3,4,5,##__VA_ARGS__, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0)
+#define META_MACRO_VA_ARGS_NUM_MINUS_5(...)                                    \
+  META_MACRO_SELECT_21ST(1, 2, 3, 4, 5, ##__VA_ARGS__, 10, 9, 8, 7, 6, 5, 4,   \
+                         3, 2, 1, 0)
 
-#define META_MACRO_VA_ARGS_NUM_MINUS_6(...)                                                       \
-  META_MACRO_SELECT_21ST(1,2,3,4,##__VA_ARGS__, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0)
+#define META_MACRO_VA_ARGS_NUM_MINUS_6(...)                                    \
+  META_MACRO_SELECT_21ST(1, 2, 3, 4, ##__VA_ARGS__, 10, 9, 8, 7, 6, 5, 4, 3,   \
+                         2, 1, 0)
 
-#define META_MACRO_VA_ARGS_NUM_MINUS_7(...)                                                       \
-  META_MACRO_SELECT_21ST(1,2,3,##__VA_ARGS__, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0)
+#define META_MACRO_VA_ARGS_NUM_MINUS_7(...)                                    \
+  META_MACRO_SELECT_21ST(1, 2, 3, ##__VA_ARGS__, 10, 9, 8, 7, 6, 5, 4, 3, 2,   \
+                         1, 0)
 
-#define META_MACRO_VA_ARGS_NUM_MINUS_8(...)                                                       \
-  META_MACRO_SELECT_21ST(1,2,##__VA_ARGS__, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0)
+#define META_MACRO_VA_ARGS_NUM_MINUS_8(...)                                    \
+  META_MACRO_SELECT_21ST(1, 2, ##__VA_ARGS__, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0)
 
-#define META_MACRO_VA_ARGS_NUM_MINUS_9(...)                                                       \
-  META_MACRO_SELECT_21ST(1,##__VA_ARGS__, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0)
+#define META_MACRO_VA_ARGS_NUM_MINUS_9(...)                                    \
+  META_MACRO_SELECT_21ST(1, ##__VA_ARGS__, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0)
 
-#define META_MACRO_VA_ARGS_NUM(...)  META_MACRO_VA_ARGS_NUM_MINUS_0(__VA_ARGS__)
+#define META_MACRO_VA_ARGS_NUM(...) META_MACRO_VA_ARGS_NUM_MINUS_0(__VA_ARGS__)
 
 #define META_MACRO_SELECT_VA(name, num, ...) name##num(__VA_ARGS__)
 #define META_MACRO_SELECT_VA_HELPER(name, num, ...)                            \
@@ -77,14 +88,14 @@
 #define META_MACRO_10_PART0 2
 #define META_MACRO_10_PART1 4
 #define META_MACRO_10_PART2 4
-#define META_MACRO_PART(n, m) META_MACRO_ ##n## _PART ## m
+#define META_MACRO_PART(n, m) META_MACRO_##n##_PART##m
 
 #define META_MACRO_TAKE_0(...)
 #define META_MACRO_TAKE_1(a1, ...) a1
-#define META_MACRO_TAKE_2(a1, a2, ...) a1,a2
-#define META_MACRO_TAKE_3(a1, a2, a3, ...) a1,a2,a3
-#define META_MACRO_TAKE_4(a1, a2, a3, a4, ...) a1,a2,a3,a4
-#define META_MACRO_TAKE_5(a1, a2, a3, a4, a5, ...) a1,a2,a3,a4,a5
+#define META_MACRO_TAKE_2(a1, a2, ...) a1, a2
+#define META_MACRO_TAKE_3(a1, a2, a3, ...) a1, a2, a3
+#define META_MACRO_TAKE_4(a1, a2, a3, a4, ...) a1, a2, a3, a4
+#define META_MACRO_TAKE_5(a1, a2, a3, a4, a5, ...) a1, a2, a3, a4, a5
 #define META_MACRO_TAKE(n, ...) META_MACRO_TAKE_##n(__VA_ARGS__)
 
 #define META_MACRO_DROP_0(...) __VA_ARGS__
@@ -99,17 +110,24 @@
 #define META_MACRO_SEP_COMMA_MARK ,
 #define META_MACRO_SEP_SEMICOLON_MARK ;
 
-#define META_MACRO_CASE_DEF_PART_HELPER2(name, ...) \
-    name(__VA_ARGS__)
+#define META_MACRO_CASE_DEF_PART_HELPER2(name, ...) name(__VA_ARGS__)
 
-#define META_MACRO_CASE_DEF_PART0_HELPER1(name, n, m0, m1, m2, ...) \
-    META_MACRO_CASE_DEF_PART_HELPER2(name, META_MACRO_TAKE(n,##__VA_ARGS__), META_MACRO_TAKE(m0, META_MACRO_DROP(n, ##__VA_ARGS__)))
+#define META_MACRO_CASE_DEF_PART0_HELPER1(name, n, m0, m1, m2, ...)            \
+  META_MACRO_CASE_DEF_PART_HELPER2(                                            \
+      name, META_MACRO_TAKE(n, ##__VA_ARGS__),                                 \
+      META_MACRO_TAKE(m0, META_MACRO_DROP(n, ##__VA_ARGS__)))
 
-#define META_MACRO_CASE_DEF_PART1_HELPER1(name, n, m0, m1, m2, ...) \
-    META_MACRO_CASE_DEF_PART_HELPER2(name, META_MACRO_TAKE(n, ##__VA_ARGS__), META_MACRO_TAKE(m1, META_MACRO_DROP(m0, META_MACRO_DROP(n, ##__VA_ARGS__))))
+#define META_MACRO_CASE_DEF_PART1_HELPER1(name, n, m0, m1, m2, ...)            \
+  META_MACRO_CASE_DEF_PART_HELPER2(                                            \
+      name, META_MACRO_TAKE(n, ##__VA_ARGS__),                                 \
+      META_MACRO_TAKE(m1,                                                      \
+                      META_MACRO_DROP(m0, META_MACRO_DROP(n, ##__VA_ARGS__))))
 
-#define META_MACRO_CASE_DEF_PART2_HELPER1(name, n, m0, m1, m2, ...) \
-    META_MACRO_CASE_DEF_PART_HELPER2(name, META_MACRO_TAKE(n, ##__VA_ARGS__), META_MACRO_DROP(m1, META_MACRO_DROP(m0, META_MACRO_DROP(n, ##__VA_ARGS__))))
+#define META_MACRO_CASE_DEF_PART2_HELPER1(name, n, m0, m1, m2, ...)            \
+  META_MACRO_CASE_DEF_PART_HELPER2(                                            \
+      name, META_MACRO_TAKE(n, ##__VA_ARGS__),                                 \
+      META_MACRO_DROP(m1,                                                      \
+                      META_MACRO_DROP(m0, META_MACRO_DROP(n, ##__VA_ARGS__))))
 
 #define META_MACRO_CASE_DEF_DECOMPOSE_SEP_HELPER(name, sep, n, m, m0, m1, m2,  \
                                                  ...)                          \
