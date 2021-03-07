@@ -136,7 +136,7 @@ TEST_F(MetaMacroTest, test_macro_2) {
 }
 #define DEF_FOOBAR_CTOR(a, b) std::pair<int, int>(a, b)
 #define DEF_FOOBAR(n, ...)                                                     \
-  DEF_BINARY_RELATION_ENTRY_SEP_COMMA(DEF_FOOBAR_CTOR, n, ##__VA_ARGS__)
+  DEF_BINARY_RELATION_ENTRY_SEP_COMMA(1, DEF_FOOBAR_CTOR, n, ##__VA_ARGS__)
 
 TEST_F(MetaMacroTest, test_macro_3) {
     using pair_int_int = std::pair<int, int>;
@@ -176,10 +176,10 @@ template<typename T1, typename T2>
 constexpr bool is_assignable = IsAssignable<T1, T2>::value;
 
 #define IS_ASSIGNABLE(a, ...)                                                  \
-  DEF_BINARY_RELATION_ENTRY_SEP_NONE(IS_ASSIGNABLE_CTOR, a, ##__VA_ARGS__)
+  DEF_BINARY_RELATION_ENTRY_SEP_NONE(1, IS_ASSIGNABLE_CTOR, a, ##__VA_ARGS__)
 #define IS_ASSIGNABLE_R(a, ...)                                                \
-  DEF_BINARY_RELATION_ENTRY_SEP_SEMICOLON_R(IS_ASSIGNABLE_CTOR, a,             \
-                                            ##__VA_ARGS__)
+  DEF_BINARY_RELATION_ENTRY_SEP_SEMICOLON(0, IS_ASSIGNABLE_CTOR, a,            \
+                                          ##__VA_ARGS__)
 
 IS_ASSIGNABLE(int8_t, int16_t, int32_t, int64_t);
 IS_ASSIGNABLE_R(double, float, int8_t, int16_t, int32_t, uint8_t, uint16_t,
@@ -221,11 +221,11 @@ enum type2_enum {
 #define IS_ASSIGNABLE_ENTRY_CTOR(a, b)                                         \
   { a, b }
 #define IS_ASSIGNABLE_ENTRY(a, ...)                                            \
-  DEF_BINARY_RELATION_ENTRY_SEP_COMMA(IS_ASSIGNABLE_ENTRY_CTOR, a,             \
+  DEF_BINARY_RELATION_ENTRY_SEP_COMMA(1, IS_ASSIGNABLE_ENTRY_CTOR, a,          \
                                       ##__VA_ARGS__)
 #define IS_ASSIGNABLE_ENTRY_R(a, ...)                                          \
-  DEF_BINARY_RELATION_ENTRY_SEP_COMMA_R(IS_ASSIGNABLE_ENTRY_CTOR, a,           \
-                                        ##__VA_ARGS__)
+  DEF_BINARY_RELATION_ENTRY_SEP_COMMA(0, IS_ASSIGNABLE_ENTRY_CTOR, a,          \
+                                      ##__VA_ARGS__)
 
 static std::unordered_map<type_enum, type2_enum> global_assignable_table{
     IS_ASSIGNABLE_ENTRY(TYPE_INT8, TYPE2_INT64),
@@ -269,24 +269,12 @@ struct IsBinaryFunction<a,b,c> {    \
 static constexpr bool value = true;                                    \
 };
 
-#define IS_BINARY_FUNCTION_L_R(a, b, ...) \
-DEF_TERNARY_RELATION_ENTRY_SEP_NONE_012(IS_BINARY_FUNCTION_CTOR, a, b, ##__VA_ARGS__)
+#define IS_BINARY_FUNCTION(varg_pos, a, b, ...)                                \
+  DEF_TERNARY_RELATION_ENTRY_SEP_NONE(IS_BINARY_FUNCTION_CTOR, varg_pos, a, b, \
+                                      ##__VA_ARGS__)
 
-#define IS_BINARY_FUNCTION_L_RES(a, b, ...) \
-DEF_TERNARY_RELATION_ENTRY_SEP_NONE_021(IS_BINARY_FUNCTION_CTOR, a, b, ##__VA_ARGS__)
-
-#define IS_BINARY_FUNCTION_R_RES(a, b, ...) \
-DEF_TERNARY_RELATION_ENTRY_SEP_NONE_120(IS_BINARY_FUNCTION_CTOR, a, b, ##__VA_ARGS__)
-
-#define IS_BINARY_FUNCTION_R_L(a, b, ...) \
-DEF_TERNARY_RELATION_ENTRY_SEP_NONE_102(IS_BINARY_FUNCTION_CTOR, a, b, ##__VA_ARGS__)
-
-#define IS_BINARY_FUNCTION_RES_L(a, b, ...) \
-DEF_TERNARY_RELATION_ENTRY_SEP_NONE_201(IS_BINARY_FUNCTION_CTOR, a, b, ##__VA_ARGS__)
-
-#define IS_BINARY_FUNCTION_RES_R(a, b, ...) \
-DEF_TERNARY_RELATION_ENTRY_SEP_NONE_210(IS_BINARY_FUNCTION_CTOR, a, b, ##__VA_ARGS__)
-IS_BINARY_FUNCTION_L_RES(int, int, float, double, int8_t);
+IS_BINARY_FUNCTION(0, int, int, float, double, int8_t, int16_t);
+IS_BINARY_FUNCTION(1, int, int, float, double, int8_t);
 }//namespace test
 
 int main(int argc, char **argv) {

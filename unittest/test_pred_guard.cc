@@ -16,7 +16,9 @@ class PredGuardTest : public ::testing::Test {};
 DEF_PRED_GUARD(DirectlyCopyableGuard, is_directly_copyable, typename, S,
                typename, T)
 #define IS_DIRECTLY_COPYABLE_CTOR(S, T) DEF_PRED_CASE_CTOR(is_directly_copyable, S, T)
-#define IS_DIRECTLY_COPYABLE(S, ...) DEF_BINARY_RELATION_ENTRY_SEP_NONE(IS_DIRECTLY_COPYABLE_CTOR, S, ##__VA_ARGS__)
+#define IS_DIRECTLY_COPYABLE(S, ...)                                           \
+  DEF_BINARY_RELATION_ENTRY_SEP_NONE(1, IS_DIRECTLY_COPYABLE_CTOR, S,          \
+                                     ##__VA_ARGS__)
 
 IS_DIRECTLY_COPYABLE(uint8_t, int8_t, uint8_t);
 IS_DIRECTLY_COPYABLE(int8_t, int8_t, uint8_t);
@@ -30,7 +32,7 @@ IS_DIRECTLY_COPYABLE(int64_t, int64_t, uint64_t);
 DEF_PRED_GUARD(AssignableGuard, is_assignable, typename, S, typename, T)
 #define IS_ASSIGNABLE_CTOR(S, T) DEF_PRED_CASE_CTOR(is_assignable, S, T)
 #define IS_ASSIGNABLE(S, ...)                                                  \
-  DEF_BINARY_RELATION_ENTRY_SEP_NONE(IS_ASSIGNABLE_CTOR, S, ##__VA_ARGS__)
+  DEF_BINARY_RELATION_ENTRY_SEP_NONE(1, IS_ASSIGNABLE_CTOR, S, ##__VA_ARGS__)
 
 IS_ASSIGNABLE(uint8_t, uint16_t, int16_t, uint32_t, int32_t, int64_t, uint64_t)
 IS_ASSIGNABLE(int8_t, uint16_t, int16_t, uint32_t, int32_t, int64_t, uint64_t)
@@ -66,7 +68,8 @@ template<typename S, typename T> constexpr int array_copy_idx =
 #define COPY_ENTRY_CTOR(S, T) \
 {array_copy_idx<S, T>, &ArrayCopy<S, T>::evaluate}
 
-#define COPY_ENTRY(S, ...) DEF_BINARY_RELATION_ENTRY_SEP_COMMA(COPY_ENTRY_CTOR, S, ##__VA_ARGS__)
+#define COPY_ENTRY(S, ...)                                                     \
+  DEF_BINARY_RELATION_ENTRY_SEP_COMMA(1, COPY_ENTRY_CTOR, S, ##__VA_ARGS__)
 typedef void (*CopyFunc)(const void *, void *, size_t);
 
 static const std::unordered_map<int, CopyFunc> global_copy_func_table = {
@@ -138,11 +141,14 @@ enum DataType {
 DEF_PRED_GUARD(DirectlyCopyableBinDTGuard, dt_is_directly_copyable, DataType, S,
                DataType, T)
 #define DT_IS_DIRECTLY_COPYABLE_CTOR(S, T)  DEF_PRED_CASE_CTOR(dt_is_directly_copyable, S, T)
-#define DT_IS_DIRECTLY_COPYABLE(S, ...) DEF_BINARY_RELATION_ENTRY_SEP_NONE(DT_IS_DIRECTLY_COPYABLE_CTOR, S, ##__VA_ARGS__)
+#define DT_IS_DIRECTLY_COPYABLE(S, ...)                                        \
+  DEF_BINARY_RELATION_ENTRY_SEP_NONE(1, DT_IS_DIRECTLY_COPYABLE_CTOR, S,       \
+                                     ##__VA_ARGS__)
 
 DEF_PRED_GUARD(AssignableBinDTGuard, dt_is_assignable, DataType, S, DataType, T)
 #define DT_IS_ASSIGNABLE_CTOR(S, T)  DEF_PRED_CASE_CTOR(dt_is_assignable, S, T)
-#define DT_IS_ASSIGNABLE(S, ...) DEF_BINARY_RELATION_ENTRY_SEP_NONE(DT_IS_ASSIGNABLE_CTOR, S, ##__VA_ARGS__)
+#define DT_IS_ASSIGNABLE(S, ...)                                               \
+  DEF_BINARY_RELATION_ENTRY_SEP_NONE(1, DT_IS_ASSIGNABLE_CTOR, S, ##__VA_ARGS__)
 
 DT_IS_DIRECTLY_COPYABLE(DT_INT8, DT_INT8, DT_UINT8)
 DT_IS_DIRECTLY_COPYABLE(DT_UINT8, DT_INT8, DT_UINT8)
@@ -211,7 +217,8 @@ constexpr int dt_copy_idx(DataType S, DataType T) {
 #define DT_COPY_ENTRY_CTOR(S, T) \
 {dt_copy_idx(S,T), &DtArrayCopy<S, T>::evaluate}
 
-#define DT_COPY_ENTRY(S, ...) DEF_BINARY_RELATION_ENTRY_SEP_COMMA(DT_COPY_ENTRY_CTOR, S, ##__VA_ARGS__)
+#define DT_COPY_ENTRY(S, ...)                                                  \
+  DEF_BINARY_RELATION_ENTRY_SEP_COMMA(1, DT_COPY_ENTRY_CTOR, S, ##__VA_ARGS__)
 typedef void (*CopyFunc)(const void *, void *, size_t);
 
 static const std::unordered_map<int, CopyFunc> global_dt_copy_func_table = {
