@@ -9,9 +9,9 @@
 
 #include <benchmark/benchmark.h>
 #include <concat.hh>
-#include <string_functions.hh>
 #include <iostream>
 #include <memory>
+#include <string_functions.hh>
 #include <unordered_map>
 
 struct prepare {
@@ -27,42 +27,45 @@ struct prepare {
   Columns columns_20_500;
   Columns columns_100_500;
   std::unordered_map<uint32_t, Columns *> columns_map;
-  prepare() :
-      col_5_10(4096, {1, 0, 0, 0, 0, 0}, 5, 10),
-      col_10_20(4096, {1, 0, 0, 0, 0, 0}, 10, 20),
-      col_50_100(4096, {1, 0, 0, 0, 0, 0}, 50, 100),
-      col_100_500(4096, {1, 0, 0, 0, 0, 0}, 100, 500),
-      columns_10_10{
-          std::shared_ptr<BinaryColumn>(new BinaryColumn(col_5_10.binary_column)),
-          std::shared_ptr<BinaryColumn>(new BinaryColumn(col_5_10.binary_column))
-      },
-      columns_10_20{
-          std::shared_ptr<BinaryColumn>(new BinaryColumn(col_5_10.binary_column)),
-          std::shared_ptr<BinaryColumn>(new BinaryColumn(col_10_20.binary_column))
-      },
-      columns_10_100{
-          std::shared_ptr<BinaryColumn>(new BinaryColumn(col_5_10.binary_column)),
-          std::shared_ptr<BinaryColumn>(new BinaryColumn(col_50_100.binary_column))
-      },
-      columns_10_500{
-          std::shared_ptr<BinaryColumn>(new BinaryColumn(col_5_10.binary_column)),
-          std::shared_ptr<BinaryColumn>(new BinaryColumn(col_100_500.binary_column))
-      },
-      columns_20_100{
+  prepare()
+      : col_5_10(4096, {1, 0, 0, 0, 0, 0}, 5, 10),
+        col_10_20(4096, {1, 0, 0, 0, 0, 0}, 10, 20),
+        col_50_100(4096, {1, 0, 0, 0, 0, 0}, 50, 100),
+        col_100_500(4096, {1, 0, 0, 0, 0, 0}, 100, 500),
+        columns_10_10{std::shared_ptr<BinaryColumn>(
+                          new BinaryColumn(col_5_10.binary_column)),
+                      std::shared_ptr<BinaryColumn>(
+                          new BinaryColumn(col_5_10.binary_column))},
+        columns_10_20{std::shared_ptr<BinaryColumn>(
+                          new BinaryColumn(col_5_10.binary_column)),
+                      std::shared_ptr<BinaryColumn>(
+                          new BinaryColumn(col_10_20.binary_column))},
+        columns_10_100{std::shared_ptr<BinaryColumn>(
+                           new BinaryColumn(col_5_10.binary_column)),
+                       std::shared_ptr<BinaryColumn>(
+                           new BinaryColumn(col_50_100.binary_column))},
+        columns_10_500{std::shared_ptr<BinaryColumn>(
+                           new BinaryColumn(col_5_10.binary_column)),
+                       std::shared_ptr<BinaryColumn>(
+                           new BinaryColumn(col_100_500.binary_column))},
+        columns_20_100{
 
-          std::shared_ptr<BinaryColumn>(new BinaryColumn(col_10_20.binary_column)),
-          std::shared_ptr<BinaryColumn>(new BinaryColumn(col_50_100.binary_column))
-      },
-      columns_20_500{
-          std::shared_ptr<BinaryColumn>(new BinaryColumn(col_10_20.binary_column)),
-          std::shared_ptr<BinaryColumn>(new BinaryColumn(col_100_500.binary_column))
+            std::shared_ptr<BinaryColumn>(
+                new BinaryColumn(col_10_20.binary_column)),
+            std::shared_ptr<BinaryColumn>(
+                new BinaryColumn(col_50_100.binary_column))},
+        columns_20_500{std::shared_ptr<BinaryColumn>(
+                           new BinaryColumn(col_10_20.binary_column)),
+                       std::shared_ptr<BinaryColumn>(
+                           new BinaryColumn(col_100_500.binary_column))
 
-      },
-      columns_100_500{
+        },
+        columns_100_500{
 
-          std::shared_ptr<BinaryColumn>(new BinaryColumn(col_50_100.binary_column)),
-          std::shared_ptr<BinaryColumn>(new BinaryColumn(col_100_500.binary_column))
-      } {
+            std::shared_ptr<BinaryColumn>(
+                new BinaryColumn(col_50_100.binary_column)),
+            std::shared_ptr<BinaryColumn>(
+                new BinaryColumn(col_100_500.binary_column))} {
     columns_map[(10 << 16) + 10] = &columns_10_10;
     columns_map[(10 << 16) + 20] = &columns_10_20;
     columns_map[(10 << 16) + 100] = &columns_10_100;
@@ -77,7 +80,7 @@ void BM_concat(benchmark::State &state) {
   uint32_t key = (state.range(0) << 16) + state.range(1);
 
   Columns &columns = *(data.columns_map[key]);
-  for (auto _:state) {
+  for (auto _ : state) {
     concat_horizontally(columns);
   }
 }
@@ -87,7 +90,7 @@ void BM_group_by_multi_column_concat(benchmark::State &state) {
   Columns &columns = *(data.columns_map[key]);
   std::vector<uint32_t> slice_sizes;
   std::vector<uint8_t> buffer;
-  for (auto _:state) {
+  for (auto _ : state) {
     concat_vertically(columns, buffer, slice_sizes);
   }
 }

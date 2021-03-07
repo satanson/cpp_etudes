@@ -26,7 +26,7 @@ int main(int argc, char **argv) {
 
   auto q2 = a1 / b1;
   auto r2 = a2 % b2;
-  std::cout<<"q2="<<ToHexString(q2)<<std::endl;
-  std::cout<<"r2="<<ToHexString(r2)<<std::endl;
+  std::cout << "q2=" << ToHexString(q2) << std::endl;
+  std::cout << "r2=" << ToHexString(r2) << std::endl;
   return 0;
 }

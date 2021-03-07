@@ -434,36 +434,35 @@ TEST_F(TestGuard, testValueGuard) {
   ASSERT_EQ(ReturnStringV<DB_TYPE_INVALID>::get(), "unknown");
 }
 
-struct Foobar01{
+struct Foobar01 {
   using ReturnType = int;
-  static inline ReturnType get_int(){return 0xdeadbeef;}
+  static inline ReturnType get_int() { return 0xdeadbeef; }
 };
 
-struct Foobar02{
+struct Foobar02 {
   using ReturnType = std::string;
-  static inline ReturnType get_string(){return "foobar";}
+  static inline ReturnType get_string() { return "foobar"; }
 };
 
 TYPE_GUARD(Foobar01Guard, is_foobar01_class, Foobar01);
 TYPE_GUARD(Foobar02Guard, is_foobar02_class, Foobar02);
 TYPE_GUARD(FoobarGuard, is_foobar_class, Foobar01, Foobar02);
 
-template<typename T>
-typename T::ReturnType call_foobar(){
-  if constexpr(is_foobar01_class<T>){
+template <typename T> typename T::ReturnType call_foobar() {
+  if constexpr (is_foobar01_class<T>) {
     return T::get_int();
-  } else if constexpr(is_foobar02_class<T>){
+  } else if constexpr (is_foobar02_class<T>) {
     return T::get_string();
   } else {
     static_assert(is_foobar_class<T>, "Invalid foobar class");
   }
 }
 
-TEST_F(TestGuard, testCallFoobar){
+TEST_F(TestGuard, testCallFoobar) {
   auto a = call_foobar<Foobar01>();
-  std::cout<<"a="<<a<<std::endl;
+  std::cout << "a=" << a << std::endl;
   auto b = call_foobar<Foobar02>();
-  std::cout<<"b="<<b<<std::endl;
+  std::cout << "b=" << b << std::endl;
 }
 
 int main(int argc, char **argv) {

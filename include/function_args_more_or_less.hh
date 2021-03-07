@@ -10,13 +10,13 @@
 #ifndef CPP_ETUDES_INCLUDE_FUNCTION_ARGS_MORE_OR_LESS_HH_
 #define CPP_ETUDES_INCLUDE_FUNCTION_ARGS_MORE_OR_LESS_HH_
 
-#include <iostream>
-#include <ctime>
 #include <cstdint>
+#include <ctime>
+#include <iostream>
 #include <vector>
 
 class ColumnViewer {
- public:
+public:
   ColumnViewer() {
     _not_const_flag = 0;
     _null_flag = 0;
@@ -38,17 +38,16 @@ class ColumnViewer {
     return false;
   }
 
- private:
-  int* data;
-  uint8_t* null_data;
+private:
+  int *data;
+  uint8_t *null_data;
   int _not_const_flag;
   int _null_flag;
 };
 
-
 class ColumnBuilder {
- public:
-  ColumnBuilder() : _is_null(false) {};
+public:
+  ColumnBuilder() : _is_null(false){};
   void reserve() {
     data.reserve(4000);
     null_data.reserve(4000);
@@ -65,12 +64,11 @@ class ColumnBuilder {
     data.clear();
     null_data.clear();
   }
- private:
+
+private:
   std::vector<int> data;
   std::vector<uint8_t> null_data;
   bool _is_null;
 };
 
-
-
-#endif //CPP_ETUDES_INCLUDE_FUNCTION_ARGS_MORE_OR_LESS_HH_
+#endif // CPP_ETUDES_INCLUDE_FUNCTION_ARGS_MORE_OR_LESS_HH_

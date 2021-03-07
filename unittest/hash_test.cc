@@ -7,15 +7,13 @@
 // Created by grakra on 2020/7/3.
 //
 
-#include <gtest/gtest.h>
 #include <concurrent/hash.hh>
+#include <gtest/gtest.h>
 
 namespace com {
 namespace grakra {
 namespace concurrent {
-class TestHash : public testing::Test {
-
-};
+class TestHash : public testing::Test {};
 TEST_F(TestHash, testSingleThread) {
   Hash hash(0x100000, 4);
   for (uint32_t key = 0; key < 1000; ++key) {
@@ -48,11 +46,10 @@ TEST_F(TestHash, testConstExpr) {
 TEST_F(TestHash, testHashResizing) {
   auto f = [](size_t nr, size_t factor) {
     Hash hash(nr, factor);
-    GTEST_LOG_(INFO)
-        << "expect_max_size=" << hash.get_expect_max_size()
-        << ", load_factor=" << hash.get_load_factor()
-        << ", max_slot_nr=" << hash.get_max_slot_nr()
-        << ", level_nr=" << hash.get_level_nr();
+    GTEST_LOG_(INFO) << "expect_max_size=" << hash.get_expect_max_size()
+                     << ", load_factor=" << hash.get_load_factor()
+                     << ", max_slot_nr=" << hash.get_max_slot_nr()
+                     << ", level_nr=" << hash.get_level_nr();
 
     uint32_t max_key = hash.get_expect_max_size() + 10;
     size_t count = 0;

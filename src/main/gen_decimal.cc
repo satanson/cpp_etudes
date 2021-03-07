@@ -7,9 +7,9 @@
 // Created by grakra on 2020/10/9.
 //
 
-#include <random>
-#include <iostream>
 #include <cassert>
+#include <iostream>
+#include <random>
 
 typedef __int128 int128_t;
 
@@ -24,8 +24,7 @@ int64_t exp10(size_t n) {
 int main(int argc, char **argv) {
   if (argc < 4) {
     std::cerr << "missing arguments!\n"
-              << "gen_decimal <count> <p> <s>"
-              << std::endl;
+              << "gen_decimal <count> <p> <s>" << std::endl;
     exit(1);
   }
 
@@ -38,9 +37,9 @@ int main(int argc, char **argv) {
 
   std::random_device rd;
   std::mt19937 gen(rd());
-  const int64_t max_int_part = exp10(p - s)-1;
-  const int64_t max_frac_part = exp10(s)-1;
-  //std::cout << "max_int_part=" << max_int_part
+  const int64_t max_int_part = exp10(p - s) - 1;
+  const int64_t max_frac_part = exp10(s) - 1;
+  // std::cout << "max_int_part=" << max_int_part
   //          << ", max_frac_part=" << max_frac_part << std::endl;
   std::uniform_int_distribution<int64_t> ip_rand(-max_int_part, max_int_part);
   std::uniform_int_distribution<int64_t> fp_rand(-max_frac_part, max_frac_part);
@@ -51,9 +50,13 @@ int main(int argc, char **argv) {
       a = ip_rand(gen);
       b = fp_rand(gen);
     }
-    if (b < 0) { b = -b; }
+    if (b < 0) {
+      b = -b;
+    }
     auto positive = a < 0 ? false : true;
-    if (a < 0) { a = -a; }
+    if (a < 0) {
+      a = -a;
+    }
     printf("%s%0lld.%0lld\n", positive ? "" : "-", a, b);
   }
 }

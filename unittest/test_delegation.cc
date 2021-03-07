@@ -17,7 +17,7 @@ TEST_F(DelegationTest, test0) {
   std::shared_ptr<AbsReader> aReader =
       std::make_shared<TypeAReader>(delegation.get(), [](AbsReader *reader) {});
   std::shared_ptr<AbsReader> bReader = std::make_shared<TypeBReader>();
-  auto deleter = [](AbsReader*reader){};
+  auto deleter = [](AbsReader *reader) {};
   ReaderObj aReadObj(aReader.get(), deleter);
   ReaderObj bReadObj(bReader.get(), deleter);
   ASSERT_EQ(aReadObj->size(), 100);

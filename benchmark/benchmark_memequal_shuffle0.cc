@@ -2,9 +2,9 @@
 // Created by grakra on 2020/11/26.
 //
 
+#include <benchmark/benchmark.h>
 #include <include/string_functions.hh>
 #include <memequal.hh>
-#include <benchmark/benchmark.h>
 prepare_utf8_data col_5_10_0(4096, {1, 0, 0, 0, 0, 0}, 5, 10);
 prepare_utf8_data col_5_10_1(4096, {1, 0, 0, 0, 0, 0}, 5, 10);
 
@@ -57,67 +57,90 @@ prepare_utf8_data col_18_18_0(4096, {1, 0, 0, 0, 0, 0}, 18, 18);
 prepare_utf8_data col_19_19_0(4096, {1, 0, 0, 0, 0, 0}, 19, 19);
 prepare_utf8_data col_20_20_0(4096, {1, 0, 0, 0, 0, 0}, 20, 20);
 
-std::vector<BinaryColumn *> columns0
-    {
-        nullptr,
-        &col_1_1_0.binary_column, &col_2_2_0.binary_column, &col_3_3_0.binary_column, &col_4_4_0.binary_column,
-        &col_5_5_0.binary_column, &col_6_6_0.binary_column, &col_7_7_0.binary_column, &col_8_8_0.binary_column,
-        &col_9_9_0.binary_column, &col_10_10_0.binary_column, &col_11_11_0.binary_column, &col_12_12_0.binary_column,
-        &col_13_13_0.binary_column, &col_14_14_0.binary_column, &col_15_15_0.binary_column, &col_16_16_0.binary_column,
-        &col_17_17_0.binary_column, &col_18_18_0.binary_column, &col_19_19_0.binary_column, &col_20_20_0.binary_column
-    };
+std::vector<BinaryColumn *> columns0{nullptr,
+                                     &col_1_1_0.binary_column,
+                                     &col_2_2_0.binary_column,
+                                     &col_3_3_0.binary_column,
+                                     &col_4_4_0.binary_column,
+                                     &col_5_5_0.binary_column,
+                                     &col_6_6_0.binary_column,
+                                     &col_7_7_0.binary_column,
+                                     &col_8_8_0.binary_column,
+                                     &col_9_9_0.binary_column,
+                                     &col_10_10_0.binary_column,
+                                     &col_11_11_0.binary_column,
+                                     &col_12_12_0.binary_column,
+                                     &col_13_13_0.binary_column,
+                                     &col_14_14_0.binary_column,
+                                     &col_15_15_0.binary_column,
+                                     &col_16_16_0.binary_column,
+                                     &col_17_17_0.binary_column,
+                                     &col_18_18_0.binary_column,
+                                     &col_19_19_0.binary_column,
+                                     &col_20_20_0.binary_column};
 
-std::vector<BinaryColumn *> columns1
-    {
-        nullptr,
-        &col_1_1_1.binary_column, &col_2_2_1.binary_column, &col_3_3_1.binary_column, &col_4_4_1.binary_column,
-        &col_5_5_1.binary_column, &col_6_6_1.binary_column, &col_7_7_1.binary_column, &col_8_8_1.binary_column,
-        &col_9_9_1.binary_column, &col_10_10_1.binary_column, &col_11_11_1.binary_column, &col_12_12_1.binary_column,
-        &col_13_13_1.binary_column, &col_14_14_1.binary_column, &col_15_15_1.binary_column, &col_16_16_1.binary_column,
-        &col_17_17_1.binary_column, &col_18_18_1.binary_column, &col_19_19_1.binary_column, &col_20_20_1.binary_column
-    };
+std::vector<BinaryColumn *> columns1{nullptr,
+                                     &col_1_1_1.binary_column,
+                                     &col_2_2_1.binary_column,
+                                     &col_3_3_1.binary_column,
+                                     &col_4_4_1.binary_column,
+                                     &col_5_5_1.binary_column,
+                                     &col_6_6_1.binary_column,
+                                     &col_7_7_1.binary_column,
+                                     &col_8_8_1.binary_column,
+                                     &col_9_9_1.binary_column,
+                                     &col_10_10_1.binary_column,
+                                     &col_11_11_1.binary_column,
+                                     &col_12_12_1.binary_column,
+                                     &col_13_13_1.binary_column,
+                                     &col_14_14_1.binary_column,
+                                     &col_15_15_1.binary_column,
+                                     &col_16_16_1.binary_column,
+                                     &col_17_17_1.binary_column,
+                                     &col_18_18_1.binary_column,
+                                     &col_19_19_1.binary_column,
+                                     &col_20_20_1.binary_column};
 
-template<size_t n0, size_t n1>
-void batch_memcmp_optimized_const(std::vector<bool>&result){
+template <size_t n0, size_t n1>
+void batch_memcmp_optimized_const(std::vector<bool> &result) {
   auto col0 = columns0[n0];
   auto col1 = columns1[n1];
   const auto size = col0->size();
-  for(auto i=0; i< size; ++i){
+  for (auto i = 0; i < size; ++i) {
     auto s0 = col0->get_slice(i);
     auto s1 = col1->get_slice(i);
     result[i] = mem_equal_optimized(s0.data, n0, s1.data, n1);
   }
 }
 
-template<size_t n0, size_t n1>
+template <size_t n0, size_t n1>
 void BM_batch_memcmp_optimized_const(benchmark::State &state) {
   auto col0 = columns0[n0];
   std::vector<bool> result;
   result.resize(col0->size());
-  for (auto _:state) {
+  for (auto _ : state) {
     batch_memcmp_optimized_const<n0, n1>(result);
   }
 }
 
-
-template<size_t n0, size_t n1>
-void batch_memcmp_optimized_variable(std::vector<bool>&result){
+template <size_t n0, size_t n1>
+void batch_memcmp_optimized_variable(std::vector<bool> &result) {
   auto col0 = columns0[n0];
   auto col1 = columns1[n1];
   const auto size = col0->size();
-  for(auto i=0; i< size; ++i){
+  for (auto i = 0; i < size; ++i) {
     auto s0 = col0->get_slice(i);
     auto s1 = col1->get_slice(i);
     result[i] = mem_equal_optimized(s0.data, s0.size, s1.data, s1.size);
   }
 }
 
-template<size_t n0, size_t n1>
+template <size_t n0, size_t n1>
 void BM_batch_memcmp_optimized_variable(benchmark::State &state) {
   auto col0 = columns0[n0];
   std::vector<bool> result;
   result.resize(col0->size());
-  for (auto _:state) {
+  for (auto _ : state) {
     batch_memcmp_optimized_variable<n0, n1>(result);
   }
 }
@@ -126,7 +149,7 @@ void BM_memcmp_5_10(benchmark::State &state) {
   const auto size = data0.size();
   std::vector<bool> result;
   result.resize(size);
-  for (auto _:state) {
+  for (auto _ : state) {
     for (auto i = 0; i < size; ++i) {
       auto s0 = data0.get_slice(i);
       auto s1 = data1.get_slice(i);
@@ -139,7 +162,7 @@ void BM_memcmp_optimized_5_10(benchmark::State &state) {
   const auto size = data0.size();
   std::vector<bool> result;
   result.resize(size);
-  for (auto _:state) {
+  for (auto _ : state) {
     for (auto i = 0; i < size; ++i) {
       auto s0 = data0.get_slice(i);
       auto s1 = data1.get_slice(i);
@@ -152,7 +175,7 @@ void BM_memcmp_1_20(benchmark::State &state) {
   const auto size = data2.size();
   std::vector<bool> result;
   result.resize(size);
-  for (auto _:state) {
+  for (auto _ : state) {
     for (auto i = 0; i < size; ++i) {
       auto s0 = data2.get_slice(i);
       auto s1 = data3.get_slice(i);
@@ -164,7 +187,7 @@ void BM_memcmp_optimized_1_20(benchmark::State &state) {
   const auto size = data2.size();
   std::vector<bool> result;
   result.resize(size);
-  for (auto _:state) {
+  for (auto _ : state) {
     for (auto i = 0; i < size; ++i) {
       auto s0 = data2.get_slice(i);
       auto s1 = data3.get_slice(i);

@@ -11,16 +11,17 @@
 #define CPP_ETUDES_HASH_HH
 #include <cassert>
 #include <concurrent/list.hh>
-#include <util/bits_op.hh>
-#include <memory>
 #include <cstring>
+#include <memory>
+#include <util/bits_op.hh>
 #include <vector>
 namespace com {
 namespace grakra {
 namespace concurrent {
 
 #define LOG2(n) __builtin_ctzll(n)
-#define CLEAR_MSB(n) ((n) & (((typeof(n))1) << (sizeof(n) - 1 - __builtin_clz(n))))
+#define CLEAR_MSB(n)                                                           \
+  ((n) & (((typeof(n))1) << (sizeof(n) - 1 - __builtin_clz(n))))
 #define PARENT_SLOT(n) CLEAR_MSB(n)
 
 constexpr size_t SLOT_INDEX_SHIFT = 12 - LOG2(sizeof(void *));
@@ -42,7 +43,8 @@ class Hash {
   const size_t level_nr;
   const size_t load_factor;
   const size_t max_slot_nr;
- public:
+
+public:
   Hash(size_t expect_max_size, size_t load_factor);
   ~Hash();
   MichaelList &get_list() { return this->list; }
@@ -50,12 +52,15 @@ class Hash {
   size_t get_level_nr() { return this->level_nr; }
   size_t get_load_factor() { return this->load_factor; }
   size_t get_max_slot_nr() { return this->max_slot_nr; }
-  uint32_t get_slot_nr() { return this->slot_nr.load(std::memory_order_relaxed); }
+  uint32_t get_slot_nr() {
+    return this->slot_nr.load(std::memory_order_relaxed);
+  }
   size_t get_size() { return this->size.load(std::memory_order_relaxed); }
 
   bool Put(uint32_t key, uint32_t value);
   bool Get(uint32_t key, uint32_t &value);
- private:
+
+private:
   Hash(Hash const &) = delete;
   Hash &operator=(Hash const &) = delete;
   uint32_t get_slot_idx(uint32_t key);
@@ -73,4 +78,4 @@ class Hash {
 } // namespace concurrent
 } // namespace grakra
 } // namespace com
-#endif //CPP_ETUDES_HASH_HH
+#endif // CPP_ETUDES_HASH_HH

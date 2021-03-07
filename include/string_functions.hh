@@ -10,16 +10,16 @@
 #ifndef CPP_ETUDES_INCLUDE_STRING_FUNCTIONS_HH_
 #define CPP_ETUDES_INCLUDE_STRING_FUNCTIONS_HH_
 
-#include<string>
-#include<climits>
-#include<vector>
-#include<cassert>
-#include<random>
-#include<iostream>
-#include <immintrin.h>
-#include <default_init_allocator.hh>
-#include <binary_column.hh>
 #include <algorithm>
+#include <binary_column.hh>
+#include <cassert>
+#include <climits>
+#include <default_init_allocator.hh>
+#include <immintrin.h>
+#include <iostream>
+#include <random>
+#include <string>
+#include <vector>
 static uint8_t *create_utf8_length_table() {
   uint8_t *tbl = new uint8_t[257];
   for (int byte = 0; byte < 257; ++byte) {
@@ -63,28 +63,24 @@ static uint8_t *create_utf8_length_table2() {
 // SIZE: 257 * uint8_t
 static const uint8_t UTF8_BYTE_LENGTH_TABLE[256] = {
     // start byte of 1-byte utf8 char: 0b0000'0000 ~ 0b0111'1111
-    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1,
     // continuation byte: 0b1000'0000 ~ 0b1011'1111
-    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
     // start byte of 2-byte utf8 char: 0b1100'0000 ~ 0b1101'1111
-    2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
-    2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+    2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+    2, 2, 2, 2, 2, 2, 2,
     // start byte of 3-byte utf8 char: 0b1110'0000 ~ 0b1110'1111
     3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
     // start byte of 4-byte utf8 char: 0b1111'0000 ~ 0b1111'0111
     // invalid utf8 byte: 0b1111'1000~ 0b1111'1111
-    4, 4, 4, 4, 4, 4, 4, 4, 1, 1, 1, 1, 1, 1, 1, 1
-};
+    4, 4, 4, 4, 4, 4, 4, 4, 1, 1, 1, 1, 1, 1, 1, 1};
 static const uint8_t *UTF8_BYTE_LENGTH_TABLE2 = create_utf8_length_table2();
 
 struct StringFunctions {
@@ -92,7 +88,8 @@ struct StringFunctions {
   static inline int utf8_length(std::string const &str) {
     int len = 0;
     for (int i = 0, char_size = 0; i < str.size(); i += char_size) {
-      char_size = UTF8_BYTE_LENGTH_TABLE[static_cast<unsigned char>(str.data()[i])];
+      char_size =
+          UTF8_BYTE_LENGTH_TABLE[static_cast<unsigned char>(str.data()[i])];
       ++len;
     }
     return len;
@@ -101,7 +98,9 @@ struct StringFunctions {
   static inline int utf8_length2(std::string const &str) {
     int len = 0;
     for (int i = 0, char_size = 0; i < str.size(); i += char_size) {
-      char_size = UTF8_BYTE_LENGTH_TABLE2[static_cast<unsigned char>(str.data()[i]) >> 3];
+      char_size =
+          UTF8_BYTE_LENGTH_TABLE2[static_cast<unsigned char>(str.data()[i]) >>
+                                  3];
       ++len;
     }
     return len;
@@ -198,19 +197,16 @@ struct StringFunctions {
     const auto src_end_avx2 = p + (str.size() & ~(bytes_avx2 - 1));
     const auto threshold = _mm256_set1_epi8(0b1011'1111);
     for (; p < src_end_avx2; p += bytes_avx2)
-      len += __builtin_popcount(
-          _mm256_movemask_epi8(
-              _mm256_cmpgt_epi8(
-                  _mm256_loadu_si256(reinterpret_cast<const __m256i *>(p)), threshold)));
+      len += __builtin_popcount(_mm256_movemask_epi8(_mm256_cmpgt_epi8(
+          _mm256_loadu_si256(reinterpret_cast<const __m256i *>(p)),
+          threshold)));
 #elif defined(__SSE2__)
     constexpr auto bytes_sse2 = sizeof(__m128i);
     const auto src_end_sse2 = p + (str.size() & ~(bytes_sse2 - 1));
     const auto threshold = _mm_set1_epi8(0b1011'1111);
     for (; p < src_end_sse2; p += bytes_sse2) {
-      len += __builtin_popcount(
-          _mm_movemask_epi8(
-              _mm_cmpgt_epi8(
-                  _mm_loadu_si128(reinterpret_cast<const __m128i *>(p)), threshold)));
+      len += __builtin_popcount(_mm_movemask_epi8(_mm_cmpgt_epi8(
+          _mm_loadu_si128(reinterpret_cast<const __m128i *>(p)), threshold)));
     }
 #endif
     for (; p < end; ++p) {
@@ -228,10 +224,8 @@ struct StringFunctions {
     const auto src_end_sse2 = p + (str.size() & ~(bytes_sse2 - 1));
     const auto threshold = _mm_set1_epi8(0b1011'1111);
     for (; p < src_end_sse2; p += bytes_sse2) {
-      len += __builtin_popcount(
-          _mm_movemask_epi8(
-              _mm_cmpgt_epi8(
-                  _mm_loadu_si128(reinterpret_cast<const __m128i *>(p)), threshold)));
+      len += __builtin_popcount(_mm_movemask_epi8(_mm_cmpgt_epi8(
+          _mm_loadu_si128(reinterpret_cast<const __m128i *>(p)), threshold)));
     }
 #endif
     for (; p < end; ++p) {
@@ -241,13 +235,8 @@ struct StringFunctions {
   }
 
   static constexpr uint8_t UTF8_FIRST_CHAR[7] = {
-      0b0000'0000,
-      0b1000'0000,
-      0b1100'0000,
-      0b1110'0000,
-      0b1111'0000,
-      0b1111'1000,
-      0b1111'1100,
+      0b0000'0000, 0b1000'0000, 0b1100'0000, 0b1110'0000,
+      0b1111'0000, 0b1111'1000, 0b1111'1100,
   };
 
   static inline bool validate_ascii_fast(const char *src, size_t len) {
@@ -256,7 +245,7 @@ struct StringFunctions {
     __m256i has_error = _mm256_setzero_si256();
     if (len >= 32) {
       for (; i <= len - 32; i += 32) {
-        __m256i current_bytes = _mm256_loadu_si256((const __m256i *) (src + i));
+        __m256i current_bytes = _mm256_loadu_si256((const __m256i *)(src + i));
         has_error = _mm256_or_si256(has_error, current_bytes);
       }
     }
@@ -274,7 +263,7 @@ struct StringFunctions {
     __m128i has_error = _mm_setzero_si128();
     if (len >= 16) {
       for (; i <= len - 16; i += 16) {
-        __m128i current_bytes = _mm_loadu_si128((const __m128i *) (src + i));
+        __m128i current_bytes = _mm_loadu_si128((const __m128i *)(src + i));
         has_error = _mm_or_si128(has_error, current_bytes);
       }
     }
@@ -290,14 +279,15 @@ struct StringFunctions {
 #else
     char tail_has_error = 0;
     for (size_t i = 0; i < len; i++) {
-        tail_has_error |= src[i];
+      tail_has_error |= src[i];
     }
     return !(tail_has_error & 0x80);
 #endif
   }
 
-  template<bool negative_offset>
-  static inline void ascii_substr(BinaryColumn const &src, BinaryColumn &dst, int offset, int len) {
+  template <bool negative_offset>
+  static inline void ascii_substr(BinaryColumn const &src, BinaryColumn &dst,
+                                  int offset, int len) {
     const auto n = src.size();
     for (auto i = 0; i < n; ++i) {
       Slice s = src.get_slice(i);
@@ -327,12 +317,10 @@ struct StringFunctions {
     }
   }
 
-  template<bool negative_offset>
-  static inline void ascii_substr_by_ref(
-      BinaryColumn const &src,
-      std::string &bytes,
-      std::vector<int> &offsets,
-      int off, int len) {
+  template <bool negative_offset>
+  static inline void
+  ascii_substr_by_ref(BinaryColumn const &src, std::string &bytes,
+                      std::vector<int> &offsets, int off, int len) {
     const auto n = src.size();
     for (auto i = 0; i < n; ++i) {
       Slice s = src.get_slice(i);
@@ -363,12 +351,10 @@ struct StringFunctions {
     }
   }
 
-  template<bool negative_offset>
-  static inline void ascii_substr_by_ptr(
-      BinaryColumn *src,
-      std::string *bytes,
-      std::vector<int> *offsets,
-      int off, int len) {
+  template <bool negative_offset>
+  static inline void ascii_substr_by_ptr(BinaryColumn *src, std::string *bytes,
+                                         std::vector<int> *offsets, int off,
+                                         int len) {
     const auto n = src->size();
     for (auto i = 0; i < n; ++i) {
       Slice s = src->get_slice(i);
@@ -399,8 +385,9 @@ struct StringFunctions {
     }
   }
 
-  template<bool lookup_table>
-  static inline const char *skip_leading_utf8(const char *p, const char *end, size_t n) {
+  template <bool lookup_table>
+  static inline const char *skip_leading_utf8(const char *p, const char *end,
+                                              size_t n) {
     int char_size = 0;
     for (auto i = 0; i < n && p < end; ++i, p += char_size) {
       if constexpr (lookup_table) {
@@ -417,24 +404,28 @@ struct StringFunctions {
     return p;
   }
 
-  template<bool lookup_table>
-  static inline const char *skip_trailing_utf8(const char *p, const char *begin, size_t n) {
+  template <bool lookup_table>
+  static inline const char *skip_trailing_utf8(const char *p, const char *begin,
+                                               size_t n) {
     constexpr auto threshold = static_cast<int8_t>(0b1011'1111);
     for (auto i = 0; i < n && p >= begin; ++i) {
       --p;
-      while (p >= begin && static_cast<int8_t>(*p) <= threshold)--p;
+      while (p >= begin && static_cast<int8_t>(*p) <= threshold)
+        --p;
     }
     return p;
   }
 
   static inline std::string upper_old(std::string const &s) {
     std::string v = s;
-    std::transform(v.begin(), v.end(), v.begin(), [](unsigned char c) { return std::toupper(c); });
+    std::transform(v.begin(), v.end(), v.begin(),
+                   [](unsigned char c) { return std::toupper(c); });
     return v;
   }
   static inline std::string lower_old(std::string const &s) {
     std::string v = s;
-    std::transform(v.begin(), v.end(), v.begin(), [](unsigned char c) { return std::tolower(c); });
+    std::transform(v.begin(), v.end(), v.begin(),
+                   [](unsigned char c) { return std::tolower(c); });
     return v;
   }
 
@@ -469,13 +460,11 @@ struct StringFunctions {
     const auto z_plus1 = _mm_set1_epi8('z' + 1);
     const auto delta = _mm_set1_epi8('a' - 'A');
     for (; p > sse2_end; p += SSE2_BYTES) {
-      auto bytes = _mm_loadu_si128((const __m128i *) p);
-      _mm_maskmoveu_si128(
-          _mm_sub_epi8(bytes, delta),
-          _mm_and_si128(
-              _mm_cmpgt_epi8(bytes, a_minus1),
-              _mm_cmpgt_epi8(z_plus1, bytes)),
-          p);
+      auto bytes = _mm_loadu_si128((const __m128i *)p);
+      _mm_maskmoveu_si128(_mm_sub_epi8(bytes, delta),
+                          _mm_and_si128(_mm_cmpgt_epi8(bytes, a_minus1),
+                                        _mm_cmpgt_epi8(z_plus1, bytes)),
+                          p);
     }
 #endif
     for (; p < end; p += 1) {
@@ -485,7 +474,8 @@ struct StringFunctions {
     return result;
   }
 
-  static inline void upper_vector_old(BinaryColumn const &src, BinaryColumn &dst) {
+  static inline void upper_vector_old(BinaryColumn const &src,
+                                      BinaryColumn &dst) {
     const auto n = src.size();
     for (auto i = 0; i < n; ++i) {
       auto ret = upper_old(src.get_slice(i).to_string());
@@ -494,7 +484,8 @@ struct StringFunctions {
     }
   }
 
-  static inline void lower_vector_old(BinaryColumn const &src, BinaryColumn &dst) {
+  static inline void lower_vector_old(BinaryColumn const &src,
+                                      BinaryColumn &dst) {
     const auto n = src.size();
     for (auto i = 0; i < n; ++i) {
       auto ret = lower_old(src.get_slice(i).to_string());
@@ -503,7 +494,8 @@ struct StringFunctions {
     }
   }
 
-  static inline void upper_vector_copy_3_times(BinaryColumn const &src, BinaryColumn &dst) {
+  static inline void upper_vector_copy_3_times(BinaryColumn const &src,
+                                               BinaryColumn &dst) {
     const auto n = src.size();
     for (auto i = 0; i < n; ++i) {
       std::string result = src.get_slice(i).to_string();
@@ -518,23 +510,23 @@ struct StringFunctions {
       const auto z_plus1 = _mm_set1_epi8('z' + 1);
       const auto delta = _mm_set1_epi8('a' - 'A');
       for (; p > sse2_end; p += SSE2_BYTES) {
-        auto bytes = _mm_loadu_si128((const __m128i *) p);
-        _mm_maskmoveu_si128(
-            _mm_xor_si128(bytes, delta),
-            _mm_and_si128(
-                _mm_cmpgt_epi8(bytes, a_minus1),
-                _mm_cmpgt_epi8(z_plus1, bytes)),
-            p);
+        auto bytes = _mm_loadu_si128((const __m128i *)p);
+        _mm_maskmoveu_si128(_mm_xor_si128(bytes, delta),
+                            _mm_and_si128(_mm_cmpgt_epi8(bytes, a_minus1),
+                                          _mm_cmpgt_epi8(z_plus1, bytes)),
+                            p);
       }
 #endif
-      std::transform(p, end, p, [](unsigned char c) { return std::toupper(c); });
+      std::transform(p, end, p,
+                     [](unsigned char c) { return std::toupper(c); });
       dst.append(result);
     }
   }
 
-  static inline void upper_vector_copy_1_times(BinaryColumn const &src, BinaryColumn &dst) {
+  static inline void upper_vector_copy_1_times(BinaryColumn const &src,
+                                               BinaryColumn &dst) {
     const auto n = src.size();
-    char *q = (char *) dst.bytes.data();
+    char *q = (char *)dst.bytes.data();
     for (auto i = 0; i < n; ++i) {
       auto slice = src.get_slice(i);
       char *begin = const_cast<char *>(slice.begin());
@@ -552,26 +544,21 @@ struct StringFunctions {
       const auto ones = _mm_set1_epi8(0xff);
 
       for (; p > sse2_end; p += SSE2_BYTES, q += SSE2_BYTES) {
-        auto bytes = _mm_loadu_si128((const __m128i *) p);
-        auto masks = _mm_and_si128(
-            _mm_cmpgt_epi8(bytes, a_minus1),
-            _mm_cmpgt_epi8(z_plus1, bytes));
+        auto bytes = _mm_loadu_si128((const __m128i *)p);
+        auto masks = _mm_and_si128(_mm_cmpgt_epi8(bytes, a_minus1),
+                                   _mm_cmpgt_epi8(z_plus1, bytes));
 
-        _mm_maskmoveu_si128(
-            _mm_xor_si128(bytes, delta),
-            masks,
-            q);
-        _mm_maskmoveu_si128(
-            bytes,
-            _mm_xor_si128(masks, ones),
-            q);
+        _mm_maskmoveu_si128(_mm_xor_si128(bytes, delta), masks, q);
+        _mm_maskmoveu_si128(bytes, _mm_xor_si128(masks, ones), q);
       }
 #endif
-      std::transform(p, end, q, [](unsigned char c) { return std::toupper(c); });
+      std::transform(p, end, q,
+                     [](unsigned char c) { return std::toupper(c); });
     }
   }
 
-  static inline void upper_vector_copy_2_times(BinaryColumn const &src, BinaryColumn &dst) {
+  static inline void upper_vector_copy_2_times(BinaryColumn const &src,
+                                               BinaryColumn &dst) {
     const auto n = src.size();
     for (auto i = 0; i < n; ++i) {
       auto slice = src.get_slice(i);
@@ -590,15 +577,11 @@ struct StringFunctions {
       const auto delta = _mm_set1_epi8(32);
 
       for (; p > sse2_end; p += SSE2_BYTES) {
-        auto bytes = _mm_loadu_si128((const __m128i *) p);
-        auto masks = _mm_and_si128(
-            _mm_cmpgt_epi8(bytes, a_minus1),
-            _mm_cmpgt_epi8(z_plus1, bytes));
+        auto bytes = _mm_loadu_si128((const __m128i *)p);
+        auto masks = _mm_and_si128(_mm_cmpgt_epi8(bytes, a_minus1),
+                                   _mm_cmpgt_epi8(z_plus1, bytes));
 
-        _mm_maskmoveu_si128(
-            _mm_xor_si128(bytes, delta),
-            masks,
-            p);
+        _mm_maskmoveu_si128(_mm_xor_si128(bytes, delta), masks, p);
       }
 #endif
       std::transform(p, end, p, [](char c) -> char {
@@ -610,8 +593,9 @@ struct StringFunctions {
     }
   }
 
-  template<char C0, char C1>
-  static inline void case_vector_new1(BinaryColumn const &src, BinaryColumn &dst) {
+  template <char C0, char C1>
+  static inline void case_vector_new1(BinaryColumn const &src,
+                                      BinaryColumn &dst) {
     const auto n = src.size();
     dst.offsets = src.offsets;
     dst.bytes = src.bytes;
@@ -628,15 +612,11 @@ struct StringFunctions {
     const auto delta = _mm_set1_epi8(32);
 
     for (; p > sse2_end; p += SSE2_BYTES) {
-      auto bytes = _mm_loadu_si128((const __m128i *) p);
-      auto masks = _mm_and_si128(
-          _mm_cmpgt_epi8(bytes, a_minus1),
-          _mm_cmpgt_epi8(z_plus1, bytes));
+      auto bytes = _mm_loadu_si128((const __m128i *)p);
+      auto masks = _mm_and_si128(_mm_cmpgt_epi8(bytes, a_minus1),
+                                 _mm_cmpgt_epi8(z_plus1, bytes));
 
-      _mm_maskmoveu_si128(
-          _mm_xor_si128(bytes, delta),
-          masks,
-          (char *) p);
+      _mm_maskmoveu_si128(_mm_xor_si128(bytes, delta), masks, (char *)p);
     }
 #endif
     for (; p < end; p += 1) {
@@ -645,8 +625,9 @@ struct StringFunctions {
     }
   }
 
-  template<bool use_raw, char C0, char C1>
-  static inline void case_vector_new2(BinaryColumn const &src, BinaryColumn &dst) {
+  template <bool use_raw, char C0, char C1>
+  static inline void case_vector_new2(BinaryColumn const &src,
+                                      BinaryColumn &dst) {
     const auto n = src.size();
     dst.offsets = src.offsets;
     raw::raw_vector<uint8_t> buffer;
@@ -661,8 +642,8 @@ struct StringFunctions {
       q = dst.bytes.data();
     }
 
-    char *begin = (char *) (src.bytes.data());
-    char *end = (char *) (src.bytes.data() + size);
+    char *begin = (char *)(src.bytes.data());
+    char *end = (char *)(src.bytes.data() + size);
 
 #if defined(__SSE2__)
     static constexpr int SSE2_BYTES = sizeof(__m128i);
@@ -673,15 +654,12 @@ struct StringFunctions {
     const auto delta = _mm_set1_epi8(32);
 
     for (; p > sse2_end; p += SSE2_BYTES, q += SSE2_BYTES) {
-      auto bytes = _mm_loadu_si128((const __m128i *) p);
-      auto masks = _mm_and_si128(
-          _mm_cmpgt_epi8(bytes, a_minus1),
-          _mm_cmpgt_epi8(z_plus1, bytes));
+      auto bytes = _mm_loadu_si128((const __m128i *)p);
+      auto masks = _mm_and_si128(_mm_cmpgt_epi8(bytes, a_minus1),
+                                 _mm_cmpgt_epi8(z_plus1, bytes));
 
-      _mm_storeu_si128(
-          (__m128i *) q,
-          _mm_xor_si128(bytes,
-                        _mm_and_si128(masks, delta)));
+      _mm_storeu_si128((__m128i *)q,
+                       _mm_xor_si128(bytes, _mm_and_si128(masks, delta)));
     }
 #endif
     for (; p < end; p += 1, q += 1) {
@@ -691,38 +669,44 @@ struct StringFunctions {
         *q = *p;
     }
 
-    if constexpr(use_raw) {
+    if constexpr (use_raw) {
       dst.bytes = std::move(reinterpret_cast<std::vector<uint8_t> &>(buffer));
     }
   }
 
-  static inline void lower_vector_new1(BinaryColumn const &src, BinaryColumn &dst) {
+  static inline void lower_vector_new1(BinaryColumn const &src,
+                                       BinaryColumn &dst) {
     case_vector_new1<'A', 'Z'>(src, dst);
   }
 
-  static inline void upper_vector_new1(BinaryColumn const &src, BinaryColumn &dst) {
+  static inline void upper_vector_new1(BinaryColumn const &src,
+                                       BinaryColumn &dst) {
     case_vector_new1<'a', 'z'>(src, dst);
   }
 
-  template<bool use_raw = true>
-  static inline void lower_vector_new2(BinaryColumn const &src, BinaryColumn &dst) {
+  template <bool use_raw = true>
+  static inline void lower_vector_new2(BinaryColumn const &src,
+                                       BinaryColumn &dst) {
     case_vector_new2<use_raw, 'A', 'Z'>(src, dst);
   }
 
-  template<bool use_raw = true>
-  static inline void upper_vector_new2(BinaryColumn const &src, BinaryColumn &dst) {
+  template <bool use_raw = true>
+  static inline void upper_vector_new2(BinaryColumn const &src,
+                                       BinaryColumn &dst) {
     case_vector_new2<use_raw, 'a', 'z'>(src, dst);
   }
 
   static inline std::string lower_dummy(std::string const &s) {
     std::string result = s;
-    std::transform(result.begin(), result.end(), result.begin(), [](unsigned char c) { return c; });
+    std::transform(result.begin(), result.end(), result.begin(),
+                   [](unsigned char c) { return c; });
     return result;
   }
 
   static inline std::string lower_dummy2(std::string const &s) {
     std::string result = s;
-    std::transform(result.begin(), result.end(), result.begin(), [](unsigned char c) { return c >> 1; });
+    std::transform(result.begin(), result.end(), result.begin(),
+                   [](unsigned char c) { return c >> 1; });
     return result;
   }
   static inline std::string lower_dummy3(std::string const &s) {
@@ -743,13 +727,11 @@ struct StringFunctions {
     const auto z_plus1 = _mm_set1_epi8('Z' + 1);
     const auto delta = _mm_set1_epi8('a' - 'A');
     for (; p > sse2_end; p += SSE2_BYTES) {
-      auto bytes = _mm_loadu_si128((const __m128i *) p);
-      _mm_maskmoveu_si128(
-          _mm_xor_si128(bytes, delta),
-          _mm_and_si128(
-              _mm_cmpgt_epi8(bytes, a_minus1),
-              _mm_cmpgt_epi8(z_plus1, bytes)),
-          p);
+      auto bytes = _mm_loadu_si128((const __m128i *)p);
+      _mm_maskmoveu_si128(_mm_xor_si128(bytes, delta),
+                          _mm_and_si128(_mm_cmpgt_epi8(bytes, a_minus1),
+                                        _mm_cmpgt_epi8(z_plus1, bytes)),
+                          p);
     }
 #endif
     for (; p < end; p += 1) {
@@ -759,24 +741,25 @@ struct StringFunctions {
     return result;
   }
 
-  template<bool use_length, bool lookup_table>
+  template <bool use_length, bool lookup_table>
   static inline void utf8_substr_from_left(BinaryColumn const &src,
-                                           BinaryColumn &dst,
-                                           int offset,
-                                           [[maybe_unused]]int len) {
+                                           BinaryColumn &dst, int offset,
+                                           [[maybe_unused]] int len) {
     auto const size = src.size();
     for (auto i = 0; i < size; ++i) {
       auto s = src.get_slice(i);
       auto begin = s.begin();
       auto end = s.end();
       auto from_ptr = skip_leading_utf8<lookup_table>(begin, end, offset);
-      //std::cout<<s.to_string()<<", offset="<<offset<<", from_pos="<<from_ptr-begin<<std::endl;
+      // std::cout<<s.to_string()<<", offset="<<offset<<",
+      // from_pos="<<from_ptr-begin<<std::endl;
       if constexpr (use_length) {
         if (from_ptr >= end) {
           dst.append("");
         } else {
           auto to_ptr = skip_leading_utf8<lookup_table>(from_ptr, end, len);
-          //std::cout<<s.to_string()<<", offset="<<offset<<", end_pos="<<to_ptr-begin<<std::endl;
+          // std::cout<<s.to_string()<<", offset="<<offset<<",
+          // end_pos="<<to_ptr-begin<<std::endl;
           dst.append(from_ptr, to_ptr);
         }
       } else {
@@ -785,20 +768,21 @@ struct StringFunctions {
     }
   }
 
-  static inline size_t get_utf8_small_index(const Slice &str, uint8_t *small_index) {
+  static inline size_t get_utf8_small_index(const Slice &str,
+                                            uint8_t *small_index) {
     size_t n = 0;
     for (uint8_t i = 0, char_size = 0; i < str.size; i += char_size) {
-      char_size = UTF8_BYTE_LENGTH_TABLE[static_cast<unsigned char>(str.data[i])];
+      char_size =
+          UTF8_BYTE_LENGTH_TABLE[static_cast<unsigned char>(str.data[i])];
       small_index[n++] = i;
     }
     return n;
   }
 
-  template<bool use_length, bool lookup_table>
+  template <bool use_length, bool lookup_table>
   static inline void utf8_substr_from_right(BinaryColumn const &src,
-                                            BinaryColumn &dst,
-                                            int offset,
-                                            [[maybe_unused]]int len) {
+                                            BinaryColumn &dst, int offset,
+                                            [[maybe_unused]] int len) {
     const auto size = src.size();
     constexpr size_t SMALL_INDEX_MAX = 32;
     uint8_t small_index[SMALL_INDEX_MAX] = {0};
@@ -839,13 +823,14 @@ struct StringFunctions {
           continue;
         }
 
-        if constexpr(use_length) {
-          //std::cout << "end-from_ptr=" << end - from_ptr << ", len=" << len << std::endl;
+        if constexpr (use_length) {
+          // std::cout << "end-from_ptr=" << end - from_ptr << ", len=" << len
+          // << std::endl;
           if (len > end - from_ptr) {
             dst.append(from_ptr, end);
           } else {
             auto to_ptr = skip_leading_utf8<lookup_table>(from_ptr, end, len);
-            //std::cout << "to_ptr=" << to_ptr - begin << std::endl;
+            // std::cout << "to_ptr=" << to_ptr - begin << std::endl;
             dst.append(from_ptr, to_ptr);
           }
         } else {
@@ -855,14 +840,16 @@ struct StringFunctions {
     }
   }
 
-  template<bool check_ascii, bool use_length, bool lookup_table = false>
-  static inline void substr(BinaryColumn const &src, BinaryColumn &dst, int offset, [[maybe_unused]] int len) {
+  template <bool check_ascii, bool use_length, bool lookup_table = false>
+  static inline void substr(BinaryColumn const &src, BinaryColumn &dst,
+                            int offset, [[maybe_unused]] int len) {
     if (offset == 0) {
       return;
     }
-    if constexpr(check_ascii) {
-      auto is_ascii = validate_ascii_fast((const char *) src.bytes.data(), src.bytes.size());
-      //std::cout << std::boolalpha << "is_ascii=" << is_ascii << std::endl;
+    if constexpr (check_ascii) {
+      auto is_ascii =
+          validate_ascii_fast((const char *)src.bytes.data(), src.bytes.size());
+      // std::cout << std::boolalpha << "is_ascii=" << is_ascii << std::endl;
       if (is_ascii) {
         if (offset > 0) {
           ascii_substr<false>(src, dst, offset - 1, len);
@@ -870,27 +857,32 @@ struct StringFunctions {
           ascii_substr<true>(src, dst, offset, len);
         }
       } else {
-        //std::cout << "enter substr<false, use_length>" << std::endl;
+        // std::cout << "enter substr<false, use_length>" << std::endl;
         substr<false, use_length, lookup_table>(src, dst, offset, len);
       }
     } else {
       if (offset > 0) {
-        //std::cout << "enter utf8_substr_from_left" << std::endl;
-        utf8_substr_from_left<use_length, lookup_table>(src, dst, offset - 1, len);
+        // std::cout << "enter utf8_substr_from_left" << std::endl;
+        utf8_substr_from_left<use_length, lookup_table>(src, dst, offset - 1,
+                                                        len);
       } else if (offset < 0) {
-        utf8_substr_from_right<use_length, lookup_table>(src, dst, -offset, len);
+        utf8_substr_from_right<use_length, lookup_table>(src, dst, -offset,
+                                                         len);
       }
     }
   }
-  static inline size_t get_utf8_index(const Slice &str, std::vector<size_t> *index) {
+  static inline size_t get_utf8_index(const Slice &str,
+                                      std::vector<size_t> *index) {
     for (int i = 0, char_size = 0; i < str.size; i += char_size) {
-      char_size = UTF8_BYTE_LENGTH_TABLE[static_cast<unsigned char>(str.data[i])];
+      char_size =
+          UTF8_BYTE_LENGTH_TABLE[static_cast<unsigned char>(str.data[i])];
       index->push_back(i);
     }
     return index->size();
   }
 
-  static inline size_t get_utf8_index2(const Slice &str, std::vector<size_t> *index) {
+  static inline size_t get_utf8_index2(const Slice &str,
+                                       std::vector<size_t> *index) {
     for (int i = 0, char_size = 0; i < str.size; i += char_size) {
       uint8_t b = ~static_cast<uint8_t>(str.data[i]);
       if (b >> 7 == 1) {
@@ -903,10 +895,12 @@ struct StringFunctions {
     return index->size();
   }
 
-  template<bool negative_offset = false, bool use_length = true>
-  static inline void substr_new(BinaryColumn const &src, BinaryColumn &dst, int offset, [[maybe_unused]] int len) {
+  template <bool negative_offset = false, bool use_length = true>
+  static inline void substr_new(BinaryColumn const &src, BinaryColumn &dst,
+                                int offset, [[maybe_unused]] int len) {
     std::vector<size_t> index;
-    auto is_ascii = validate_ascii_fast((const char *) src.bytes.data(), src.bytes.size());
+    auto is_ascii =
+        validate_ascii_fast((const char *)src.bytes.data(), src.bytes.size());
     if (is_ascii) {
       ascii_substr<true>(src, dst, offset, len);
     } else {
@@ -923,7 +917,7 @@ struct StringFunctions {
         index.clear();
         get_utf8_index2(value, &index);
         auto pos = offset;
-        if constexpr(negative_offset) {
+        if constexpr (negative_offset) {
           if (pos < 0) {
             pos += index.size();
           }
@@ -939,14 +933,17 @@ struct StringFunctions {
         if (pos + len < index.size()) {
           result_length = index[pos + len] - byte_pos;
         }
-        dst.append(value.begin() + byte_pos, value.begin() + byte_pos + result_length);
+        dst.append(value.begin() + byte_pos,
+                   value.begin() + byte_pos + result_length);
       }
     }
   }
-  template<bool negative_offset = false, bool use_length = true>
-  static inline void substr_old(BinaryColumn const &src, BinaryColumn &dst, int offset, [[maybe_unused]] int len) {
+  template <bool negative_offset = false, bool use_length = true>
+  static inline void substr_old(BinaryColumn const &src, BinaryColumn &dst,
+                                int offset, [[maybe_unused]] int len) {
     std::vector<size_t> index;
-    auto is_ascii = validate_ascii_fast((char *) src.bytes.data(), src.bytes.size());
+    auto is_ascii =
+        validate_ascii_fast((char *)src.bytes.data(), src.bytes.size());
     if (is_ascii) {
       const size_t size = src.size();
       for (int i = 0; i < size; ++i) {
@@ -962,7 +959,8 @@ struct StringFunctions {
           result_length = value.size - byte_pos;
         }
 
-        dst.append(value.data + byte_pos, value.data + byte_pos + result_length);
+        dst.append(value.data + byte_pos,
+                   value.data + byte_pos + result_length);
       }
     } else {
       if (offset > 0) {
@@ -978,7 +976,7 @@ struct StringFunctions {
         index.clear();
         get_utf8_index(value, &index);
         auto pos = offset;
-        if constexpr(negative_offset) {
+        if constexpr (negative_offset) {
           if (pos < 0) {
             pos += index.size();
           }
@@ -994,7 +992,8 @@ struct StringFunctions {
         if (pos + len < index.size()) {
           result_length = index[pos + len] - byte_pos;
         }
-        dst.append(value.begin() + byte_pos, value.begin() + byte_pos + result_length);
+        dst.append(value.begin() + byte_pos,
+                   value.begin() + byte_pos + result_length);
       }
     }
   }
@@ -1003,13 +1002,11 @@ struct StringFunctions {
     assert(weights.size() == 6);
     assert(n1 >= 0 && n2 >= 0 && n1 <= n2);
 
-    assert(std::all_of(weights.begin(), weights.end(), [](auto i) {
-      return i >= 0;
-    }));
+    assert(std::all_of(weights.begin(), weights.end(),
+                       [](auto i) { return i >= 0; }));
 
-    assert(std::any_of(weights.begin(), weights.end(), [](auto i) {
-      return i > 0;
-    }));
+    assert(std::any_of(weights.begin(), weights.end(),
+                       [](auto i) { return i > 0; }));
 
     if (n2 == 0) {
       return std::string();
@@ -1055,7 +1052,8 @@ struct StringFunctions {
     return text;
   }
 
-  static inline std::vector<std::string> gen_utf8_vector(std::vector<int> const &weights, int size, int n1, int n2) {
+  static inline std::vector<std::string>
+  gen_utf8_vector(std::vector<int> const &weights, int size, int n1, int n2) {
     assert(size > 0);
     std::vector<std::string> batch;
     batch.resize(size);
@@ -1071,7 +1069,7 @@ struct StringFunctions {
 
   static inline void stat_utf8(std::vector<std::string> batch) {
     std::vector<int> stat(7, 0);
-    for (auto &text: batch) {
+    for (auto &text : batch) {
       if (text.empty()) {
         continue;
       }
@@ -1086,7 +1084,6 @@ struct StringFunctions {
       std::cout << "utf8-" << i << "byte: " << stat[i] << std::endl;
     }
   }
-
 };
 
 int env_to_int(std::string const &name, std::string const &default_value) {
@@ -1099,7 +1096,8 @@ int env_to_int(std::string const &name, std::string const &default_value) {
   return n;
 }
 
-std::vector<int> env_to_csv_int(std::string const &name, std::string const &default_value) {
+std::vector<int> env_to_csv_int(std::string const &name,
+                                std::string const &default_value) {
   const char *val = getenv(name.c_str());
   if (val == nullptr) {
     val = default_value.c_str();
@@ -1142,16 +1140,14 @@ struct prepare_utf8_data {
   std::vector<std::string> data;
   BinaryColumn binary_column;
   std::vector<int> result;
-  prepare_utf8_data(
-      int vector_size,
-      std::vector<int> weights,
-      int min_length,
-      int max_length) :
-      vector_size(vector_size),
-      weights(weights), min_length(min_length), max_length(max_length) {
+  prepare_utf8_data(int vector_size, std::vector<int> weights, int min_length,
+                    int max_length)
+      : vector_size(vector_size), weights(weights), min_length(min_length),
+        max_length(max_length) {
 
-    data = std::move(StringFunctions::gen_utf8_vector(weights, vector_size, min_length, max_length));
-    for (auto &s: data) {
+    data = std::move(StringFunctions::gen_utf8_vector(weights, vector_size,
+                                                      min_length, max_length));
+    for (auto &s : data) {
       binary_column.append(s);
     }
 
@@ -1165,9 +1161,10 @@ struct prepare_utf8_data {
     weights = std::move(env_to_csv_int("WEIGHTS", "10,10,4,3,0,0"));
     min_length = env_to_int("MIN_LENGTH", "100");
     max_length = env_to_int("MAX_LENGTH", "1000");
-    data = std::move(StringFunctions::gen_utf8_vector(weights, vector_size, min_length, max_length));
+    data = std::move(StringFunctions::gen_utf8_vector(weights, vector_size,
+                                                      min_length, max_length));
 
-    for (auto &s: data) {
+    for (auto &s : data) {
       binary_column.append(s);
     }
 
@@ -1177,12 +1174,13 @@ struct prepare_utf8_data {
   }
 };
 
-template<typename T, typename U, typename F, typename... Args>
-void apply_vector(std::vector<T> &data, std::vector<U> &result, F f, Args &&... args) {
+template <typename T, typename U, typename F, typename... Args>
+void apply_vector(std::vector<T> &data, std::vector<U> &result, F f,
+                  Args &&...args) {
   for (auto i = 0; i < data.size(); ++i) {
     auto &e = data[i];
     result[i] = f(e, std::forward<Args>(args)...);
   }
 }
 
-#endif //CPP_ETUDES_INCLUDE_STRING_FUNCTIONS_HH_
+#endif // CPP_ETUDES_INCLUDE_STRING_FUNCTIONS_HH_

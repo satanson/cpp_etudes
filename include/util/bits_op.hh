@@ -27,4 +27,4 @@ static inline uint32_t reverse_bits(uint32_t n) {
 } // namespace util
 } // namespace grakra
 } // namespace com
-#endif //CPP_ETUDES_BITS_OP_HH
+#endif // CPP_ETUDES_BITS_OP_HH

@@ -9,31 +9,32 @@
 
 #ifndef CPP_ETUDES_TAGGED_POINTER_HH
 #define CPP_ETUDES_TAGGED_POINTER_HH
-#include <cstdint>
-#include <string>
-#include <sstream>
 #include <atomic>
+#include <cstdint>
+#include <sstream>
+#include <string>
 namespace com {
 namespace grakra {
 namespace concurrent {
 #define typeof __typeof__
-#define list_node_(ptr, type, member) ({\
-  typeof(ptr) __mptr = (ptr); \
-  (type*)(((char*)__mptr) - __builtin_offsetof(type, member));\
-})
+#define list_node_(ptr, type, member)                                          \
+  ({                                                                           \
+    typeof(ptr) __mptr = (ptr);                                                \
+    (type *)(((char *)__mptr) - __builtin_offsetof(type, member));             \
+  })
 #define list_next(markPtr) (reinterpret_cast<MarkPtrType *>((markPtr).get()))
 
 // in x86_64 arch, Linux's linear addresses use the lowest 48 bits,
 // highest 16 bits are identical to 47th bit(MSB of linear addresses),
 // so we can use highest 16 bits for keeping tag.
 union MarkPtrType {
- public:
+public:
   void *ptr;
   struct {
-    uint16_t mark: 1;
-    const uint64_t p: 46;
-    const uint16_t sign: 1;
-    uint16_t tag: 16;
+    uint16_t mark : 1;
+    const uint64_t p : 46;
+    const uint16_t sign : 1;
+    uint16_t tag : 16;
   };
 
   MarkPtrType() : ptr(nullptr) {
@@ -58,13 +59,9 @@ union MarkPtrType {
     return *this;
   }
 
-  void next(MarkPtrType const &next) {
-    *this = next;
-  }
+  void next(MarkPtrType const &next) { *this = next; }
 
-  MarkPtrType *next() {
-    return list_next(*this);
-  }
+  MarkPtrType *next() { return list_next(*this); }
 
   void *get() {
     MarkPtrType p = *this;
@@ -83,13 +80,9 @@ union MarkPtrType {
     return *this;
   }
 
-  bool is_mark_delete() {
-    return this->mark == 1;
-  }
+  bool is_mark_delete() { return this->mark == 1; }
 
-  uint16_t get_tag() {
-    return this->tag;
-  }
+  uint16_t get_tag() { return this->tag; }
 
   MarkPtrType &set_tag(uint16_t tag) {
     this->tag = tag;
@@ -98,18 +91,15 @@ union MarkPtrType {
 
   std::string ToString() {
     std::stringstream ss;
-    ss << "MarkPtrType{tag=" << this->tag
-       << ", mark=" << (this->mark)
-       << ", real_ptr=" << this->get()
-       << "}";
+    ss << "MarkPtrType{tag=" << this->tag << ", mark=" << (this->mark)
+       << ", real_ptr=" << this->get() << "}";
     return ss.str();
   }
   bool equal_to(MarkPtrType const &other) { return this->ptr == other.ptr; }
-
 };
 
-}
-}
-}
+} // namespace concurrent
+} // namespace grakra
+} // namespace com
 
-#endif //CPP_ETUDES_TAGGED_POINTER_HH
+#endif // CPP_ETUDES_TAGGED_POINTER_HH

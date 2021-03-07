@@ -51,12 +51,15 @@ void Hash::free_slots() {
     auto curr_level = head_stacks.size() - 1;
     if (curr_level + 2 < level_nr) {
       size_t &from_idx = slot_indices[curr_level];
-      while (from_idx < SLOT_INDEX_NR && top->slots[from_idx] == nullptr)++from_idx;
+      while (from_idx < SLOT_INDEX_NR && top->slots[from_idx] == nullptr)
+        ++from_idx;
       if (from_idx < SLOT_INDEX_NR) {
-        // scan the current SlotArray's child indexed by from_idx and advance from_idx by 1
-        head_stacks.push_back((SlotArray *) (top->slots[from_idx++]));
+        // scan the current SlotArray's child indexed by from_idx and advance
+        // from_idx by 1
+        head_stacks.push_back((SlotArray *)(top->slots[from_idx++]));
       } else {
-        // all the children of SlotArray have been processed, so go back to its parent.
+        // all the children of SlotArray have been processed, so go back to its
+        // parent.
         delete top;
         head_stacks.pop_back();
       }
@@ -85,26 +88,22 @@ MarkPtrType **Hash::get_slot(size_t slot_i, bool create_if_not_exists) {
       auto sub_head = new SlotArray();
       memset(sub_head, 0, sizeof(SlotArray));
       assert(sub_head != nullptr);
-      auto atomic_slot_ptr = (std::atomic<void *> *) (slot_ptr);
+      auto atomic_slot_ptr = (std::atomic<void *> *)(slot_ptr);
       void *slot_old_value = nullptr;
       if (!atomic_slot_ptr->compare_exchange_strong(slot_old_value, sub_head)) {
         delete sub_head;
       }
     }
-    current_head = (SlotArray *) (*slot_ptr);
+    current_head = (SlotArray *)(*slot_ptr);
     assert(current_head != nullptr);
     --level_num;
   }
-  return (MarkPtrType **) (&current_head->slots[slot_i & SLOT_INDEX_MASK]);
+  return (MarkPtrType **)(&current_head->slots[slot_i & SLOT_INDEX_MASK]);
 }
 
 Hash::Hash(size_t expect_max_size, size_t load_factor)
-    : head(nullptr),
-      size(0),
-      slot_nr(2),
-      expect_max_size(expect_max_size),
-      level_nr(calc_level_nr(expect_max_size)),
-      load_factor(load_factor),
+    : head(nullptr), size(0), slot_nr(2), expect_max_size(expect_max_size),
+      level_nr(calc_level_nr(expect_max_size)), load_factor(load_factor),
       max_slot_nr((expect_max_size + load_factor - 1) / load_factor) {
   assert(0 < expect_max_size && expect_max_size < HASH_SIZE_LIMIT);
   assert(0 < load_factor && load_factor <= expect_max_size);
@@ -118,25 +117,23 @@ Hash::Hash(size_t expect_max_size, size_t load_factor)
   *slot_ptr = &node->next;
 }
 
-Hash::~Hash() {
-  free_slots();
-}
+Hash::~Hash() { free_slots(); }
 
-uint32_t Hash::get_slot_idx(uint32_t key) {
-  return key & slot_nr - 1;
-}
+uint32_t Hash::get_slot_idx(uint32_t key) { return key & slot_nr - 1; }
 void Hash::maybe_resize() {
   auto size_snap = this->size.load(std::memory_order_relaxed);
   auto slot_nr_snap = this->slot_nr.load(std::memory_order_relaxed);
-  if (size_snap / slot_nr_snap > load_factor && (slot_nr_snap << 1) < this->max_slot_nr) {
-    slot_nr.compare_exchange_strong(slot_nr_snap, slot_nr_snap << 1, std::memory_order_acq_rel);
+  if (size_snap / slot_nr_snap > load_factor &&
+      (slot_nr_snap << 1) < this->max_slot_nr) {
+    slot_nr.compare_exchange_strong(slot_nr_snap, slot_nr_snap << 1,
+                                    std::memory_order_acq_rel);
   }
 }
 
 MarkPtrType *Hash::ensure_slot_exists(uint32_t slot_i) {
   auto slot_ptr = get_or_create_slot(slot_i);
   if (__builtin_expect(*slot_ptr != nullptr, 1)) {
-    return (MarkPtrType *) *slot_ptr;
+    return (MarkPtrType *)*slot_ptr;
   }
 
   uint32_t missing_slot_indices[sizeof(uint32_t)];
@@ -164,7 +161,7 @@ MarkPtrType *Hash::ensure_slot_exists(uint32_t slot_i) {
     auto missing_slot_ptr = get_or_create_slot(missing_slot_i);
     *missing_slot_ptr = &dummy_node->next;
   }
-  return (MarkPtrType *) *slot_ptr;
+  return (MarkPtrType *)*slot_ptr;
 }
 bool Hash::Put(uint32_t key, uint32_t value) {
   assert(key <= HASH_KEY_LIMIT);

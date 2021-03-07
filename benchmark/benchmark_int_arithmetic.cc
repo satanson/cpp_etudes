@@ -8,11 +8,11 @@
 //
 
 #include <benchmark/benchmark.h>
-#include <include/decimal/decimal.hh>
-#include <random>
-#include <iostream>
 #include <cstring>
+#include <include/decimal/decimal.hh>
 #include <include/util/defer.hh>
+#include <iostream>
+#include <random>
 
 PrepareData data;
 size_t batch_size = data.batch_size;
@@ -30,21 +30,25 @@ std::vector<int32_t> &result32 = data.result32;
 
 static void BM_Int128_And(benchmark::State &state) {
   for (auto _ : state)
-    batch_compute(batch_size, lhs.data(), rhs.data(), result.data(), [](auto x, auto y) { return x & y; });
+    batch_compute(batch_size, lhs.data(), rhs.data(), result.data(),
+                  [](auto x, auto y) { return x & y; });
 }
 
 static void BM_Int128_Shift(benchmark::State &state) {
   for (auto _ : state)
-    batch_compute(batch_size, lhs.data(), rhs.data(), result.data(), [](auto x, auto y) { return x >> 16; });
+    batch_compute(batch_size, lhs.data(), rhs.data(), result.data(),
+                  [](auto x, auto y) { return x >> 16; });
 }
 
 static void BM_Int128_Add(benchmark::State &state) {
   for (auto _ : state)
-    batch_compute(batch_size, lhs.data(), rhs.data(), result.data(), [](auto x, auto y) { return x + y; });
+    batch_compute(batch_size, lhs.data(), rhs.data(), result.data(),
+                  [](auto x, auto y) { return x + y; });
 }
 static void BM_Int128_Sub(benchmark::State &state) {
   for (auto _ : state)
-    batch_compute(batch_size, lhs.data(), rhs.data(), result.data(), [](auto x, auto y) { return x - y; });
+    batch_compute(batch_size, lhs.data(), rhs.data(), result.data(),
+                  [](auto x, auto y) { return x - y; });
 }
 
 static void BM_Int128_Mul(benchmark::State &state) {
@@ -73,21 +77,25 @@ static void BM_Int128_DivMod(benchmark::State &state) {
 
 static void BM_Int64_And(benchmark::State &state) {
   for (auto _ : state)
-    batch_compute(batch_size, lhs64.data(), rhs64.data(), result64.data(), [](auto x, auto y) { return x & y; });
+    batch_compute(batch_size, lhs64.data(), rhs64.data(), result64.data(),
+                  [](auto x, auto y) { return x & y; });
 }
 
 static void BM_Int64_Shift(benchmark::State &state) {
   for (auto _ : state)
-    batch_compute(batch_size, lhs64.data(), rhs64.data(), result64.data(), [](auto x, auto y) { return x >> 16; });
+    batch_compute(batch_size, lhs64.data(), rhs64.data(), result64.data(),
+                  [](auto x, auto y) { return x >> 16; });
 }
 
 static void BM_Int64_Add(benchmark::State &state) {
   for (auto _ : state)
-    batch_compute(batch_size, lhs64.data(), rhs64.data(), result64.data(), [](auto x, auto y) { return x + y; });
+    batch_compute(batch_size, lhs64.data(), rhs64.data(), result64.data(),
+                  [](auto x, auto y) { return x + y; });
 }
 static void BM_Int64_Sub(benchmark::State &state) {
   for (auto _ : state)
-    batch_compute(batch_size, lhs64.data(), rhs64.data(), result64.data(), [](auto x, auto y) { return x - y; });
+    batch_compute(batch_size, lhs64.data(), rhs64.data(), result64.data(),
+                  [](auto x, auto y) { return x - y; });
 }
 
 static void BM_Int64_Mul(benchmark::State &state) {
@@ -116,21 +124,25 @@ static void BM_Int64_DivMod(benchmark::State &state) {
 
 static void BM_Int32_And(benchmark::State &state) {
   for (auto _ : state)
-    batch_compute(batch_size, lhs32.data(), rhs32.data(), result32.data(), [](auto x, auto y) { return x & y; });
+    batch_compute(batch_size, lhs32.data(), rhs32.data(), result32.data(),
+                  [](auto x, auto y) { return x & y; });
 }
 
 static void BM_Int32_Shift(benchmark::State &state) {
   for (auto _ : state)
-    batch_compute(batch_size, lhs32.data(), rhs32.data(), result32.data(), [](auto x, auto y) { return x >> 16; });
+    batch_compute(batch_size, lhs32.data(), rhs32.data(), result32.data(),
+                  [](auto x, auto y) { return x >> 16; });
 }
 
 static void BM_Int32_Add(benchmark::State &state) {
   for (auto _ : state)
-    batch_compute(batch_size, lhs32.data(), rhs32.data(), result32.data(), [](auto x, auto y) { return x + y; });
+    batch_compute(batch_size, lhs32.data(), rhs32.data(), result32.data(),
+                  [](auto x, auto y) { return x + y; });
 }
 static void BM_Int32_Sub(benchmark::State &state) {
   for (auto _ : state)
-    batch_compute(batch_size, lhs32.data(), rhs32.data(), result32.data(), [](auto x, auto y) { return x - y; });
+    batch_compute(batch_size, lhs32.data(), rhs32.data(), result32.data(),
+                  [](auto x, auto y) { return x - y; });
 }
 
 static void BM_Int32_Mul(benchmark::State &state) {

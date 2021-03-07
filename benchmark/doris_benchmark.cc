@@ -8,11 +8,11 @@
 //
 
 #include <benchmark/benchmark.h>
-#include <include/decimal/decimal.hh>
-#include <random>
-#include <iostream>
 #include <cstring>
+#include <include/decimal/decimal.hh>
 #include <include/util/defer.hh>
+#include <iostream>
+#include <random>
 
 PrepareData data;
 size_t batch_size = data.batch_size;
@@ -22,7 +22,8 @@ std::vector<int128_t> &result = data.result;
 
 static void BM_Int128_Add(benchmark::State &state) {
   for (auto _ : state)
-    batch_compute(batch_size, lhs.data(), rhs.data(), result.data(), [](auto x, auto y) { return x + y; });
+    batch_compute(batch_size, lhs.data(), rhs.data(), result.data(),
+                  [](auto x, auto y) { return x + y; });
 }
 
 static void BM_DorisDB_Add_old(benchmark::State &state) {
@@ -43,7 +44,9 @@ static void BM_CK_Add(benchmark::State &state) {
   CKDecimalOp<false, true, true, true> addOp;
   for (auto _ : state)
     batch_compute(batch_size, lhs.data(), rhs.data(), result.data(),
-                  [&](auto x, auto y) { return addOp.add(x, y, static_cast<int128_t>(100)); });
+                  [&](auto x, auto y) {
+                    return addOp.add(x, y, static_cast<int128_t>(100));
+                  });
 }
 
 static void BM_Int128_Mul(benchmark::State &state) {
@@ -95,7 +98,9 @@ static void BM_CK_Div(benchmark::State &state) {
   CKDecimalOp<true, true, true, false> divOp;
   for (auto _ : state)
     batch_compute(batch_size, lhs.data(), rhs.data(), result.data(),
-                  [&](int128_t x, int128_t y) { return divOp.div<true>(x, y, static_cast<int128_t>(100)); });
+                  [&](int128_t x, int128_t y) {
+                    return divOp.div<true>(x, y, static_cast<int128_t>(100));
+                  });
 }
 
 static void BM_DorisDB_Div_old(benchmark::State &state) {

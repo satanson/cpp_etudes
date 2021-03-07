@@ -10,50 +10,32 @@
 #ifndef CPP_ETUDES_DECIMAL_HH
 #define CPP_ETUDES_DECIMAL_HH
 
+#include <cassert>
+#include <climits>
 #include <cstddef>
 #include <cstdint>
-#include <cassert>
-#include <string>
-#include <random>
-#include <iostream>
-#include <sstream>
-#include <iomanip>
 #include <cstring>
-#include <climits>
 #include <include/util/defer.hh>
+#include <iomanip>
+#include <iostream>
+#include <random>
+#include <sstream>
+#include <string>
 
 typedef __int128 int128_t;
 typedef unsigned __int128 uint128_t;
 
-template<int64_t n>
-struct Exp10 {
+template <int64_t n> struct Exp10 {
   static constexpr int64_t value = Exp10<n - 1>::value * 10;
 };
-template<>
-struct Exp10<0> {
-  static constexpr int64_t value = 1;
-};
+template <> struct Exp10<0> { static constexpr int64_t value = 1; };
 
 int64_t exp10s[] = {
-    Exp10<0>::value,
-    Exp10<1>::value,
-    Exp10<2>::value,
-    Exp10<3>::value,
-    Exp10<4>::value,
-    Exp10<5>::value,
-    Exp10<6>::value,
-    Exp10<7>::value,
-    Exp10<8>::value,
-    Exp10<9>::value,
-    Exp10<10>::value,
-    Exp10<11>::value,
-    Exp10<12>::value,
-    Exp10<13>::value,
-    Exp10<14>::value,
-    Exp10<15>::value,
-    Exp10<16>::value,
-    Exp10<17>::value,
-    Exp10<18>::value,
+    Exp10<0>::value,  Exp10<1>::value,  Exp10<2>::value,  Exp10<3>::value,
+    Exp10<4>::value,  Exp10<5>::value,  Exp10<6>::value,  Exp10<7>::value,
+    Exp10<8>::value,  Exp10<9>::value,  Exp10<10>::value, Exp10<11>::value,
+    Exp10<12>::value, Exp10<13>::value, Exp10<14>::value, Exp10<15>::value,
+    Exp10<16>::value, Exp10<17>::value, Exp10<18>::value,
 };
 
 typedef __int128 int128_t;
@@ -63,17 +45,23 @@ int128_t gen_decimal(int p, int s) {
   assert(p - s <= 18 && s <= 18 && p >= 0 && s >= 0);
   const int64_t max_int_part = exp10s[p - s];
   const int64_t max_frac_part = exp10s[s];
-  std::uniform_int_distribution<int64_t> ip_rand(-(max_int_part - 1), max_int_part - 1);
-  std::uniform_int_distribution<int64_t> fp_rand(-(max_frac_part - 1), max_frac_part - 1);
+  std::uniform_int_distribution<int64_t> ip_rand(-(max_int_part - 1),
+                                                 max_int_part - 1);
+  std::uniform_int_distribution<int64_t> fp_rand(-(max_frac_part - 1),
+                                                 max_frac_part - 1);
   auto a = ip_rand(gen);
   auto b = fp_rand(gen);
   while (a == 0 && b == 0) {
     a = ip_rand(gen);
     b = fp_rand(gen);
   }
-  if (b < 0) { b = -b; }
+  if (b < 0) {
+    b = -b;
+  }
   auto positive = static_cast<int128_t>(a < 0 ? -1 : 1);
-  if (a < 0) { a = -a; }
+  if (a < 0) {
+    a = -a;
+  }
   return (static_cast<int128_t>(a) * max_frac_part + b) * positive;
 }
 
@@ -86,23 +74,24 @@ std::string to_string(int128_t decimal, int p, int s) {
   std::stringstream ss;
   ss << std::right << int_part;
   ss << ".";
-  ss << std::noshowpos << std::setw(s) << std::setfill('0') << std::right << frac_part;
+  ss << std::noshowpos << std::setw(s) << std::setfill('0') << std::right
+     << frac_part;
   return ss.str();
 }
 
-template<typename T, typename F>
+template <typename T, typename F>
 void batch_compute(size_t n, T *lhs, T *rhs, T *result, F &&f) {
   for (auto i = 0; i < n; i++) {
     result[i] = f(lhs[i], rhs[i]);
   }
 }
 
-template<typename T, typename F>
+template <typename T, typename F>
 void single_compute(size_t n, T *lhs, T *rhs, T *result, F &&f) {
   auto &a = lhs[0];
   auto &b = rhs[0];
   auto &c = result[0];
-  for (int i=0;i<8192;++i) {
+  for (int i = 0; i < 8192; ++i) {
     c = f(a, b);
   }
 }
@@ -130,12 +119,9 @@ union int128_wrapper {
   } u;
 };
 
-template<class T>
-struct bit64_traits {};
-template<>
-struct bit64_traits<int64_t> { typedef int64_t type; };
-template<>
-struct bit64_traits<uint64_t> { typedef uint64_t type; };
+template <class T> struct bit64_traits {};
+template <> struct bit64_traits<int64_t> { typedef int64_t type; };
+template <> struct bit64_traits<uint64_t> { typedef uint64_t type; };
 
 struct DorisDecimalOp {
   enum DecimalError {
@@ -160,75 +146,61 @@ struct DorisDecimalOp {
       static_cast<int128_t>(MAX_INT_VALUE) * ONE_BILLION + MAX_FRAC_VALUE;
   static constexpr int128_t MIN_DECIMAL_VALUE = -MAX_DECIMAL_VALUE;
 
-  template<
-      class T,
-      class U,
-      class TT = typename bit64_traits<T>::type,
-      class UU = typename bit64_traits<U>::type
-  >
+  template <class T, class U, class TT = typename bit64_traits<T>::type,
+            class UU = typename bit64_traits<U>::type>
   static inline int asm_add(T x, U y, T &res) {
     int8_t overflow;
     // carry flag set 1 indicates overflow of unsigned add;
     // overflow flag(sign flag xor carry flag) set 1 for signed add overflow.
-    if constexpr(std::is_unsigned<T>::value && std::is_unsigned<U>::value) {
-      __asm__ __volatile__ (
-      "mov %[x], %[res]\n\t"
-      "add %[y], %[res]\n\t"
-      "setc %b[overflow]\n\t"
-      "sets %%r8b\n\t"
-      "or %%r8b, %b[overflow]"
-      : [res] "+r"(res), [overflow] "+r"(overflow)
-      : [x] "r"(x), [y] "r"(y)
-      : "cc", "r8"
-      );
+    if constexpr (std::is_unsigned<T>::value && std::is_unsigned<U>::value) {
+      __asm__ __volatile__("mov %[x], %[res]\n\t"
+                           "add %[y], %[res]\n\t"
+                           "setc %b[overflow]\n\t"
+                           "sets %%r8b\n\t"
+                           "or %%r8b, %b[overflow]"
+                           : [res] "+r"(res), [overflow] "+r"(overflow)
+                           : [x] "r"(x), [y] "r"(y)
+                           : "cc", "r8");
     } else {
-      __asm__ __volatile__ (
-      "mov %[x], %[res]\n\t"
-      "add %[y], %[res]"
-      : [res] "+r"(res), "=@cco"(overflow)
-      : [x] "r"(x), [y] "r"(y)
-      : "cc"
-      );
+      __asm__ __volatile__("mov %[x], %[res]\n\t"
+                           "add %[y], %[res]"
+                           : [res] "+r"(res), "=@cco"(overflow)
+                           : [x] "r"(x), [y] "r"(y)
+                           : "cc");
     }
     return overflow;
   }
 
-  template<
-      class T,
-      class U,
-      class TT = typename bit64_traits<T>::type,
-      class UU = typename bit64_traits<U>::type
-  >
+  template <class T, class U, class TT = typename bit64_traits<T>::type,
+            class UU = typename bit64_traits<U>::type>
   static int asm_mul(T x, U y, int128_wrapper &res) {
     int8_t overflow;
-    if constexpr(std::is_unsigned<T>::value && std::is_unsigned<U>::value) {
-      __asm__ __volatile__ (
-      "mov %[x], %%rax\n\t"
-      "mul %[y]\n\t"
-      "mov %%rdx, %[high]\n\t"
-      "mov %%rax, %[low]"
-      : [high] "=r"(res.u.high), [low] "=r"(res.u.low), "=@cco"(overflow)
-      : [x] "r"(x), [y] "r"(y)
-      : "cc", "rdx", "rax"
-      );
+    if constexpr (std::is_unsigned<T>::value && std::is_unsigned<U>::value) {
+      __asm__ __volatile__("mov %[x], %%rax\n\t"
+                           "mul %[y]\n\t"
+                           "mov %%rdx, %[high]\n\t"
+                           "mov %%rax, %[low]"
+                           : [high] "=r"(res.u.high), [low] "=r"(res.u.low),
+                             "=@cco"(overflow)
+                           : [x] "r"(x), [y] "r"(y)
+                           : "cc", "rdx", "rax");
     } else {
-      __asm__ __volatile__(
-      "mov %[x], %%rax\n\t"
-      "imul %[y], %%rax\n\t"
-      "mov %%rax, %[low]"
-      : [low] "=r"(res.s.low), "=@cco"(overflow)
-      : [x] "r"(x), [y] "r"(y)
-      : "cc", "rdx", "rax"
-      );
+      __asm__ __volatile__("mov %[x], %%rax\n\t"
+                           "imul %[y], %%rax\n\t"
+                           "mov %%rax, %[low]"
+                           : [low] "=r"(res.s.low), "=@cco"(overflow)
+                           : [x] "r"(x), [y] "r"(y)
+                           : "cc", "rdx", "rax");
     }
     return overflow;
   }
 
-  static inline int multi3(const int128_t &x, const int128_t &y, int128_t &res) {
+  static inline int multi3(const int128_t &x, const int128_t &y,
+                           int128_t &res) {
     auto sx = x >> 127;
     auto sy = y >> 127;
-    int128_wrapper wx = {.s128=(x ^ sx) - sx};
-    int128_wrapper wy = {.s128=(y ^ sy) - sy};
+    int128_wrapper wx = {.s128 = (x ^ sx) - sx};
+    int128_wrapper wy = {.s128 = (y ^ sy) - sy};
     int128_wrapper wres;
     sx ^= sy;
 
@@ -238,7 +210,8 @@ struct DorisDecimalOp {
     return overflow;
   }
 
-  static inline int multi3(const int128_wrapper &x, const int128_wrapper &y, int128_wrapper &res) {
+  static inline int multi3(const int128_wrapper &x, const int128_wrapper &y,
+                           int128_wrapper &res) {
     auto no_zero = (x.u.low | x.u.high) || (y.u.low | y.u.high);
     if (__builtin_expect(!no_zero, 0)) {
       res.u128 = static_cast<int128_t>(0);
@@ -256,7 +229,8 @@ struct DorisDecimalOp {
     return overflow;
   }
 
-  static inline void divmodti3(int128_t x, int128_t y, int128_t &q, uint128_t &r) {
+  static inline void divmodti3(int128_t x, int128_t y, int128_t &q,
+                               uint128_t &r) {
     static constexpr int N = 127;
     int128_t s_x = x >> 127;
     int128_t s_y = y >> 127;
@@ -268,7 +242,8 @@ struct DorisDecimalOp {
     r = (r ^ s_x) - s_x;
   }
 
-  static inline uint64_t udiv128by64to64default(uint64_t u1, uint64_t u0, uint64_t v, uint64_t *r) {
+  static inline uint64_t udiv128by64to64default(uint64_t u1, uint64_t u0,
+                                                uint64_t v, uint64_t *r) {
     static constexpr unsigned n_udword_bits = sizeof(uint64_t) * CHAR_BIT;
     const uint64_t b = (1ULL << (n_udword_bits / 2)); // Number base (32 bits)
     uint64_t un1, un0;                                // Norm. dividend LSD's
@@ -276,7 +251,7 @@ struct DorisDecimalOp {
     uint64_t q1, q0;                                  // Quotient digits
     uint64_t un64, un21, un10;                        // Dividend digit pairs
     uint64_t rhat;                                    // A remainder
-    int32_t s;                                       // Shift amount for normalization
+    int32_t s; // Shift amount for normalization
 
     s = __builtin_clzll(v);
     if (s > 0) {
@@ -333,8 +308,8 @@ struct DorisDecimalOp {
 #if defined(__x86_64__)
     uint64_t result;
     __asm__("divq %[v]"
-    : "=a"(result), "=d"(*r)
-    : [ v ] "r"(v), "a"(u0), "d"(u1));
+            : "=a"(result), "=d"(*r)
+            : [v] "r"(v), "a"(u0), "d"(u1));
     return result;
 #else
     return udiv128by64to64default(u1, u0, v, r);
@@ -365,8 +340,8 @@ struct DorisDecimalOp {
                                          divisor.u.low, &remainder.u.low);
         quotient.u.high = 0;
       } else {
-        // First, divide with the high part to get the remainder in dividend.s.high.
-        // After that dividend.s.high < divisor.s.low.
+        // First, divide with the high part to get the remainder in
+        // dividend.s.high. After that dividend.s.high < divisor.s.low.
         quotient.u.high = dividend.u.high / divisor.u.low;
         dividend.u.high = dividend.u.high % divisor.u.low;
         quotient.u.low = udiv128by64to64(dividend.u.high, dividend.u.low,
@@ -391,7 +366,7 @@ struct DorisDecimalOp {
       //    carry = 1;
       // }
       const int128_t s =
-          (int128_t) (divisor.u128 - dividend.u128 - 1) >> (n_utword_bits - 1);
+          (int128_t)(divisor.u128 - dividend.u128 - 1) >> (n_utword_bits - 1);
       quotient.u.low |= s & 1;
       dividend.u128 -= divisor.u128 & s;
       divisor.u128 >>= 1;
@@ -461,7 +436,8 @@ struct DorisDecimalOp {
 
   int128_t abs(const int128_t &x) { return (x < 0) ? -x : x; }
 
-  int unsignedMulOverflow(const int128_t &x, const int128_t &y, int128_t &result) {
+  int unsignedMulOverflow(const int128_t &x, const int128_t &y,
+                          int128_t &result) {
     result = x * y;
     int error = E_DEC_OK;
     int128_t max128 = ~(static_cast<int128_t>(1ll) << 127);
@@ -471,30 +447,34 @@ struct DorisDecimalOp {
     return overflow;
   }
   int mulOverflow(const int128_t &x, const int128_t &y, int128_t &result) {
-    if (x == 0 || y == 0) return static_cast<int128_t>(0);
+    if (x == 0 || y == 0)
+      return static_cast<int128_t>(0);
     bool is_positive = (x > 0 && y > 0) || (x < 0 && y < 0);
     auto overflow = unsignedMulOverflow(abs(x), abs(y), result);
-    if (!is_positive) result = -result;
+    if (!is_positive)
+      result = -result;
     return overflow;
   }
   int128_t mul(const int128_t &x, const int128_t &y) {
     int128_t result;
-    if (x == 0 || y == 0) return static_cast<int128_t>(0);
+    if (x == 0 || y == 0)
+      return static_cast<int128_t>(0);
 
     bool is_positive = (x > 0 && y > 0) || (x < 0 && y < 0);
 
     do_mul(abs(x), abs(y), &result);
 
-    if (!is_positive) result = -result;
+    if (!is_positive)
+      result = -result;
 
     return result;
   }
 
   int128_t mul2(const int128_t &x, const int128_t &y) {
     int128_t res;
-    auto wx = (int128_wrapper *) (&x);
-    auto wy = (int128_wrapper *) (&y);
-    auto wres = (int128_wrapper *) (&res);
+    auto wx = (int128_wrapper *)(&x);
+    auto wy = (int128_wrapper *)(&y);
+    auto wres = (int128_wrapper *)(&res);
     multi3(*wx, *wy, *wres);
     uint128_t remainder;
     divmodti3(res, ONE_BILLION, res, remainder);
@@ -540,7 +520,8 @@ struct DorisDecimalOp {
   }
 
   int clz128(unsigned __int128 v) {
-    if (v == 0) return sizeof(__int128);
+    if (v == 0)
+      return sizeof(__int128);
     unsigned __int128 shifted = v >> 64;
     if (shifted != 0) {
       return __builtin_clzll(shifted);
@@ -551,12 +532,14 @@ struct DorisDecimalOp {
 
   int128_t div(const int128_t &x, const int128_t &y) {
     int128_t result;
-    //todo: return 0 for divide zero
-    if (x == 0 || y == 0) return static_cast<int128_t>(0);
+    // todo: return 0 for divide zero
+    if (x == 0 || y == 0)
+      return static_cast<int128_t>(0);
     bool is_positive = (x > 0 && y > 0) || (x < 0 && y < 0);
     do_div(abs(x), abs(y), &result);
 
-    if (!is_positive) result = -result;
+    if (!is_positive)
+      result = -result;
 
     return result;
   }
@@ -564,7 +547,8 @@ struct DorisDecimalOp {
   int128_t div2(const int128_t &x, const int128_t &y) {
     int128_t result;
     // todo: return 0 for divide zero
-    if (x == 0 || y == 0) return 0;
+    if (x == 0 || y == 0)
+      return 0;
     //
     int128_t dividend = x * ONE_BILLION;
 
@@ -596,15 +580,20 @@ struct DorisDecimalOp {
   }
 };
 
-template<bool adjust_scale, bool scale_left, bool check_overflow, bool can_overflow>
+template <bool adjust_scale, bool scale_left, bool check_overflow,
+          bool can_overflow>
 struct CKDecimalOp {
   struct Exception {
     std::string msg;
     int code;
     Exception(std::string const &msg, int code) : msg(msg), code(code) {}
   };
-  static constexpr __int128 minInt128() { return static_cast<unsigned __int128>(1) << 127; }
-  static constexpr __int128 maxInt128() { return (static_cast<unsigned __int128>(1) << 127) - 1; }
+  static constexpr __int128 minInt128() {
+    return static_cast<unsigned __int128>(1) << 127;
+  }
+  static constexpr __int128 maxInt128() {
+    return (static_cast<unsigned __int128>(1) << 127) - 1;
+  }
 
   inline bool addOverflow(__int128 x, __int128 y, __int128 &res) {
     static constexpr __int128 min_int128 = minInt128();
@@ -614,7 +603,8 @@ struct CKDecimalOp {
   }
 
   inline bool mulOverflow(__int128 x, __int128 y, __int128 &res) {
-    res = static_cast<unsigned __int128>(x) * static_cast<unsigned __int128>(y);    /// Avoid signed integer overflow.
+    res = static_cast<unsigned __int128>(x) *
+          static_cast<unsigned __int128>(y); /// Avoid signed integer overflow.
     if (!x || !y)
       return false;
 
@@ -624,7 +614,8 @@ struct CKDecimalOp {
   }
 
   inline bool mulOverflow_nodiv(__int128 x, __int128 y, __int128 &res) {
-    res = static_cast<unsigned __int128>(x) * static_cast<unsigned __int128>(y);    /// Avoid signed integer overflow.
+    res = static_cast<unsigned __int128>(x) *
+          static_cast<unsigned __int128>(y); /// Avoid signed integer overflow.
     if (!x || !y)
       return false;
 
@@ -673,7 +664,7 @@ struct CKDecimalOp {
       return a * b;
   }
 
-  template<bool is_decimal_a>
+  template <bool is_decimal_a>
   int128_t div(int128_t a, int128_t b, int128_t scale) {
     if constexpr (check_overflow) {
       bool overflow = false;
@@ -719,24 +710,23 @@ struct PrepareData {
 
     auto fill_zero_env_value = getenv("fill_zero");
     auto fill_zero = false;
-    if (fill_zero_env_value != nullptr && strncasecmp(fill_zero_env_value, "true", 4) == 0) {
+    if (fill_zero_env_value != nullptr &&
+        strncasecmp(fill_zero_env_value, "true", 4) == 0) {
       fill_zero = true;
     }
 
     auto fill_max_env_value = getenv("fill_max");
     auto fill_max = false;
-    if (fill_max_env_value != nullptr && strncasecmp(fill_max_env_value, "true", 4) == 0) {
+    if (fill_max_env_value != nullptr &&
+        strncasecmp(fill_max_env_value, "true", 4) == 0) {
       fill_max = true;
     }
 
     std::cout << std::boolalpha << "prepare data: batch_size=" << batch_size
-              << ", fill_zero=" << fill_zero
-              << ", fill_max=" << fill_max
+              << ", fill_zero=" << fill_zero << ", fill_max=" << fill_max
               << std::endl;
 
-    DEFER([]() {
-      std::cout << "prepare data: Done" << std::endl;
-    })
+    DEFER([]() { std::cout << "prepare data: Done" << std::endl; })
 
     lhs.resize(batch_size, zero);
     rhs.resize(batch_size, zero);
@@ -801,26 +791,30 @@ struct PrepareData {
           a = ip_rand(gen);
           b = fp_rand(gen);
         }
-        if (b < 0) { b = -b; }
+        if (b < 0) {
+          b = -b;
+        }
         auto positive = static_cast<int128_t>(a < 0 ? -1 : 1);
         return (static_cast<int128_t>(a) * 100 + b) * positive;
       };
       lhs[i] = gen_int128();
       rhs[i] = gen_int128();
-      lhs64[i] = static_cast<int64_t>(lhs[i] >> 64) | static_cast<int64_t>(lhs[i]);
-      rhs64[i] = static_cast<int64_t>(rhs[i] >> 64) | static_cast<int64_t>(rhs[i]);
-      lhs32[i] = static_cast<int32_t>(lhs64[i] >> 32) | static_cast<int32_t>(lhs64[i]);
-      rhs32[i] = static_cast<int32_t>(rhs64[i] >> 32) | static_cast<int32_t>(rhs64[i]);
+      lhs64[i] =
+          static_cast<int64_t>(lhs[i] >> 64) | static_cast<int64_t>(lhs[i]);
+      rhs64[i] =
+          static_cast<int64_t>(rhs[i] >> 64) | static_cast<int64_t>(rhs[i]);
+      lhs32[i] =
+          static_cast<int32_t>(lhs64[i] >> 32) | static_cast<int32_t>(lhs64[i]);
+      rhs32[i] =
+          static_cast<int32_t>(rhs64[i] >> 32) | static_cast<int32_t>(rhs64[i]);
     }
   }
 };
 static inline std::string ToHexString(int128_t x) {
-  int128_wrapper wx = {.s128 =x};
+  int128_wrapper wx = {.s128 = x};
   std::stringstream ss;
-  ss
-      << std::hex << std::showbase
-      << "{high=" << wx.s.high
-      << ", low=" << wx.s.low << "}";
+  ss << std::hex << std::showbase << "{high=" << wx.s.high
+     << ", low=" << wx.s.low << "}";
   return ss.str();
 }
 
@@ -860,9 +854,10 @@ static inline int128_t gen_int128(int n) {
   }
 
   std::uniform_int_distribution<int64_t> low_rand(min_low_part, max_low_part);
-  std::uniform_int_distribution<int64_t> high_rand(min_high_part, max_high_part);
+  std::uniform_int_distribution<int64_t> high_rand(min_high_part,
+                                                   max_high_part);
   auto a = high_rand(gen);
   auto b = static_cast<uint64_t>(low_rand(gen));
   return (static_cast<int128_t>(a) << 64) ^ static_cast<int128_t>(b);
 }
-#endif //CPP_ETUDES_DECIMAL_HH
+#endif // CPP_ETUDES_DECIMAL_HH

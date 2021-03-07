@@ -11,4 +11,4 @@
 #define CPP_ETUDES_FOOBAR_HH
 
 int add(int a, int b);
-#endif //CPP_ETUDES_FOOBAR_HH
+#endif // CPP_ETUDES_FOOBAR_HH

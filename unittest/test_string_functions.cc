@@ -12,38 +12,41 @@
 
 namespace test {
 class TestStringFunctions : public testing::Test {
- public:
-  template<typename F>
-  static inline void compare(F &&f) {
+public:
+  template <typename F> static inline void compare(F &&f) {
     prepare_utf8_data prepare_data;
     auto &data = prepare_data.data;
-    for (auto &s:data) {
+    for (auto &s : data) {
       f(s);
     }
   }
 };
 
 TEST_F(TestStringFunctions, testGenUtf8String) {
-  //auto utf8_1bytes_strings = StringFunctions::gen_utf8_vector({1,0,0,0,0,0}, 100, 10,20);
-  //StringFunctions::stat_utf8(utf8_1bytes_strings);
-  auto utf8_2bytes_strings = StringFunctions::gen_utf8_vector({1, 1, 3, 400, 0, 0}, 1000, 60, 60);
+  // auto utf8_1bytes_strings = StringFunctions::gen_utf8_vector({1,0,0,0,0,0},
+  // 100, 10,20); StringFunctions::stat_utf8(utf8_1bytes_strings);
+  auto utf8_2bytes_strings =
+      StringFunctions::gen_utf8_vector({1, 1, 3, 400, 0, 0}, 1000, 60, 60);
   StringFunctions::stat_utf8(utf8_2bytes_strings);
 }
 TEST_F(TestStringFunctions, compare_utf8_length_vs_avx2) {
   compare([](std::string const &s) {
-    ASSERT_EQ(StringFunctions::utf8_length(s), StringFunctions::utf8_length_simd_avx2(s));
+    ASSERT_EQ(StringFunctions::utf8_length(s),
+              StringFunctions::utf8_length_simd_avx2(s));
   });
 }
 
 TEST_F(TestStringFunctions, compare_utf8_length_vs_sse2) {
   compare([](std::string const &s) {
-    ASSERT_EQ(StringFunctions::utf8_length(s), StringFunctions::utf8_length_simd_sse2(s));
+    ASSERT_EQ(StringFunctions::utf8_length(s),
+              StringFunctions::utf8_length_simd_sse2(s));
   });
 }
 
 TEST_F(TestStringFunctions, compare_utf8_length3) {
   compare([](std::string const &s) {
-    ASSERT_EQ(StringFunctions::utf8_length(s), StringFunctions::utf8_length3(s));
+    ASSERT_EQ(StringFunctions::utf8_length(s),
+              StringFunctions::utf8_length3(s));
   });
 }
 
@@ -53,30 +56,21 @@ TEST_F(TestStringFunctions, substr_ascii) {
   BinaryColumn d;
 
   std::vector<std::tuple<int, int, std::string>> cases = {
-      {1, 2, "12"},
-      {1, 0, ""},
-      {2, 100, "23456789"},
-      {9, 1, "9"},
-      {9, 100, "9"},
-      {10, 1, ""},
-      {-9, 1, "1"},
-      {-9, 9, "123456789"},
-      {-9, 10, "123456789"},
-      {-4, 1, "6"},
-      {-4, 4, "6789"},
-      {-4, 5, "6789"},
-      {-1, 1, "9"},
-      {-1, 2, "9"}
-  };
-  for (auto &e:cases) {
-    auto[offset, len, expect] = e;
+      {1, 2, "12"}, {1, 0, ""},           {2, 100, "23456789"},
+      {9, 1, "9"},  {9, 100, "9"},        {10, 1, ""},
+      {-9, 1, "1"}, {-9, 9, "123456789"}, {-9, 10, "123456789"},
+      {-4, 1, "6"}, {-4, 4, "6789"},      {-4, 5, "6789"},
+      {-1, 1, "9"}, {-1, 2, "9"}};
+  for (auto &e : cases) {
+    auto [offset, len, expect] = e;
     StringFunctions::substr<true, true>(s, d, offset, len);
     ASSERT_EQ(d.get_last_slice().to_string(), expect);
   }
 
-  for (auto &e:cases) {
-    auto[offset, len, expect] = e;
-    std::cout << "offset=" << offset << ", len=" << len << ", expect=" << expect << std::endl;
+  for (auto &e : cases) {
+    auto [offset, len, expect] = e;
+    std::cout << "offset=" << offset << ", len=" << len << ", expect=" << expect
+              << std::endl;
     StringFunctions::substr<false, true>(s, d, offset, len);
     ASSERT_EQ(d.get_last_slice().to_string(), expect);
   }
@@ -113,7 +107,6 @@ TEST_F(TestStringFunctions, substr_ascii_no_length) {
 }
 */
 
-
 TEST_F(TestStringFunctions, substr_zh) {
   std::string s = "壹贰叁肆伍陆柒捌玖";
   BinaryColumn src;
@@ -135,20 +128,21 @@ TEST_F(TestStringFunctions, substr_zh) {
       {-4, 4, "陆柒捌玖"},
       {-4, 5, "陆柒捌玖"},
       {-1, 1, "玖"},
-      {-1, 2, "玖"}
-  };
-  for (auto &e:cases) {
-    auto[offset, len, expect] = e;
+      {-1, 2, "玖"}};
+  for (auto &e : cases) {
+    auto [offset, len, expect] = e;
     std::string expect_bytes(expect.begin(), expect.end());
-    std::cout << "offset=" << offset << ", len=" << len << ", expect=" << expect_bytes << std::endl;
+    std::cout << "offset=" << offset << ", len=" << len
+              << ", expect=" << expect_bytes << std::endl;
     StringFunctions::substr<true, true>(src, d, offset, len);
     ASSERT_EQ(d.get_last_slice().to_string(), expect_bytes);
   }
 
-  for (auto &e:cases) {
-    auto[offset, len, expect] = e;
+  for (auto &e : cases) {
+    auto [offset, len, expect] = e;
     std::string expect_bytes(expect.begin(), expect.end());
-    std::cout << "offset=" << offset << ", len=" << len << ", expect=" << expect_bytes << std::endl;
+    std::cout << "offset=" << offset << ", len=" << len
+              << ", expect=" << expect_bytes << std::endl;
     StringFunctions::substr<false, true>(src, d, offset, len);
     ASSERT_EQ(d.get_last_slice().to_string(), expect_bytes);
   }
@@ -197,35 +191,37 @@ TEST_F(TestStringFunctions, substr_zh_no_length) {
   for (auto &e:cases) {
     auto[offset, expect] = e;
     std::string expect_bytes(expect.begin(), expect.end());
-    std::cout << "offset=" << offset << ", expect=" << expect_bytes << std::endl;
-    StringFunctions::substr<false, false>(s, d, offset, 0);
+    std::cout << "offset=" << offset << ", expect=" << expect_bytes <<
+std::endl; StringFunctions::substr<false, false>(s, d, offset, 0);
     ASSERT_EQ(d.get_last_slice().to_string(), expect_bytes);
   }
 }
 */
 TEST_F(TestStringFunctions, substr_mixed) {
   std::string s;
-  s.append({(char) 0b0111'1111});
-  s.append({(char) 0b1101'1111, (char) 0b1011'1111});
-  s.append({(char) 0b1110'1111, (char) 0b1011'1111, (char) 0b1011'1111});
-  s.append({(char) 0b1111'0111, (char) 0b1011'1111, (char) 0b1011'1111, (char) 0b1011'1111});
+  s.append({(char)0b0111'1111});
+  s.append({(char)0b1101'1111, (char)0b1011'1111});
+  s.append({(char)0b1110'1111, (char)0b1011'1111, (char)0b1011'1111});
+  s.append({(char)0b1111'0111, (char)0b1011'1111, (char)0b1011'1111,
+            (char)0b1011'1111});
 
-  s.append({(char) 0b0111'1111});
-  s.append({(char) 0b1101'1111, (char) 0b1011'1111});
-  s.append({(char) 0b1110'1111, (char) 0b1011'1111, (char) 0b1011'1111});
-  s.append({(char) 0b1111'0111, (char) 0b1011'1111, (char) 0b1011'1111, (char) 0b1011'1111});
+  s.append({(char)0b0111'1111});
+  s.append({(char)0b1101'1111, (char)0b1011'1111});
+  s.append({(char)0b1110'1111, (char)0b1011'1111, (char)0b1011'1111});
+  s.append({(char)0b1111'0111, (char)0b1011'1111, (char)0b1011'1111,
+            (char)0b1011'1111});
 
-  s.append({(char) 0b0111'1111});
-  s.append({(char) 0b1101'1111, (char) 0b1011'1111});
-  s.append({(char) 0b1110'1111, (char) 0b1011'1111, (char) 0b1011'1111});
-  s.append({(char) 0b1111'0111, (char) 0b1011'1111, (char) 0b1011'1111, (char) 0b1011'1111});
+  s.append({(char)0b0111'1111});
+  s.append({(char)0b1101'1111, (char)0b1011'1111});
+  s.append({(char)0b1110'1111, (char)0b1011'1111, (char)0b1011'1111});
+  s.append({(char)0b1111'0111, (char)0b1011'1111, (char)0b1011'1111,
+            (char)0b1011'1111});
 
   BinaryColumn src;
   BinaryColumn dst;
   src.append(s);
 
-  std::vector<std::tuple<int, int, std::string>>
-      cases = {
+  std::vector<std::tuple<int, int, std::string>> cases = {
       {1, 1, "\x7f"},
       {1, 2, "\x7f\xdf\xbf"},
       {1, 3, "\x7f\xdf\xbf\xef\xbf\xbf"},
@@ -264,10 +260,11 @@ TEST_F(TestStringFunctions, substr_mixed) {
       {-1, 13, s.substr(26, 4)},
   };
 
-  for (auto &e:cases) {
-    auto[offset, len, expect] = e;
+  for (auto &e : cases) {
+    auto [offset, len, expect] = e;
     std::string expect_bytes(expect.begin(), expect.end());
-    std::cout << "offset=" << offset << ", len=" << len << ", expect=" << expect_bytes << std::endl;
+    std::cout << "offset=" << offset << ", len=" << len
+              << ", expect=" << expect_bytes << std::endl;
     StringFunctions::substr<false, true>(src, dst, offset, len);
     ASSERT_EQ(dst.get_last_slice().to_string(), expect_bytes);
   }
@@ -279,8 +276,8 @@ TEST_F(TestStringFunctions, append) {
   std::string s(u8s.begin(), u8s.end());
   std::cout << s << std::endl;
   std::cout << s.size() << std::endl;
-  std::cout << std::hex << (unsigned) (uint8_t) s[0] << std::endl;
-  std::cout << std::hex << (unsigned) (uint8_t) s[1] << std::endl;
+  std::cout << std::hex << (unsigned)(uint8_t)s[0] << std::endl;
+  std::cout << std::hex << (unsigned)(uint8_t)s[1] << std::endl;
 }
 
 TEST_F(TestStringFunctions, compareSubstr) {
@@ -324,14 +321,13 @@ TEST_F(TestStringFunctions, upper) {
       "aaaaabcdefghigklmnopqrstuvwxyz0000000",
       "aAAAABCDEFGHIGklmnopqrstuvwxyz0000000",
   };
-  for (auto &s:cases) {
-    ASSERT_EQ(
-        StringFunctions::upper_new(StringFunctions::lower_new(StringFunctions::upper_new(s))),
-        StringFunctions::upper_old(s));
+  for (auto &s : cases) {
+    ASSERT_EQ(StringFunctions::upper_new(
+                  StringFunctions::lower_new(StringFunctions::upper_new(s))),
+              StringFunctions::upper_old(s));
 
-    ASSERT_EQ(
-        StringFunctions::lower_new(StringFunctions::upper_new(s)),
-        StringFunctions::lower_old(StringFunctions::upper_old(s)));
+    ASSERT_EQ(StringFunctions::lower_new(StringFunctions::upper_new(s)),
+              StringFunctions::lower_old(StringFunctions::upper_old(s)));
 
     BinaryColumn src;
     src.append(s);
@@ -340,10 +336,14 @@ TEST_F(TestStringFunctions, upper) {
     StringFunctions::lower_vector_old(src, dst_lower_old);
     StringFunctions::upper_vector_new2(src, dst_upper_new);
     StringFunctions::upper_vector_old(src, dst_upper_old);
-    ASSERT_EQ(dst_lower_new.get_last_slice().to_string(), StringFunctions::lower_new(s));
-    ASSERT_EQ(dst_lower_old.get_last_slice().to_string(), StringFunctions::lower_new(s));
-    ASSERT_EQ(dst_upper_new.get_last_slice().to_string(), StringFunctions::upper_new(s));
-    ASSERT_EQ(dst_upper_old.get_last_slice().to_string(), StringFunctions::upper_new(s));
+    ASSERT_EQ(dst_lower_new.get_last_slice().to_string(),
+              StringFunctions::lower_new(s));
+    ASSERT_EQ(dst_lower_old.get_last_slice().to_string(),
+              StringFunctions::lower_new(s));
+    ASSERT_EQ(dst_upper_new.get_last_slice().to_string(),
+              StringFunctions::upper_new(s));
+    ASSERT_EQ(dst_upper_old.get_last_slice().to_string(),
+              StringFunctions::upper_new(s));
   }
 }
 
@@ -357,7 +357,7 @@ TEST_F(TestStringFunctions, case2) {
   };
 
   BinaryColumn src;
-  for (auto &s: cases){
+  for (auto &s : cases) {
     src.append(s);
   }
 
@@ -370,7 +370,7 @@ TEST_F(TestStringFunctions, case2) {
   ASSERT_EQ(dst_upper_new.size(), cases.size());
   ASSERT_EQ(dst_lower_old.size(), cases.size());
   ASSERT_EQ(dst_lower_new.size(), cases.size());
-  for (auto i=0; i < src.size(); ++i){
+  for (auto i = 0; i < src.size(); ++i) {
     auto upper_old_s = dst_upper_old.get_slice(i).to_string();
     auto upper_new_s = dst_upper_new.get_slice(i).to_string();
     auto lower_old_s = dst_lower_old.get_slice(i).to_string();
@@ -380,11 +380,11 @@ TEST_F(TestStringFunctions, case2) {
   }
 }
 
-TEST_F(TestStringFunctions, testPrepareUtf8Data){
-  for (int i=1; i<=20; i++){
+TEST_F(TestStringFunctions, testPrepareUtf8Data) {
+  for (int i = 1; i <= 20; i++) {
     prepare_utf8_data col(4096, {1, 0, 0, 0, 0, 0}, i, i);
-    auto& bin_column = col.binary_column;
-    for (auto k=0; k < bin_column.size(); ++k){
+    auto &bin_column = col.binary_column;
+    for (auto k = 0; k < bin_column.size(); ++k) {
       ASSERT_EQ(bin_column.get_slice(k).size, i);
     }
   }

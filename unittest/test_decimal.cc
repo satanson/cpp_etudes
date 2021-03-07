@@ -12,14 +12,12 @@
 #include <sstream>
 namespace test {
 class TestDecimal : public testing::Test {
- public:
+public:
   static inline std::string ToHexString(int128_t x) {
-    int128_wrapper wx = {.s128 =x};
+    int128_wrapper wx = {.s128 = x};
     std::stringstream ss;
-    ss
-        << std::hex << std::showbase
-        << "{high=" << wx.s.high
-        << ", low=" << wx.s.low << "}";
+    ss << std::hex << std::showbase << "{high=" << wx.s.high
+       << ", low=" << wx.s.low << "}";
     return ss.str();
   }
 
@@ -35,19 +33,20 @@ class TestDecimal : public testing::Test {
       ASSERT_FALSE(true);
     }
   }
-  template<typename F>
-  void testCompare(F &&f) {
+  template <typename F> void testCompare(F &&f) {
     for (int p1 = 1; p1 <= 36; ++p1) {
       int s1 = std::max(0, p1 - 18);
       for (int p2 = 1; p2 <= 36; ++p2) {
         int s2 = std::max(0, p2 - 18);
-        //std::cout<<"BEGIN TEST: p1="<<p1<<", s1="<<s1<<"; p2="<<p2<<", s2="<<s2<<std::endl;
+        // std::cout<<"BEGIN TEST: p1="<<p1<<", s1="<<s1<<"; p2="<<p2<<",
+        // s2="<<s2<<std::endl;
         for (int i = 0; i < 1; ++i) {
           auto a = gen_decimal(p1, s1);
           auto b = gen_decimal(p2, s2);
           f(a, b);
         }
-        //std::cout<<"END TEST: p1="<<p1<<", s1="<<s1<<"; p2="<<p2<<", s2="<<s2<<std::endl;
+        // std::cout<<"END TEST: p1="<<p1<<", s1="<<s1<<"; p2="<<p2<<",
+        // s2="<<s2<<std::endl;
       }
     }
   }
@@ -60,16 +59,14 @@ class TestDecimal : public testing::Test {
     auto overflow2 = op.multi3(a, b, c2);
     ASSERT_EQ(c1, c2);
     if (overflow1 != overflow2) {
-      int128_wrapper wa = {.s128=a};
-      int128_wrapper wb = {.s128=b};
-      int128_wrapper wc = {.s128=c1};
-      std::cout << std::showbase << std::hex
-                << "a=" << to_string(a, 36, 9) << std::endl
+      int128_wrapper wa = {.s128 = a};
+      int128_wrapper wb = {.s128 = b};
+      int128_wrapper wc = {.s128 = c1};
+      std::cout << std::showbase << std::hex << "a=" << to_string(a, 36, 9)
+                << std::endl
                 << "b=" << to_string(b, 36, 9) << std::endl
-                << "a.high=" << wa.s.high << ", a.low=" << wa.s.low
-                << "\n"
-                << "b.high=" << wb.s.high << ", b.low=" << wb.s.low
-                << "\n"
+                << "a.high=" << wa.s.high << ", a.low=" << wa.s.low << "\n"
+                << "b.high=" << wb.s.high << ", b.low=" << wb.s.low << "\n"
                 << "result.high=" << wc.s.high << ", result.low=" << wb.s.low
                 << "\n"
                 << "overflow1=" << overflow1 << ", overflow2=" << overflow2
@@ -77,7 +74,6 @@ class TestDecimal : public testing::Test {
       ASSERT_FALSE(true);
     }
   }
-
 };
 TEST_F(TestDecimal, testDorisMulAndMul2) {
   PrepareData data;
@@ -91,8 +87,10 @@ TEST_F(TestDecimal, testDorisMulAndMul2) {
 }
 
 TEST_F(TestDecimal, testMaxMinDecimalValue) {
-  std::cout << "max=" << ToHexString(DorisDecimalOp::MAX_DECIMAL_VALUE) << std::endl;
-  std::cout << "min=" << ToHexString(DorisDecimalOp::MIN_DECIMAL_VALUE) << std::endl;
+  std::cout << "max=" << ToHexString(DorisDecimalOp::MAX_DECIMAL_VALUE)
+            << std::endl;
+  std::cout << "min=" << ToHexString(DorisDecimalOp::MIN_DECIMAL_VALUE)
+            << std::endl;
 }
 
 TEST_F(TestDecimal, testCompareNewAndOldMul) {
@@ -100,13 +98,15 @@ TEST_F(TestDecimal, testCompareNewAndOldMul) {
     int s1 = std::max(0, p1 - 18);
     for (int p2 = 1; p2 <= 36; ++p2) {
       int s2 = std::max(0, p2 - 18);
-      //std::cout<<"BEGIN TEST: p1="<<p1<<", s1="<<s1<<"; p2="<<p2<<", s2="<<s2<<std::endl;
+      // std::cout<<"BEGIN TEST: p1="<<p1<<", s1="<<s1<<"; p2="<<p2<<",
+      // s2="<<s2<<std::endl;
       for (int i = 0; i < 1024; ++i) {
         auto a = gen_decimal(p1, s1);
         auto b = gen_decimal(p2, s2);
         compareMul(a, b);
       }
-      //std::cout<<"END TEST: p1="<<p1<<", s1="<<s1<<"; p2="<<p2<<", s2="<<s2<<std::endl;
+      // std::cout<<"END TEST: p1="<<p1<<", s1="<<s1<<"; p2="<<p2<<",
+      // s2="<<s2<<std::endl;
     }
   }
 }
@@ -137,57 +137,31 @@ TEST_F(TestDecimal, testOverflow) {
       {-1, -1, 1, 0},
       {-1, 1, -1, 0},
       {1, -1, -1, 0},
-      {
-          0xffff'ffff'ffff'ffffl,
-          0xffff'ffff'ffff'ffffl,
-          (static_cast<int128_t>(0xfffffffffffffffe) << 64) + 0000000000000001,
-          1
-      },
-      {
-          0x8000'0000'0000'0000l,
-          0x8000'0000'0000'0000l,
-          (static_cast<int128_t>(0x4000'0000'0000'0000l) << 64),
-          0
-      },
-      {
-          0x8000'0000'0000'0000l,
-          (static_cast<int128_t>(1) << 64),
-          (static_cast<int128_t>(0x8000'0000'0000'0000l) << 64),
-          1
-      },
-      {
-          0xffff'ffff'ffff'ffffl,
-          (static_cast<int128_t>(1) << 64),
-          (static_cast<int128_t>(0xffff'ffff'ffff'ffffl) << 64),
-          1
-      },
-      {
-          (static_cast<int128_t>(0xffff'ffff'ffff'ffffl) << 64),
-          (static_cast<int128_t>(1) << 63),
-          (static_cast<int128_t>(0x8000'0000'0000'0000l) << 64),
-          1
-      },
-      {
-          (static_cast<int128_t>(0xffff'ffff'ffff'ffffl) << 64),
-          (static_cast<int128_t>(-1l) << 64) + 0x8000'0000'0000'0000l,
-          (static_cast<int128_t>(1) << 127),
-          1
-      },
-      {
-          (static_cast<int128_t>(0xffff'ffff'ffff'ffffl) << 64),
-          (static_cast<int128_t>(-1l) << 64) + 0xc000'0000'0000'0000l,
-          (static_cast<int128_t>(1) << 126),
-          0
-      },
+      {0xffff'ffff'ffff'ffffl, 0xffff'ffff'ffff'ffffl,
+       (static_cast<int128_t>(0xfffffffffffffffe) << 64) + 0000000000000001, 1},
+      {0x8000'0000'0000'0000l, 0x8000'0000'0000'0000l,
+       (static_cast<int128_t>(0x4000'0000'0000'0000l) << 64), 0},
+      {0x8000'0000'0000'0000l, (static_cast<int128_t>(1) << 64),
+       (static_cast<int128_t>(0x8000'0000'0000'0000l) << 64), 1},
+      {0xffff'ffff'ffff'ffffl, (static_cast<int128_t>(1) << 64),
+       (static_cast<int128_t>(0xffff'ffff'ffff'ffffl) << 64), 1},
+      {(static_cast<int128_t>(0xffff'ffff'ffff'ffffl) << 64),
+       (static_cast<int128_t>(1) << 63),
+       (static_cast<int128_t>(0x8000'0000'0000'0000l) << 64), 1},
+      {(static_cast<int128_t>(0xffff'ffff'ffff'ffffl) << 64),
+       (static_cast<int128_t>(-1l) << 64) + 0x8000'0000'0000'0000l,
+       (static_cast<int128_t>(1) << 127), 1},
+      {(static_cast<int128_t>(0xffff'ffff'ffff'ffffl) << 64),
+       (static_cast<int128_t>(-1l) << 64) + 0xc000'0000'0000'0000l,
+       (static_cast<int128_t>(1) << 126), 0},
   };
-  for (auto &d:data) {
-    auto[x, y, expect_result, expect_overflow] = d;
+  for (auto &d : data) {
+    auto [x, y, expect_result, expect_overflow] = d;
     std::cout << std::endl << std::endl;
-    std::cout
-        << "x=" << ToHexString(x) << std::endl
-        << "y=" << ToHexString(y) << std::endl
-        << "expect_result=" << ToHexString(expect_result) << std::endl
-        << "expect_overflow=" << expect_overflow << std::endl;
+    std::cout << "x=" << ToHexString(x) << std::endl
+              << "y=" << ToHexString(y) << std::endl
+              << "expect_result=" << ToHexString(expect_result) << std::endl
+              << "expect_overflow=" << expect_overflow << std::endl;
     int128_t actual_result;
     int actual_overflow = DorisDecimalOp::multi3(x, y, actual_result);
     ASSERT_EQ(expect_result, actual_result);
@@ -198,17 +172,16 @@ TEST_F(TestDecimal, testOverflow) {
 TEST_F(TestDecimal, testMul) {
   int64_t a = 0xffffffffffffffffl;
   int64_t b = 0xffffffffffffffffl;
-  int128_wrapper ab = {.s128=0};
+  int128_wrapper ab = {.s128 = 0};
   int overflow = DorisDecimalOp::asm_mul(a, b, ab);
 
-  std::cout << std::showbase << std::hex
-            << "a=" << a << std::endl
+  std::cout << std::showbase << std::hex << "a=" << a << std::endl
             << "b=" << b << std::endl
             << "ab.high=" << ab.s.high << ", ab.low=" << ab.s.low << std::endl
             << "overflow=" << overflow << std::endl;
 }
 
-}
+} // namespace test
 #if defined(__x86_64__) && defined(__GNUC__)
 int main(int argc, char **argv) {
   ::testing::InitGoogleTest(&argc, argv);

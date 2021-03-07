@@ -9,16 +9,17 @@
 
 #ifndef CPP_ETUDES_INCLUDE_REPEAT_HH_
 #define CPP_ETUDES_INCLUDE_REPEAT_HH_
-#include <cstdint>
-#include <utility>
-#include <string>
-#include <cstring>
-#include <raw_container.hh>
-#include <immintrin.h>
 #include <clickhouse/FastMemcpy.h>
+#include <cstdint>
+#include <cstring>
+#include <immintrin.h>
+#include <raw_container.hh>
+#include <string>
+#include <utility>
 
-template<typename InitFunc, typename DeltaFunc, typename...Args>
-void fast_repeat(int num, InitFunc init_func, DeltaFunc delta_func, Args &&... args) {
+template <typename InitFunc, typename DeltaFunc, typename... Args>
+void fast_repeat(int num, InitFunc init_func, DeltaFunc delta_func,
+                 Args &&...args) {
   int k = 0;
   int last_bit = num & 1;
   num >>= 1;
@@ -29,13 +30,9 @@ void fast_repeat(int num, InitFunc init_func, DeltaFunc delta_func, Args &&... a
   }
 }
 
-static inline void count_n_init(int i, int &m) {
-  m = i;
-}
+static inline void count_n_init(int i, int &m) { m = i; }
 
-static inline void count_n_delta(int n, int &m) {
-  m += n;
-}
+static inline void count_n_delta(int n, int &m) { m += n; }
 
 int count_n(int num) {
   int m;
@@ -51,81 +48,97 @@ inline void memcpy_inlined(void *dst, const void *src, size_t size) {
   // Compiler inlines code with minimal amount of data movement when third
   // parameter of memcpy is a constant.
   switch (size) {
-    case 1: memcpy(dst, src, 1);
-      break;
-    case 2: memcpy(dst, src, 2);
-      break;
-    case 3: memcpy(dst, src, 3);
-      break;
-    case 4: memcpy(dst, src, 4);
-      break;
-    case 5: memcpy(dst, src, 5);
-      break;
-    case 6: memcpy(dst, src, 6);
-      break;
-    case 7: memcpy(dst, src, 7);
-      break;
-    case 8: memcpy(dst, src, 8);
-      break;
-    case 9: memcpy(dst, src, 9);
-      break;
-    case 10: memcpy(dst, src, 10);
-      break;
-    case 11: memcpy(dst, src, 11);
-      break;
-    case 12: memcpy(dst, src, 12);
-      break;
-    case 13: memcpy(dst, src, 13);
-      break;
-    case 14: memcpy(dst, src, 14);
-      break;
-    case 15: memcpy(dst, src, 15);
-      break;
-    case 16: memcpy(dst, src, 16);
-      break;
-    default: memcpy(dst, src, size);
-      break;
+  case 1:
+    memcpy(dst, src, 1);
+    break;
+  case 2:
+    memcpy(dst, src, 2);
+    break;
+  case 3:
+    memcpy(dst, src, 3);
+    break;
+  case 4:
+    memcpy(dst, src, 4);
+    break;
+  case 5:
+    memcpy(dst, src, 5);
+    break;
+  case 6:
+    memcpy(dst, src, 6);
+    break;
+  case 7:
+    memcpy(dst, src, 7);
+    break;
+  case 8:
+    memcpy(dst, src, 8);
+    break;
+  case 9:
+    memcpy(dst, src, 9);
+    break;
+  case 10:
+    memcpy(dst, src, 10);
+    break;
+  case 11:
+    memcpy(dst, src, 11);
+    break;
+  case 12:
+    memcpy(dst, src, 12);
+    break;
+  case 13:
+    memcpy(dst, src, 13);
+    break;
+  case 14:
+    memcpy(dst, src, 14);
+    break;
+  case 15:
+    memcpy(dst, src, 15);
+    break;
+  case 16:
+    memcpy(dst, src, 16);
+    break;
+  default:
+    memcpy(dst, src, size);
+    break;
   }
 }
 
 inline void simd_memcpy_inline(void *dst, const void *src, size_t size) {
-  void *end = (char *) src + size;
-#if defined (__SSE2__)
+  void *end = (char *)src + size;
+#if defined(__SSE2__)
   constexpr auto SSE2_SIZE = sizeof(__m128i);
-  const void *sse2_end = (char *) src + (size & ~(SSE2_SIZE - 1));
-  for (;
-      src < sse2_end;
-      src = (char *) src + SSE2_SIZE, dst = (char *) dst + SSE2_SIZE) {
-    _mm_storeu_si128((__m128i *) dst, _mm_loadu_si128((__m128i *) src));
+  const void *sse2_end = (char *)src + (size & ~(SSE2_SIZE - 1));
+  for (; src < sse2_end;
+       src = (char *)src + SSE2_SIZE, dst = (char *)dst + SSE2_SIZE) {
+    _mm_storeu_si128((__m128i *)dst, _mm_loadu_si128((__m128i *)src));
   }
 #endif
-  for (; src < end; src = (char *) src + 1, dst = (char *) dst + 1) {
-    *(char *) dst = *(char *) src;
+  for (; src < end; src = (char *)src + 1, dst = (char *)dst + 1) {
+    *(char *)dst = *(char *)src;
   }
 }
 
-inline void simd_memcpy_inline_memcpy_rest(void *dst, const void *src, size_t size) {
-  char *end = (char *) src + size;
-#if defined (__SSE2__)
+inline void simd_memcpy_inline_memcpy_rest(void *dst, const void *src,
+                                           size_t size) {
+  char *end = (char *)src + size;
+#if defined(__SSE2__)
   constexpr auto SSE2_SIZE = sizeof(__m128i);
-  const void *sse2_end = (char *) src + (size & ~(SSE2_SIZE - 1));
-  for (;
-      src < sse2_end;
-      src = (char *) src + SSE2_SIZE, dst = (char *) dst + SSE2_SIZE) {
-    _mm_storeu_si128((__m128i *) dst, _mm_loadu_si128((__m128i *) src));
+  const void *sse2_end = (char *)src + (size & ~(SSE2_SIZE - 1));
+  for (; src < sse2_end;
+       src = (char *)src + SSE2_SIZE, dst = (char *)dst + SSE2_SIZE) {
+    _mm_storeu_si128((__m128i *)dst, _mm_loadu_si128((__m128i *)src));
   }
 #endif
-  memcpy(dst, src, end - (char *) src);
+  memcpy(dst, src, end - (char *)src);
 }
 
-inline void simd_memcpy_inline_gutil_memcpy_rest(void *dst, const void *src, size_t size) {
-#if defined (__SSE2__)
+inline void simd_memcpy_inline_gutil_memcpy_rest(void *dst, const void *src,
+                                                 size_t size) {
+#if defined(__SSE2__)
   constexpr auto SSE2_SIZE = sizeof(__m128i);
-  const void *sse2_end = (char *) src + (size & ~(SSE2_SIZE - 1));
-  for (;
-      src < sse2_end;
-      src = (char *) src + SSE2_SIZE, dst = (char *) dst + SSE2_SIZE) {
-    _mm_storeu_si128((__m128i *) dst, _mm_loadu_si128((__m128i *) src));
+  const void *sse2_end = (char *)src + (size & ~(SSE2_SIZE - 1));
+  for (; src < sse2_end;
+       src = (char *)src + SSE2_SIZE, dst = (char *)dst + SSE2_SIZE) {
+    _mm_storeu_si128((__m128i *)dst, _mm_loadu_si128((__m128i *)src));
   }
 #endif
   memcpy_inlined(dst, src, size & (SSE2_SIZE - 1));
@@ -150,7 +163,8 @@ std::string repeat_string_logn(std::string const &s, int n) {
 }
 typedef uint8_t UInt8;
 typedef uint64_t UInt64;
-static void fast_repeat(const UInt8 *src, UInt8 *dst, UInt64 size, UInt64 repeat_time) {
+static void fast_repeat(const UInt8 *src, UInt8 *dst, UInt64 size,
+                        UInt64 repeat_time) {
   if (__builtin_expect(repeat_time <= 0, 0)) {
     *dst = 0;
     return;
@@ -180,15 +194,17 @@ static void fast_repeat(const UInt8 *src, UInt8 *dst, UInt64 size, UInt64 repeat
   *dst = 0;
 }
 
-static void original_repeat(const UInt8 *src, UInt8 *dst, UInt64 size, UInt64 repeat_time) {
-  for (UInt64 i = 0; i < repeat_time; ++i){
-    memcpy_fast(dst, src, size-1);
-    dst += size -1;
+static void original_repeat(const UInt8 *src, UInt8 *dst, UInt64 size,
+                            UInt64 repeat_time) {
+  for (UInt64 i = 0; i < repeat_time; ++i) {
+    memcpy_fast(dst, src, size - 1);
+    dst += size - 1;
   }
   *dst = 0;
 }
 
-std::string repeat_string_logn_gutil_memcpy_inline(std::string const &s, int n) {
+std::string repeat_string_logn_gutil_memcpy_inline(std::string const &s,
+                                                   int n) {
   std::string result;
   const auto s_size = s.size();
   raw::make_room(result, s_size * n);
@@ -212,7 +228,8 @@ std::string repeat_string_logn_gutil_memcpy_inline(std::string const &s, int n) 
   return result;
 }
 
-std::string repeat_string_logn_simd_memcpy_inline_1(std::string const &s, int n) {
+std::string repeat_string_logn_simd_memcpy_inline_1(std::string const &s,
+                                                    int n) {
   std::string result;
   const auto s_size = s.size();
   raw::make_room(result, s_size * n);
@@ -260,7 +277,8 @@ std::string repeat_string_logn_memcpy(std::string const &s, int n) {
   return result;
 }
 
-std::string repeat_string_logn_simd_memcpy_inline_2(std::string const &s, int n) {
+std::string repeat_string_logn_simd_memcpy_inline_2(std::string const &s,
+                                                    int n) {
   std::string result;
   const auto s_size = s.size();
   raw::make_room(result, s_size * n);
@@ -294,4 +312,4 @@ std::string repeat_string_n(std::string const &s, int n) {
   return result;
 }
 
-#endif //CPP_ETUDES_INCLUDE_REPEAT_HH_
+#endif // CPP_ETUDES_INCLUDE_REPEAT_HH_

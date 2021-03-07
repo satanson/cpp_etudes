@@ -6,18 +6,16 @@
 //
 // Created by grakra on 20-6-27.
 //
-#include <concurrent/list.hh>
 #include <atomic>
 #include <cassert>
+#include <concurrent/list.hh>
 namespace com {
 namespace grakra {
 namespace concurrent {
 
 using MarkPtrType = com::grakra::concurrent::MarkPtrType;
 
-bool MichaelList::IsEmpty() {
-  return this->head.get() == nullptr;
-}
+bool MichaelList::IsEmpty() { return this->head.get() == nullptr; }
 
 void MichaelList::Unshift(NodeType *node) {
   assert(node != nullptr);
@@ -76,35 +74,28 @@ void MichaelList::Clear() {
   }
 }
 
-bool MichaelList::Insert(
-    MarkPtrType *head,
-    NodeType *node,
-    NodeType **exist_node) {
+bool MichaelList::Insert(MarkPtrType *head, NodeType *node,
+                         NodeType **exist_node) {
   MarkPtrType *prev = head;
   MarkPtrType pmark_curr_ptag;
   MarkPtrType cmark_next_ctag;
   while (true) {
-    if (
-        find(head, prev, pmark_curr_ptag, cmark_next_ctag, node
-            ->key, exist_node)) {
+    if (find(head, prev, pmark_curr_ptag, cmark_next_ctag, node->key,
+             exist_node)) {
       return false;
     }
-    node->
-        next = MarkPtrType(list_next(pmark_curr_ptag), 0, 0);
-    auto prev_old = MarkPtrType(list_next(pmark_curr_ptag), 0, pmark_curr_ptag.get_tag());
+    node->next = MarkPtrType(list_next(pmark_curr_ptag), 0, 0);
+    auto prev_old =
+        MarkPtrType(list_next(pmark_curr_ptag), 0, pmark_curr_ptag.get_tag());
     auto prev_new = MarkPtrType(&node->next, 0, pmark_curr_ptag.get_tag() + 1);
-    if (atomic_ptr(prev->ptr)->
-        compare_exchange_strong(
-        prev_old
-            .ptr, prev_new.ptr, std::memory_order_acq_rel)) {
+    if (atomic_ptr(prev->ptr)->compare_exchange_strong(
+            prev_old.ptr, prev_new.ptr, std::memory_order_acq_rel)) {
       return true;
     }
   }
 }
 
-bool MichaelList::Remove(
-    MarkPtrType *head,
-    uint32_t key) {
+bool MichaelList::Remove(MarkPtrType *head, uint32_t key) {
   MarkPtrType *prev = nullptr;
   MarkPtrType pmark_curr_ptag;
   MarkPtrType cmark_next_ctag;
@@ -115,15 +106,18 @@ bool MichaelList::Remove(
     auto curr = list_next(pmark_curr_ptag);
     auto curr_old = cmark_next_ctag;
     curr_old.unmark_delete();
-    auto curr_new = MarkPtrType(list_next(cmark_next_ctag), 1, cmark_next_ctag.get_tag() + 1);
+    auto curr_new = MarkPtrType(list_next(cmark_next_ctag), 1,
+                                cmark_next_ctag.get_tag() + 1);
     if (!atomic_ptr(curr->ptr)->compare_exchange_strong(
-        curr_old.ptr, curr_new.ptr, std::memory_order_acq_rel)) {
+            curr_old.ptr, curr_new.ptr, std::memory_order_acq_rel)) {
       continue;
     }
     auto prev_old = pmark_curr_ptag;
     prev_old.unmark_delete();
-    auto prev_new = MarkPtrType(list_next(cmark_next_ctag), 0, pmark_curr_ptag.get_tag() + 1);
-    if (atomic_ptr(prev->ptr)->compare_exchange_strong(prev_old.ptr, prev_new.ptr)) {
+    auto prev_new = MarkPtrType(list_next(cmark_next_ctag), 0,
+                                pmark_curr_ptag.get_tag() + 1);
+    if (atomic_ptr(prev->ptr)->compare_exchange_strong(prev_old.ptr,
+                                                       prev_new.ptr)) {
       if (__builtin_expect(list_next(pmark_curr_ptag) != nullptr, 1)) {
         delete list_node(list_next(pmark_curr_ptag));
       }
@@ -146,13 +140,10 @@ bool MichaelList::Search(MarkPtrType *head, uint32_t key, uint32_t &value) {
   return !list_next(pmark_curr_ptag)->is_mark_delete();
 }
 
-bool MichaelList::find(
-    MarkPtrType *head,
-    MarkPtrType *&prev,
-    MarkPtrType &pmark_curr_ptag,
-    MarkPtrType &cmark_next_ctag,
-    uint32_t key,
-    NodeType **node) {
+bool MichaelList::find(MarkPtrType *head, MarkPtrType *&prev,
+                       MarkPtrType &pmark_curr_ptag,
+                       MarkPtrType &cmark_next_ctag, uint32_t key,
+                       NodeType **node) {
   prev = head;
   pmark_curr_ptag = *prev;
   while (true) {
@@ -162,7 +153,8 @@ bool MichaelList::find(
     cmark_next_ctag = *list_next(pmark_curr_ptag);
     auto ckey = list_node(list_next(pmark_curr_ptag))->key;
     // read prev again, if prev is mutated or marked, then retry from scratch.
-    auto prev_old = MarkPtrType(pmark_curr_ptag.get(), 0, pmark_curr_ptag.get_tag());
+    auto prev_old =
+        MarkPtrType(pmark_curr_ptag.get(), 0, pmark_curr_ptag.get_tag());
     if (!prev->equal_to(prev_old)) {
       prev = head;
       pmark_curr_ptag = *prev;
@@ -179,8 +171,10 @@ bool MichaelList::find(
       // advance prev
       prev = list_next(pmark_curr_ptag);
     } else {
-      auto prev_new = MarkPtrType(cmark_next_ctag.get(), 0, pmark_curr_ptag.get_tag() + 1);
-      if (atomic_ptr(prev->ptr)->compare_exchange_strong(prev_old.ptr, prev_new.ptr, std::memory_order_acq_rel)) {
+      auto prev_new =
+          MarkPtrType(cmark_next_ctag.get(), 0, pmark_curr_ptag.get_tag() + 1);
+      if (atomic_ptr(prev->ptr)->compare_exchange_strong(
+              prev_old.ptr, prev_new.ptr, std::memory_order_acq_rel)) {
         if (__builtin_expect(list_next(pmark_curr_ptag) != nullptr, 1)) {
           delete list_node(list_next(pmark_curr_ptag));
         }
@@ -197,6 +191,6 @@ bool MichaelList::find(
   }
 }
 
-} // concurrent
-} // grakra
-} // com
+} // namespace concurrent
+} // namespace grakra
+} // namespace com
