@@ -470,6 +470,37 @@ TEST_F(MiscTest, test_function_template_partial_specialization) {
   func_tmpl(std::string("abc"));
 }
 
+struct Foobar001{
+  Foobar001(){
+    std::cout<<"invoke ctor"<<std::endl;
+  }
+  ~Foobar001(){
+    std::cout<<"invoke ~ctor"<<std::endl;
+  }
+  Foobar001(const Foobar001& other){
+    std::cout<<"invoke cpy ctor"<<std::endl;
+  }
+  Foobar001& operator=(const Foobar001& other){
+    std::cout<<"invoke assign"<<std::endl;
+  }
+};
+using Foobar001Ptr = std::unique_ptr<Foobar001>;
+using Foobar001Vector = std::vector<std::tuple<size_t, Foobar001Ptr>>;
+void put_foobar001(Foobar001Vector& fv, Foobar001Ptr fb){
+  fv.emplace_back(fv.size(), std::move(fb));
+}
+TEST_F(MiscTest, test_unqiue_ptr){
+  Foobar001Vector  fv;
+  fv.reserve(3);
+  {
+    put_foobar001(fv, std::unique_ptr<Foobar001>(new Foobar001()));
+  }
+  std::cout<<"here"<<std::endl;
+  //put_foobar001(fv, std::unique_ptr<Foobar001>(new Foobar001()));
+  //put_foobar001(fv, std::unique_ptr<Foobar001>(new Foobar001()));
+  //put_foobar001(fv, std::unique_ptr<Foobar001>(new Foobar001()));
+}
+
 int main(int argc, char **argv) {
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
