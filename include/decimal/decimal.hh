@@ -113,7 +113,7 @@ union int128_wrapper {
     uint64_t low;
     uint64_t high;
 #else
-    unt64_t high;
+    uint64_t high;
     uint64_t low;
 #endif
   } u;
