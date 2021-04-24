@@ -1,7 +1,9 @@
 # Lucene的部分源码阅读
 # BY satanson@DorisDB
 
-
+- 本篇文档来源: https://github.com/satanson/cpp_etudes/blob/master/docs/lucene_chewsrc_zh.md
+- 中文版PDF下载地址: https://github.com/satanson/cpp_etudes/blob/master/docs/lucene_chewsrc_zh.pdf
+- 英文版PDF下载地址: https://github.com/satanson/cpp_etudes/blob/master/docs/lucene_chewsrc_en.pdf
 
 ----
 ## 目录
