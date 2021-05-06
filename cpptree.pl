@@ -249,11 +249,15 @@ sub all_sub_classes() {
   my $tree = {};
   my @class_re_list = ($class1_re, $class2_re, $class3_re, $class4_re, $class5_re, $class6_re);
 
+  @matches = map {s/$template_arguments_re//gr} map {s/$access_specifier_re//gr} @matches;
+
   @matches = map {$_->[1]} sort {$a->[0] cmp $b->[0]} map {/^(\S+)\s*:\s*$class0_re/;
     [ $2, $_ ]} @matches;
   for my $re (@class_re_list) {
-    my @parent_matches = grep {defined($_)} map {if (/^(\S+)\s*:\s*$re\s*$/) {[ $1, $2, $3 ]}
+    my @parent_matches = grep {defined($_)} map {if (/^(\S+)\s*:\s*$re\s*/) {[ $1, $2, $3 ]}
     else {undef}} @matches;
+    
+    #print Dumper(\@matches, \@parent_matches);
     if (scalar(@parent_matches) == 0) {
       last;
     }
@@ -319,10 +323,12 @@ sub sub_class($$;$) {
   my $root = { file_info => $file_info, name => $cls, child => [], tall => 1 };
   if (!exists $tree->{$cls} || $level >= $depth) {
     $level--;
+    #print "level=$level, file_info=$file_info, cls=$cls; no children\n";
     return $cls =~ /$filter/ ? $root : undef;
   }
 
   my $child = $tree->{$cls};
+  #print Dumper($child);
   my @child_nodes = ();
 
   foreach my $chd (@$child) {
@@ -368,6 +374,7 @@ sub unified_sub_class($;$) {
 }
 
 $tree = remove_all_loops $tree;
+#print Dumper($tree);
 #print Dumper(all_sub_classes);
 my $hierarchy = unified_sub_class $cls, $filter;
 #print Dumper($hierarchy);
