@@ -268,7 +268,7 @@ my $RE_SINGLE_LINE_COMMENT = qr'/[/\\].*';
 my $RE_LEFT_ANGLES = qr'<[<=]+';
 my $RE_TEMPLATE_ARGS_1LAYER = qr'((\.?)<\s*(((\w+[\.:]+)*\w+\s*,\s*)*(\w+[\.:]+)*\w+\s*)>)';
 my $RE_CSV_TOKEN = gen_re_list(",", $RE_SCOPED_IDENTIFIER, "??");
-my $RE_NOEXCEPT_THROW = qr"(\\bthrows\\b\\s*\\(\\s*$RE_CSV_TOKEN\\s*\\))?";
+my $RE_NOEXCEPT_THROW = qr'(\bthrows\b\s*(((\w+[\.:]+)*\w+\s*,\s*)*(\w+[\.:]+)*\w+\s*)\s*)';
 my $RE_MACRO_DEF = qr/(#define([^\n\r]*\\(\n\r?|\r\n?))*([^\n\r]*[^\n\r\\])?((\n\r?)|(\r\n?)|$))/;
 
 sub empty_string_with_blank_lines($) {
