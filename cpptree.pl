@@ -388,6 +388,11 @@ sub format_tree($;$) {
   my $name = $root->{name};
   my @child = @{$root->{child}};
 
+  if ($file_info) {
+    $file_info =~ s/:/ +/g;
+    $file_info = "vim $file_info";
+  }
+
   my @result = ();
   $name = "\e[33;32;1m$name\e[m";
   if (defined($verbose) && defined($file_info)) {

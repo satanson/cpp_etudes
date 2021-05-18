@@ -1193,6 +1193,10 @@ sub get_entry_of_called_tree($$) {
 
   my $name = $node->{name};
   my $file_info = $node->{file_info};
+  if ($file_info) {
+    $file_info =~ s/:/ +/g;
+    $file_info = "vim $file_info";
+  }
   $name = $isatty ? "\e[33;32;1m$name\e[m" : $name;
   if (defined($verbose) && defined($file_info) && length($file_info) > 0) {
     $name = "$name\t[$file_info]";
@@ -1218,6 +1222,11 @@ sub get_entry_of_calling_tree($$) {
   my $branch_type = $node->{branch_type};
   my $file_info = $node->{file_info};
   my $leaf = $node->{leaf};
+
+  if ($file_info) {
+    $file_info =~ s/:/ +/g;
+    $file_info = "vim $file_info";
+  }
 
   if ($isatty) {
     if ($branch_type eq "matches") {
