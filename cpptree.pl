@@ -10,7 +10,7 @@
 # Format: 
 #   ./cpptree.pl <keyword|regex> <filter> <verbose(0|1)> <depth(num)>
 #   
-#   - keyword for exact match, regex for fuzzy match;
+#    - keyword for exact match, regex for fuzzy match;
 #    - subtrees whose leaf nodes does not match filter are pruned, default value is '' means match all;
 #    - verbose=0, no file locations output; otherwise succinctly output;
 #    - depth=num, print max derivation depth.
@@ -39,6 +39,22 @@
 use warnings;
 use strict;
 use Data::Dumper;
+
+sub help() {
+  print<<END_OF_USAGE_STRING;
+usages:
+  $0 <keyword|regex> [<filter> <verbose(0|1)> <depth(num)>]
+examples:
+  $0 '\\w+'             # show all classes
+  $0 'ExecNode\' '' 1   # show all classes exact-match ExecNode if ExecNode class exists
+  $0 '.*Node\$' '' 1    # show all classes fuzzy-match regex '.*Node\$' if the literal class name not exists
+END_OF_USAGE_STRING
+}
+
+if(@ARGV < 1 || $ARGV[0] eq '-h' || $ARGV[0] eq '-help') {
+  help();
+  exit;
+}
 
 sub ensure_ag_installed() {
   my ($ag_path) = map {chomp;
@@ -275,8 +291,7 @@ sub all_sub_classes() {
   return $tree, \%table;
 }
 
-my $usage = "$0 <keyword|regex> <filter> <verbose(0|1)> <depth(num)>";
-my $cls = shift || die "missing class name, usage: $usage";
+my $cls = shift || die "missing class name";
 my $filter = shift;
 my $verbose = shift;
 my $depth = shift;

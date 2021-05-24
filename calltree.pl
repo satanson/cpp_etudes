@@ -36,6 +36,22 @@ use strict;
 use Data::Dumper;
 use Storable qw/freeze thaw nstore retrieve/;
 
+sub help() {
+  print<<END_OF_USAGE_STRING;
+usages:
+  $0 <keyword|regex> [<filter> <direction(called(1)|calling)> <verbose(0|1)> <depth(num)>]
+examples:
+  $0 '\\w+' '' 1 1 1              # show all functions (set depth=1 preventing output from overwhelming)
+  $0 'fdatasync\' '' 1 1 3        # show functions calling `fdatasync` in a backtrace way with depth 3
+  $0 'sync_file_range\' '' 1 1 3  # show functions calling `sync_file_range` in a backtrace way with depth 3
+END_OF_USAGE_STRING
+}
+
+if(@ARGV < 1 || $ARGV[0] eq '-h' || $ARGV[0] eq '-help') {
+  help();
+  exit;
+}
+
 sub red_color($) {
   my ($msg) = @_;
   "\e[95;31;1m$msg\e[m"
@@ -1369,8 +1385,7 @@ sub cached_sha256_file(@) {
 
 my @key = (@ARGV, $isatty, $env_trivial_threshold, $env_length_threshold);
 
-my $usage = "$0 <keyword|regex> <filter> <direction(called(1)|calling)> <verbose(0|1)> <depth(num)>";
-my $func = shift || die "missing function name, usage: $usage";
+my $func = shift || die "missing function name";
 my $filter = shift;
 my $mode = shift;
 my $verbose = shift;
