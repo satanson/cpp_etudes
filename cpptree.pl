@@ -275,7 +275,8 @@ sub all_sub_classes() {
   return $tree, \%table;
 }
 
-my $cls = shift || die "missing class name, usage: \'./cpptree.pl <keyword|regex> <filter> <verbose(0|1)> <depth(num)>\'";
+my $usage = "$0 <keyword|regex> <filter> <verbose(0|1)> <depth(num)>";
+my $cls = shift || die "missing class name, usage: $usage";
 my $filter = shift;
 my $verbose = shift;
 my $depth = shift;

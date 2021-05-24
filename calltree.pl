@@ -1369,7 +1369,8 @@ sub cached_sha256_file(@) {
 
 my @key = (@ARGV, $isatty, $env_trivial_threshold, $env_length_threshold);
 
-my $func = shift || die "missing function name";
+my $usage = "$0 <keyword|regex> <filter> <direction(called(1)|calling)> <verbose(0|1)> <depth(num)>";
+my $func = shift || die "missing function name, usage: $usage";
 my $filter = shift;
 my $mode = shift;
 my $verbose = shift;
