@@ -51,7 +51,7 @@ examples:
 END_OF_USAGE_STRING
 }
 
-if(@ARGV < 1 || $ARGV[0] eq '-h' || $ARGV[0] eq '-help') {
+if(@ARGV < 1 || $ARGV[0] eq '-h' || $ARGV[0] eq '--help') {
   help();
   exit;
 }
