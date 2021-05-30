@@ -279,6 +279,7 @@ my $cls = shift || die "missing class name";
 my $filter = shift;
 my $verbose = shift;
 my $depth = shift;
+my $pathFilter = shift;
 
 $filter = ".*" unless (defined($filter) && $filter ne "");
 $verbose = undef if (defined($verbose) && $verbose == 0);
@@ -318,6 +319,7 @@ my $level = 0;
 sub sub_class($$;$) {
   my ($file_info, $cls, $filter) = @_;
   $filter = ".*" unless defined($filter);
+  return undef if $file_info && $pathFilter && $file_info =~ /$pathFilter/;
   $level++;
   #print "level=$level, file_info=$file_info, cls=$cls\n";
   my $root = { file_info => $file_info, name => $cls, child => [], tall => 1 };

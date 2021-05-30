@@ -5,7 +5,11 @@
 *.log
 build
 .idea
+.calltree*
+.modtree*
+.cpptree*
 cmake-build-debug
 debug-build
 build_debug
-debug
+*debug*
+*build*
