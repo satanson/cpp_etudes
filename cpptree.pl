@@ -283,7 +283,7 @@ my $pathFilter = shift;
 
 $filter = ".*" unless (defined($filter) && $filter ne "");
 $verbose = undef if (defined($verbose) && $verbose == 0);
-$depth = 100000 unless defined($depth);
+$depth = 0 unless defined($depth);
 
 my ($tree, $table) = all_sub_classes();
 
@@ -323,7 +323,7 @@ sub sub_class($$;$) {
   $level++;
   #print "level=$level, file_info=$file_info, cls=$cls\n";
   my $root = { file_info => $file_info, name => $cls, child => [], tall => 1 };
-  if (!exists $tree->{$cls} || $level >= $depth) {
+  if (!exists $tree->{$cls} || ($depth && $level >= $depth)) {
     $level--;
     #print "level=$level, file_info=$file_info, cls=$cls; no children\n";
     return $cls =~ /$filter/ ? $root : undef;
@@ -365,8 +365,12 @@ sub fuzzy_sub_class($;$) {
   #print Dumper([keys %$table ]);
   #print Dumper(\@names);
   my @child = grep {defined($_)} map {&sub_class(@$_, $filter)} @names;
-  my $tallest = max(map{$_->{tall}} @child); 
-  @child = grep {$_->{tall} == $tallest } @child;
+
+  if ($depth > 0) {
+    my $tallest = max(map{$_->{tall}} @child); 
+    @child = grep {$_->{tall} == $tallest } @child;
+  }
+
   $root->{child} = [@child];
   return $root;
 }
@@ -395,7 +399,7 @@ sub format_tree($;$) {
   }
   my $file_info = $root->{file_info};
   my $name = $root->{name};
-  my @child = @{$root->{child}};
+  my @child = sort{$a->{name} cmp $b->{name}} @{$root->{child}};
 
   if ($file_info) {
     $file_info =~ s/:/ +/g;
