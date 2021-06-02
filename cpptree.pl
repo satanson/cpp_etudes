@@ -399,7 +399,10 @@ sub format_tree($;$) {
   }
   my $file_info = $root->{file_info};
   my $name = $root->{name};
-  my @child = sort{$a->{name} cmp $b->{name}} @{$root->{child}};
+  my @child = sort{
+    my $r = ($a->{tall} <=> $b->{tall});
+    if($r == 0){$a->{name} cmp $b->{name}}else{$r}
+  } @{$root->{child}};
 
   if ($file_info) {
     $file_info =~ s/:/ +/g;
