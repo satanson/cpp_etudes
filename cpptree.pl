@@ -345,6 +345,11 @@ sub sub_class($$;$) {
     $root->{tall} = 1 + max(map{$_->{tall}} @child_nodes);
     return $root;
   }
+  elsif($cls =~ /$filter/ ){
+    $root->{child}=[];
+    $root->{tall} = 1;
+    return $root;
+  }
   else {
     return undef;
   }
@@ -354,8 +359,10 @@ sub fuzzy_sub_class($;$) {
   my ($cls_pattern, $filter) = @_;
   $filter = ".*" unless defined($filter);
   my $root = { file_info => undef, name => $cls_pattern };
+  #print Dumper($table);
   my @names = map {my $name = $_;
     map {[ $_, $name ]} @{$table->{$name}}} grep {/$cls_pattern/} (keys %$table);
+  #print Dumper([keys %$table ]);
   #print Dumper(\@names);
   my @child = grep {defined($_)} map {&sub_class(@$_, $filter)} @names;
   my $tallest = max(map{$_->{tall}} @child); 
