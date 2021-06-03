@@ -158,6 +158,12 @@ sub file_newer_than_script($) {
   return (-M $file) < (-M $script_path);
 }
 
+my $RE_IDENTIFIER = "\\b[A-Za-z_]\\w*\\b";
+my $RE_WS = "(?:\\s)";
+my $RE_TWO_COLON = "(?::{2})";
+my $RE_SCOPED_IDENTIFIER = "(?:$RE_TWO_COLON $RE_WS*)? (?: $RE_IDENTIFIER $RE_WS* $RE_TWO_COLON $RE_WS*)* $RE_IDENTIFIER" =~ s/ //gr;
+my $RE_CLASS = "(?:$RE_SCOPED_IDENTIFIER)";
+
 sub all_sub_classes() {
   my $attr_re = "\\[\\[[^\\[\\]]+\\]\\]";
   my $access_specifier_re = "final|private|public|protected";
@@ -165,13 +171,13 @@ sub all_sub_classes() {
   my $cls_re = "^\\s*(template\\s*$template_arguments_re)?(?:\\s*typedef)?\\s*\\b(class|struct)\\b\\s*([a-zA-Z_]\\w*)\\s*[^{};*()=]*?{";
   my $cls_filter_re = "^(\\S+)\\s*:\\s*(?:class|struct)\\s+\\w+(\\s+:\\s+(\\s*[:\\w]+\\s*,\\s*)*[:\\w]+)?s*";
 
-  my $class0_re = "(?:class|struct)\\s+(\\w+)";
-  my $class1_re = "(?:class|struct)\\s+(\\w+)\\s*:\\s*([:\\w]+)";
-  my $class2_re = "(?:class|struct)\\s+(\\w+)\\s*:(?:\\s*[:\\w]+\\s*,){1}\\s*([:\\w]+)";
-  my $class3_re = "(?:class|struct)\\s+(\\w+)\\s*:(?:\\s*[:\\w]+\\s*,){2}\\s*([:\\w]+)";
-  my $class4_re = "(?:class|struct)\\s+(\\w+)\\s*:(?:\\s*[:\\w]+\\s*,){3}\\s*([:\\w]+)";
-  my $class5_re = "(?:class|struct)\\s+(\\w+)\\s*:(?:\\s*[:\\w]+\\s*,){4}\\s*([:\\w]+)";
-  my $class6_re = "(?:class|struct)\\s+(\\w+)\\s*:(?:\\s*[:\\w]+\\s*,){5}\\s*([:\\w]+)";
+  my $class0_re = "(?:class|struct)\\s+($RE_CLASS)";
+  my $class1_re = "(?:class|struct)\\s+($RE_CLASS)\\s*:\\s*($RE_CLASS)";
+  my $class2_re = "(?:class|struct)\\s+($RE_CLASS)\\s*:(?:\\s*$RE_CLASS\\s*,){1}\\s*($RE_CLASS)";
+  my $class3_re = "(?:class|struct)\\s+($RE_CLASS)\\s*:(?:\\s*$RE_CLASS\\s*,){2}\\s*($RE_CLASS)";
+  my $class4_re = "(?:class|struct)\\s+($RE_CLASS)\\s*:(?:\\s*$RE_CLASS\\s*,){3}\\s*($RE_CLASS)";
+  my $class5_re = "(?:class|struct)\\s+($RE_CLASS)\\s*:(?:\\s*$RE_CLASS\\s*,){4}\\s*($RE_CLASS)";
+  my $class6_re = "(?:class|struct)\\s+($RE_CLASS)\\s*:(?:\\s*$RE_CLASS\\s*,){5}\\s*($RE_CLASS)";
 
   my $cache_file = ".cpptree.list";
   my @matches = ();
@@ -227,7 +233,6 @@ sub all_sub_classes() {
     close($cache_file_handle);
   }
 
-  #print Dumper(\@matches);
 
   my @table = grep {defined($_)} map {if (/^(\S+)\s*:\s*$class0_re/) {[ $1, $2 ]}
   else {
@@ -266,6 +271,10 @@ sub all_sub_classes() {
       if (!defined($tree->{$parent})) {
         $tree->{$parent} = [];
       }
+      
+      if (!exists $table{$parent}) {
+        $table{$parent} = [ "out-of-tree" ];
+      } 
 
       if ($child ne $parent) {
         push @{$tree->{$parent}}, $e;
@@ -330,7 +339,6 @@ sub sub_class($$;$) {
   }
 
   my $child = $tree->{$cls};
-  #print Dumper($child);
   my @child_nodes = ();
 
   foreach my $chd (@$child) {
@@ -388,7 +396,6 @@ sub unified_sub_class($;$) {
 
 $tree = remove_all_loops $tree;
 #print Dumper($tree);
-#print Dumper(all_sub_classes);
 my $hierarchy = unified_sub_class $cls, $filter;
 #print Dumper($hierarchy);
 #
