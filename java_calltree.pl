@@ -266,7 +266,7 @@ my $RE_SLASH_STAR_COMMENT = qr"(/[*]([^/*]*(([*]+|[/]+)[^/*]+)*([*]+|[/]+)?)[*]/
 my $RE_NESTED_CHARS_IN_SINGLE_QUOTES = qr/'[{}<>()]'/;
 my $RE_SINGLE_LINE_COMMENT = qr'/[/\\].*';
 my $RE_LEFT_ANGLES = qr'<[<=]+';
-my $RE_TEMPLATE_ARGS_1LAYER = qr'((\.?)<\s*(((\w+[\.:]+)*\w+\s*,\s*)*(\w+[\.:]+)*\w+\s*)>)';
+my $RE_TEMPLATE_ARGS_1LAYER = qr'((\.?)<\s*((((\w+[\.:]+)*\w+\s*,\s*)*(\w+[\.:]+)*\w+\s*)|\?)\s*>)';
 my $RE_CSV_TOKEN = gen_re_list(",", $RE_SCOPED_IDENTIFIER, "??");
 my $RE_NOEXCEPT_THROW = qr'(\bthrows\b\s*(((\w+[\.:]+)*\w+\s*,\s*)*(\w+[\.:]+)*\w+\s*)\s*)';
 my $RE_MACRO_DEF = qr/(#define([^\n\r]*\\(\n\r?|\r\n?))*([^\n\r]*[^\n\r\\])?((\n\r?)|(\r\n?)|$))/;
@@ -311,6 +311,11 @@ sub replace_template_args_1layer($) {
   ($_[0] =~ s/$RE_TEMPLATE_ARGS_1LAYER/&blank_lines($1)/gemr, $1);
 }
 
+my $RE_DECORATOR=qr/\@\w+(\([^()]+\))?/;
+sub remove_decorator($) {
+  $_[0] =~ s/$RE_DECORATOR/ /gr;
+}
+
 sub repeat_apply($\&$) {
   my ($times, $fun, $arg) = @_;
   my ($result, $continue) = $fun->($arg);
@@ -325,7 +330,7 @@ sub remove_keywords_and_attributes($) {
 }
 
 sub remove_noexcept_and_throw($) {
-  $_[0] =~ s/$RE_NOEXCEPT_THROW//gr;
+  $_[0] =~ s/$RE_NOEXCEPT_THROW/&blank_lines($1)/gr;
 }
 
 sub replace_template_args_4layers($) {
@@ -355,6 +360,7 @@ sub preprocess_one_java_file($) {
   #$content = remove_gcc_attributes($content);
   $content = replace_template_args_4layers($content);
   $content = remove_noexcept_and_throw($content);
+  $content = remove_decorator($content);
   #$content = replace_macro_defs($content);
 
   my $tmp_file = "$file.tmp.created_by_call_tree";
@@ -1222,12 +1228,12 @@ sub get_entry_of_calling_tree($$) {
   my $name = $node->{name};
   my $branch_type = $node->{branch_type};
   my $file_info = $node->{file_info};
+  my $leaf = $node->{leaf};
+
   if ($file_info) {
     $file_info =~ s/:/ +/g;
     $file_info = "vim $file_info";
   }
-
-  my $leaf = $node->{leaf};
 
   if ($isatty) {
     if ($branch_type eq "matches") {
