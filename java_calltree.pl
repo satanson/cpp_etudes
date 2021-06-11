@@ -330,7 +330,7 @@ sub remove_keywords_and_attributes($) {
 }
 
 sub remove_noexcept_and_throw($) {
-  $_[0] =~ s/$RE_NOEXCEPT_THROW/&blank_lines($1)/gr;
+  $_[0] =~ s/$RE_NOEXCEPT_THROW/&blank_lines($1)/gemr;
 }
 
 sub replace_template_args_4layers($) {
