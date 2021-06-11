@@ -214,7 +214,8 @@ my $RE_FUNC_DEFINITION_NAME = gen_re_func_def_name;
 
 sub gen_re_func_call() {
   my $cs_tokens = "$RE_WS* (?:(?: $RE_SCOPED_IDENTIFIER $RE_WS* , $RE_WS*)* $RE_SCOPED_IDENTIFIER $RE_WS*)?";
-  my $re_func_call = "((?:($RE_SCOPED_IDENTIFIER) $RE_WS *(?:\\($cs_tokens\\))? $RE_WS* (?: \\. | -> | :: ) $RE_WS* )? ($RE_SCOPED_IDENTIFIER)) $RE_WS* [(]";
+  #my $re_func_call = "((?:($RE_SCOPED_IDENTIFIER) $RE_WS *(?:\\($cs_tokens\\))? $RE_WS* (?: \\. | -> | :: ) $RE_WS* )? ($RE_SCOPED_IDENTIFIER)) $RE_WS* [(]";
+  my $re_func_call = "((?:($RE_SCOPED_IDENTIFIER) $RE_WS (?: \\. | -> | :: ) $RE_WS* )? ($RE_SCOPED_IDENTIFIER)) $RE_WS* [(]";
   return $re_func_call =~ s/ //gr;
 }
 

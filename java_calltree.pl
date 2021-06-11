@@ -214,7 +214,8 @@ my $RE_FUNC_DEFINITION_NAME = gen_re_func_def_name;
 
 sub gen_re_func_call() {
   my $cs_tokens = "$RE_WS* (?:(?: $RE_SCOPED_IDENTIFIER $RE_WS* , $RE_WS*)* $RE_SCOPED_IDENTIFIER $RE_WS*)?";
-  my $re_func_call = "((?:($RE_SCOPED_IDENTIFIER) $RE_WS *(?:\\($cs_tokens\\))? $RE_WS* (?: \\. | -> | :: ) $RE_WS* )? ($RE_SCOPED_IDENTIFIER)) $RE_WS* [(]";
+  #my $re_func_call = "((?:($RE_SCOPED_IDENTIFIER) $RE_WS *(?:\\($cs_tokens\\))? $RE_WS* (?: \\. | -> | :: ) $RE_WS* )? ($RE_SCOPED_IDENTIFIER)) $RE_WS* [(]";
+  my $re_func_call = "((?:($RE_SCOPED_IDENTIFIER) $RE_WS* (?: \\. | -> | :: ) $RE_WS* )? ($RE_SCOPED_IDENTIFIER)) $RE_WS* [(]";
   return $re_func_call =~ s/ //gr;
 }
 
@@ -595,7 +596,7 @@ sub extract_all_funcs(\%$$) {
 
   printf "extract lines: %d\n", scalar(@matches);
 
-  die "Current directory seems not a C/C++ project" if scalar(@matches) == 0;
+  die "Current directory seems not a Java project" if scalar(@matches) == 0;
 
   my @func_file_line_def = merge_lines @matches;
 
