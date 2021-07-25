@@ -13,6 +13,8 @@
 #include <iostream>
 #include <math.h>
 #include <memory>
+#include <random>
+#include <cstdlib>
 using namespace std;
 class MiscTest : public ::testing::Test {};
 namespace abc {
@@ -499,6 +501,47 @@ TEST_F(MiscTest, test_unqiue_ptr){
   //put_foobar001(fv, std::unique_ptr<Foobar001>(new Foobar001()));
   //put_foobar001(fv, std::unique_ptr<Foobar001>(new Foobar001()));
   //put_foobar001(fv, std::unique_ptr<Foobar001>(new Foobar001()));
+}
+
+TEST_F(MiscTest, test_int_min_compare){
+  std::cout<< (-2147483648<0) <<std::endl;
+  std::cout<< (-2147483648>0) <<std::endl;
+  std::cout<< (0<-2147483648) <<std::endl;
+  std::cout<< (0>-2147483648) <<std::endl;
+
+  std::cout<< (2147483647<1) <<std::endl;
+  std::cout<< (2147483647>1) <<std::endl;
+  std::cout<< (1<2147483647) <<std::endl;
+  std::cout<< (1>2147483647) <<std::endl;
+}
+
+TEST_F(MiscTest, test_decimal) {
+  std::random_device rd;
+  std::mt19937 gen(rd());
+  std::uniform_int_distribution<uint32_t> length_rand(1, 10000);
+  std::uniform_int_distribution<int> percent_rand(0, 100);
+  for (int i=0; i < 100; ++i) {
+    std::cout << percent_rand(gen) << std::endl;
+  }
+}
+
+template<typename T>
+T getenv_or_default(const char* name, const T& default_value) {
+  const auto* p = getenv(name);
+  if (p==nullptr){
+    return default_value;
+  }
+  std::stringstream ss;
+  ss.str(p);
+  T value;
+  ss >>value;
+  return value;
+}
+
+TEST_F(MiscTest, getenv_or_default) {
+  setenv("foobar_env", "123", 1);
+  auto a = getenv_or_default<int>("foobar_env", 1000);
+  std::cout<<a<<std::endl;
 }
 
 int main(int argc, char **argv) {

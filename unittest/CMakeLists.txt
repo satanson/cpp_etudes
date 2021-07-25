@@ -21,6 +21,7 @@ set(TESTS
         test_meta_macro.cc
         test_pred_guard.cc
         test_function_match.cc
+        test_async.cc
         )
 foreach (src ${TESTS})
     get_filename_component(exe ${src} NAME_WE)
