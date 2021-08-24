@@ -1,0 +1,1 @@
+add_library(folly MallocImpl.cpp Futex.cpp SafeAssert.cpp ScopeGuard.cpp ParkingLot.cpp)

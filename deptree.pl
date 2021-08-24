@@ -8,27 +8,27 @@
 # Usage:  show function call hierarchy of cpp project in the style of Linux utility tree.
 #
 # Format: 
-#   ./calltree.pl <keyword|regex> <filter> <direction(referred(1)|calling)> <verbose(0|1)> <depth(num)>
+#   ./deptree.pl <keyword|regex> <filter> <direction(referred(1)|calling)> <verbose(0|1)> <depth(num)>
 #   
 #    - keyword for exact match, regex for fuzzy match;
 #    - subtrees whose leaf nodes does not match filter are pruned, default value is '' means match all;
-#    - direction: 1, in default, show functions referred by other functions in callees' perspective; otherwise, show function calling relation in callers' perspective;
+#    - direction: 1, in default, show functions referred by other functions in referees' perspective; otherwise, show function calling relation in callers' perspective;
 #    - verbose=0, no file locations output; otherwise succinctly output;
 #    - depth=num, print max derivation depth.
 #
 # Examples: 
 #
 # # show all functions (set depth=1 preventing output from overwhelming).
-# ./calltree.pl '\w+' '' 1 1 1
+# ./deptree.pl '\w+' '' 1 1 1
 #
 # # show functions calling fdatasync in a backtrace way with depth 3;
-# ./calltree.pl 'fdatasync' '' 1 1 3
+# ./deptree.pl 'fdatasync' '' 1 1 3
 #
 # # show functions calling sync_file_range in a backtrace way with depth 3;
-# ./calltree.pl 'sync_file_range' '' 1 1 3
+# ./deptree.pl 'sync_file_range' '' 1 1 3
 #
 # # show functions calling fsync in a backtrace way with depth 4;
-# /calltree.pl 'fsync' '' 1 1 4
+# /deptree.pl 'fsync' '' 1 1 4
 #
 
 use warnings;
@@ -138,13 +138,13 @@ sub ensure_safe() {
   } qx'uname -s 2>/dev/null';
 
   my $supported_os = join "|", @supported_os;
-  die "Platform '$os' is not supported, run calltree.pl in [$supported_os]" unless exists $supported_os{$os};
+  die "Platform '$os' is not supported, run deptree.pl in [$supported_os]" unless exists $supported_os{$os};
 
   die "Undefined cwd or home" unless defined($cwd) && defined($home);
-  die "Never run calltree.pl in HOME directory: '$home'" if $cwd eq $home;
-  die "Never run calltree.pl in root directory: '$cwd'" if $cwd eq '/';
+  die "Never run deptree.pl in HOME directory: '$home'" if $cwd eq $home;
+  die "Never run deptree.pl in root directory: '$cwd'" if $cwd eq '/';
   my @comp = split qr'/+', $cwd;
-  die "Never run calltree.pl in a directory whose depth <= 2" if scalar(@comp) <= 3;
+  die "Never run deptree.pl in a directory whose depth <= 2" if scalar(@comp) <= 3;
 }
 
 ensure_safe;
@@ -202,13 +202,13 @@ sub read_lines($) {
   return undef;
 }
 
-sub extract_all_callees($$) {
+sub extract_all_referees($$) {
   my ($line, $re_func_call) = @_;
-  my @callees = ();
+  my @referees = ();
   while ($line =~ /$re_func_call/g) {
-    push @callees, { call => $1, prefix => $2, name => $3 };
+    push @referees, { call => $1, prefix => $2, name => $3 };
   }
-  return @callees;
+  return @referees;
 }
 
 sub simple_name($) {
@@ -340,12 +340,12 @@ sub get_env_or_default(&$$) {
 }
 
 my $env_trivial_threshold = get_env_or_default {
-  die "Invariant 'calltree_trivial_threshold($_) > 0' is violated" unless int($_) > 0;
-} qw/calltree_trivial_threshold 50/;
+  die "Invariant 'deptree_trivial_threshold($_) > 0' is violated" unless int($_) > 0;
+} qw/deptree_trivial_threshold 50/;
 
 my $env_length_threshold = get_env_or_default {
-  die "Invalid 'calltree_length_threshold($_) > 1' is violated" unless int($_) > 1;
-} qw/calltree_length_threshold 3/;
+  die "Invalid 'deptree_length_threshold($_) > 1' is violated" unless int($_) > 1;
+} qw/deptree_length_threshold 3/;
 
 my %ignored = map {$_ => 1} @ignored;
 
@@ -493,137 +493,53 @@ sub unified_referred_tree($$$$$$) {
   }
 }
 
-=pod
-sub calling_tree($$$$$$) {
-  my ($calling_graph, $name, $filter, $files_excluded, $depth, $uniques) = @_;
-
-  my $new_variant_node = sub($) {
-    my ($node) = @_;
-    my $call = $node->{name};
-    my $callees = [ map {+{ %$_ }} @{$node->{callees}} ];
-    my $clone_node = +{
-      (%$node),
-      branch_type => "callees",
-      call        => $call,
-      callees     => $callees,
-    };
-    return $clone_node;
-  };
-
-  my $new_callee_or_match_node = sub($) {
-    my ($callee) = @_;
-    my $name = $callee->{name};
-    my $call = $callee->{call};
-    my $simple_name = simple_name($name);
-
-    unless (is_pure_name($name)) {
-      if (exists $calling_graph->{$name} && scalar(@{$calling_graph->{$name}}) == 1) {
-        my $node = $new_variant_node->($calling->{$name}[0]);
-        $node->{origin_call} = $call;
-        return $node;
-      }
-
-      if (exists $calling_graph->{$simple_name} && scalar(@{$calling_graph->{$simple_name}}) == 1) {
-        my $node = $new_variant_node->($calling->{$simple_name}[0]);
-        $node->{origin_call} = $call;
-      }
-    }
-
-    my $node = +{
-      (%$callee),
-      simple_name => $simple_name,
-      file_info   => "",
-      branch_type => 'variants',
-    };
-    return $node;
-  };
-
+sub referring_tree($$$$$$) {
+  my ($referring_graph, $mod_name, $filter, $files_excluded, $depth) = @_;
   my $get_id_and_child = sub($$) {
-    my ($calling_graph, $node) = @_;
-    my $name = $node->{name};
-    my $call = $node->{call};
-    my $simple_name = simple_name($name);
-    my $branch_type = $node->{branch_type};
-    my $file_info = $node->{file_info};
-    my $unique_id = "$file_info:$call";
-    $uniques->{"$file_info.$name"} = 1;
+    my ($referring_graph, $node) = @_;
+    my $referee = $node->{referee};
+    my $lineno = $node->{lineno};
+    my $unique_id = "$referee:$lineno";
 
-    if ($file_info ne "" && $file_info =~ /$files_excluded/) {
+    if ($referee =~ /$files_excluded/) {
       return (undef, undef);
     }
 
-    my $matched = $simple_name =~ /$filter/;
-    if ($branch_type eq "variants") {
-      my $variant_nodes = undef;
-      if (exists $calling_graph->{$name}) {
-        $variant_nodes = $calling_graph->{$name};
-      }
-      elsif (exists $calling_graph->{$simple_name}) {
-        $variant_nodes = $calling_graph->{$simple_name};
-      }
-
-      unless (defined($variant_nodes) && scalar(@$variant_nodes) > 0) {
-        return ($matched, $unique_id);
-      }
-
-      my @variant_nodes = map {
-        $new_variant_node->($_)
-      } @$variant_nodes;
-
-      if (exists $node->{prefix}) {
-        my $prefix = $node->{prefix};
-        my @variant_nodes_and_scores =
-          sort {
-            $b->[0] <=> $a->[0]
-          } map {
-            my %d = (
-              prefix   => $prefix,
-              scope    =>, $_->{scope},
-              filename => $_->{filename},
-            );
-            [ default_score(%d), $_ ]
-          } @variant_nodes;
-        # exact match
-        my @exact_variant_nodes = map {$_->[1]} grep {$_->[0] >= 999} @variant_nodes_and_scores;
-        if (scalar(@exact_variant_nodes) > 0) {
-          return ($matched, $unique_id, @exact_variant_nodes);
-        }
-        # approximate match
-        my @approx_variant_nodes = map {$_->[1]} grep {$_->[0] >= 995} @variant_nodes_and_scores;
-        if (scalar(@approx_variant_nodes) > 0) {
-          return ($matched, $unique_id, @approx_variant_nodes);
-        }
-        # no match
-        return ($matched, $unique_id, @variant_nodes);
-      }
-      else {
-        return ($matched, $unique_id, @variant_nodes);
-      }
+    my $matched = $referee =~ /$filter/;
+    my $referee_list = search_by_multipart_key($referring_graph, $referee, "/");
+    if (!defined($referee_list)) {
+      return ($matched, $unique_id);
     }
     else {
-      my @callee_nodes = map {
-        $new_callee_or_match_node->($_)
-      } @{$node->{callees}};
-      return ($matched, $unique_id, @callee_nodes);
+      # deep copy
+      my @child = map {
+        my $child = { %$_ };
+        $child;
+      } @$referee_list;
+      return ($matched, $unique_id, @child);
     }
   };
-
   my $install_child = sub($$) {
     my ($node, $child) = @_;
     $node->{child} = $child;
   };
 
-  my $node = $new_callee_or_match_node->({ name => $name, call => $name, simple_name => $name });
+  my $node = {
+    referee => "$mod_name",
+    referer => "",
+    lineno  => "",
+    id      => $mod_name,
+  };
 
-  return &sub_tree($calling_graph, $node, 0, $depth, {}, $get_id_and_child, $install_child);
+  return &sub_tree($referring_graph, $node, 0, $depth, {}, $get_id_and_child, $install_child);
 }
 
-sub adjust_calling_tree($) {
+sub adjust_referring_tree($) {
   my ($root) = @_;
   return undef unless defined($root);
   return $root unless exists $root->{child};
   return $root if is_pure_name($root->{name});
-  my @child = map {&adjust_calling_tree($_)} @{$root->{child}};
+  my @child = map {&adjust_referring_tree($_)} @{$root->{child}};
   if (($root->{branch_type} eq "variants") && (scalar(@child) == 1)) {
     my $node = $child[0];
     $node->{origin_call} = $root->{call};
@@ -635,41 +551,35 @@ sub adjust_calling_tree($) {
   }
 }
 
-sub fuzzy_calling_tree($$$$$$) {
-  my ($calling_names, $calling_graph, $name_pattern, $filter, $files_excluded, $depth) = @_;
-  my @names = grep {/$name_pattern/} @$calling_names;
-  my @trees = ();
-  my $uniques = {};
-  for my $name (@names) {
-    my $child0 = $calling_graph->{$name}[0];
-    my $child0_file_info = $child0->{file_info};
-    my $child0_name = $child0->{name};
-    my $child0_unique_id = "$child0_file_info.$child0_name";
-    next if exists $uniques->{$child0_unique_id};
-    my $tree = calling_tree($calling_graph, $name, $filter, $files_excluded, $depth, $uniques);
-    push @trees, $tree if defined($tree);
-  }
-  return {
-    name        => $name_pattern,
-    simple_name => $name_pattern,
-    file_info   => "",
-    branch_type => "matches",
-    child       => [ @trees ],
+sub fuzzy_referring_tree($$$$$$) {
+  my ($referer_list, $referring_graph, $mod_name_pattern, $filter, $files_excluded, $depth) = @_;
+  my $root = {
+    referer => $mod_name_pattern,
+    referee => $mod_name_pattern,
+    lineno  => "",
+    id      => "",
+    leaf    => undef
   };
+
+  my @mod_name = grep {/$mod_name_pattern/} @$referer_list;
+
+  $root->{child} = [
+    grep {defined($_)} map {
+      &referring_tree($referring_graph, $_, $filter, $files_excluded, $depth);
+    } @mod_name
+  ];
+  return $root;
 }
 
-sub unified_calling_tree($$$$) {
-  my ($name, $filter, $files_excluded, $depth) = @_;
-  my $root = undef;
-  if (exists $calling->{$name}) {
-    $root = &calling_tree($calling, $name, $filter, $files_excluded, $depth * 2, {});
+sub unified_referring_tree($$$$$$) {
+  my ($referer_list, $referring_graph, $mod_name, $filter, $files_excluded, $depth) = @_;
+  if (exists $referring_graph->{$mod_name}) {
+    return &referring_tree($referring_graph, $mod_name, $filter, $files_excluded, $depth);
   }
   else {
-    $root = &fuzzy_calling_tree($calling_names, $calling, $name, $filter, $files_excluded, $depth * 2);
+    return &fuzzy_referring_tree($referer_list, $referring_graph, $mod_name, $filter, $files_excluded, $depth);
   }
-  return &adjust_calling_tree($root);
 }
-=cut
 
 sub format_tree($$\&\&) {
   my ($root, $verbose, $get_entry, $get_child) = @_;
@@ -723,67 +633,28 @@ sub format_referred_tree($$) {
   my @lines = format_tree($root, $verbose, &get_entry_of_referred_tree, &get_child_of_referred_tree);
   return map {"  $_"} ("", @lines, "");
 }
-=pod
-sub get_entry_of_calling_tree($$) {
+
+sub get_entry_of_referring_tree($$) {
   my ($node, $verbose) = @_;
 
-  my $name = $node->{name};
-  my $branch_type = $node->{branch_type};
-  my $file_info = $node->{file_info};
-  my $leaf = $node->{leaf};
+  my $referee = $node->{referee};
+  my $lineno = $node->{lineno};
+  $referee = $isatty ? "\e[33;32;1m$referee\e[m" : $referee;
+  if (defined($verbose) && defined($lineno) && length($lineno) > 0) {
+    $referee = "$referee\t[$lineno]";
+  }
+  return $referee;
+}
 
-  if ($isatty) {
-    if ($branch_type eq "matches") {
-      $name = "\e[97;35;1m$name\e[m";
-    }
-    elsif ($branch_type eq "variants") {
-      my $call = $node->{call};
-      if ($leaf eq "internal") {
-        $name = "\e[91;33;1m+ $call\e[m";
-      }
-      elsif ($leaf eq "outermost") {
-        #$name = "\e[95;31;1m$call\e[m\e[91;38;2m\t[out-of-tree]\e[m";
-        $name = "\e[95;31;1m$call\e[m";
-      }
-      elsif ($leaf eq "recursive") {
-        $name = "\e[32;36;1m$name\t[recursive]\e[m";
-      }
-      else {
-        $name = "\e[33;32;1m$call\e[m";
-      }
-    }
-    elsif ($branch_type eq "callees") {
-      my $before_at = "";
-      if (exists $node->{origin_call} && defined($node->{origin_call})) {
-        my $origin_call = $node->{origin_call};
-        if ($origin_call ne $name) {
-          $before_at = "\e[91;33;1m$origin_call\e[m @ ";
-        }
-      }
-      if ($leaf eq "recursive") {
-        $name = "$before_at\e[32;36;1m$name\t[recursive]\e[m";
-      }
-      else {
-        $name = "$before_at\e[33;32;1m$name\e[m";
-      }
-    }
-  }
-  else {
-    if ($branch_type eq "variants" && $leaf eq "outermost") {
-      $name = "$name\t[OUT-OF-TREE]";
-    }
-    elsif ($branch_type eq "variants" && $leaf eq "internal") {
-      $name = "$name [+]";
-    }
-    elsif ($branch_type eq "callees" && $leaf eq "recursive") {
-      $name = "$name\t[RECURSIVE]";
-    }
-  }
+sub get_child_of_referring_tree($) {
+  my $node = shift;
+  return exists $node->{child} ? @{$node->{child}} : ();
+}
 
-  if (defined($verbose) && defined($file_info) && length($file_info) > 0) {
-    $name = $name . "\t[" . $file_info . "]";
-  }
-  return $name;
+sub format_referring_tree($$) {
+  my ($root, $verbose) = @_;
+  my @lines = format_tree($root, $verbose, &get_entry_of_referring_tree, &get_child_of_referring_tree);
+  return map {"  $_"} ("", @lines, "");
 }
 
 sub group_by(&;@) {
@@ -811,7 +682,7 @@ sub outermost_tree($$) {
   } @$calling_names;
 
   my @names = grep {!exists $referred->{$_}} sort {$a cmp $b} keys %names;
-  my @trees = grep {defined($_)} map {calling_tree($calling, $_, "\\w+", $files_excluded, 2, {})} @names;
+  my @trees = grep {defined($_)} map {referring_tree($calling, $_, "\\w+", $files_excluded, 2, {})} @names;
   @trees = map {
     ($_->{branch_type} eq "variants" ? @{$_->{child}} : $_);
   } @trees;
@@ -863,16 +734,6 @@ sub innermost_tree($$) {
   };
 }
 
-sub get_child_of_calling_tree($) {
-  my $node = shift;
-  return exists $node->{child} ? @{$node->{child}} : ();
-}
-sub format_calling_tree($$) {
-  my ($root, $verbose) = @_;
-  my @lines = format_tree($root, $verbose, &get_entry_of_calling_tree, &get_child_of_calling_tree);
-  return map {"  $_"} ("", @lines, "");
-}
-=cut
 use Digest::SHA qw(sha256_hex);
 sub cached_sha256_file(@) {
   my @data = (@_);
@@ -898,9 +759,16 @@ $files_excluded = (defined($files_excluded) && $files_excluded ne "") ? $files_e
 sub show_tree() {
   my ($referring, $referred, $referer_list, $referee_list) =
     get_cached_or_extract_all_mods(%ignored, $env_trivial_threshold, $env_length_threshold);
-  my $tree = unified_referred_tree($referee_list, $referred, $mod_name, $filter, $files_excluded, $depth);
-  my @lines = format_referred_tree($tree, $verbose);
-  return join qq//, map {"$_\n"} @lines;
+  if ($mode == 1) {
+    my $tree = unified_referred_tree($referee_list, $referred, $mod_name, $filter, $files_excluded, $depth);
+    my @lines = format_referred_tree($tree, $verbose);
+    return join qq//, map {"$_\n"} @lines;
+  }
+  elsif ($mode == 0) {
+    my $tree = unified_referring_tree($referer_list, $referring, $mod_name, $filter, $files_excluded, $depth);
+    my @lines = format_referring_tree($tree, $verbose);
+    return join qq//, map {"$_\n"} @lines;
+  }
 }
 
 print get_cache_or_run_keyed(@key, cached_sha256_file(@key), \&show_tree);

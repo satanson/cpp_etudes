@@ -7,14 +7,15 @@
 // Created by grakra on 2020/9/23.
 //
 
+#include <cstdlib>
 #include <gtest/gtest.h>
 #include <guard.hh>
 #include <immintrin.h>
 #include <iostream>
+#include <list>
 #include <math.h>
 #include <memory>
 #include <random>
-#include <cstdlib>
 using namespace std;
 class MiscTest : public ::testing::Test {};
 namespace abc {
@@ -472,47 +473,41 @@ TEST_F(MiscTest, test_function_template_partial_specialization) {
   func_tmpl(std::string("abc"));
 }
 
-struct Foobar001{
-  Foobar001(){
-    std::cout<<"invoke ctor"<<std::endl;
+struct Foobar001 {
+  Foobar001() { std::cout << "invoke ctor" << std::endl; }
+  ~Foobar001() { std::cout << "invoke ~ctor" << std::endl; }
+  Foobar001(const Foobar001 &other) {
+    std::cout << "invoke cpy ctor" << std::endl;
   }
-  ~Foobar001(){
-    std::cout<<"invoke ~ctor"<<std::endl;
-  }
-  Foobar001(const Foobar001& other){
-    std::cout<<"invoke cpy ctor"<<std::endl;
-  }
-  Foobar001& operator=(const Foobar001& other){
-    std::cout<<"invoke assign"<<std::endl;
+  Foobar001 &operator=(const Foobar001 &other) {
+    std::cout << "invoke assign" << std::endl;
   }
 };
 using Foobar001Ptr = std::unique_ptr<Foobar001>;
 using Foobar001Vector = std::vector<std::tuple<size_t, Foobar001Ptr>>;
-void put_foobar001(Foobar001Vector& fv, Foobar001Ptr fb){
+void put_foobar001(Foobar001Vector &fv, Foobar001Ptr fb) {
   fv.emplace_back(fv.size(), std::move(fb));
 }
-TEST_F(MiscTest, test_unqiue_ptr){
-  Foobar001Vector  fv;
+TEST_F(MiscTest, test_unqiue_ptr) {
+  Foobar001Vector fv;
   fv.reserve(3);
-  {
-    put_foobar001(fv, std::unique_ptr<Foobar001>(new Foobar001()));
-  }
-  std::cout<<"here"<<std::endl;
-  //put_foobar001(fv, std::unique_ptr<Foobar001>(new Foobar001()));
-  //put_foobar001(fv, std::unique_ptr<Foobar001>(new Foobar001()));
-  //put_foobar001(fv, std::unique_ptr<Foobar001>(new Foobar001()));
+  { put_foobar001(fv, std::unique_ptr<Foobar001>(new Foobar001())); }
+  std::cout << "here" << std::endl;
+  // put_foobar001(fv, std::unique_ptr<Foobar001>(new Foobar001()));
+  // put_foobar001(fv, std::unique_ptr<Foobar001>(new Foobar001()));
+  // put_foobar001(fv, std::unique_ptr<Foobar001>(new Foobar001()));
 }
 
-TEST_F(MiscTest, test_int_min_compare){
-  std::cout<< (-2147483648<0) <<std::endl;
-  std::cout<< (-2147483648>0) <<std::endl;
-  std::cout<< (0<-2147483648) <<std::endl;
-  std::cout<< (0>-2147483648) <<std::endl;
+TEST_F(MiscTest, test_int_min_compare) {
+  std::cout << (-2147483648 < 0) << std::endl;
+  std::cout << (-2147483648 > 0) << std::endl;
+  std::cout << (0 < -2147483648) << std::endl;
+  std::cout << (0 > -2147483648) << std::endl;
 
-  std::cout<< (2147483647<1) <<std::endl;
-  std::cout<< (2147483647>1) <<std::endl;
-  std::cout<< (1<2147483647) <<std::endl;
-  std::cout<< (1>2147483647) <<std::endl;
+  std::cout << (2147483647 < 1) << std::endl;
+  std::cout << (2147483647 > 1) << std::endl;
+  std::cout << (1 < 2147483647) << std::endl;
+  std::cout << (1 > 2147483647) << std::endl;
 }
 
 TEST_F(MiscTest, test_decimal) {
@@ -520,28 +515,48 @@ TEST_F(MiscTest, test_decimal) {
   std::mt19937 gen(rd());
   std::uniform_int_distribution<uint32_t> length_rand(1, 10000);
   std::uniform_int_distribution<int> percent_rand(0, 100);
-  for (int i=0; i < 100; ++i) {
+  for (int i = 0; i < 100; ++i) {
     std::cout << percent_rand(gen) << std::endl;
   }
 }
 
-template<typename T>
-T getenv_or_default(const char* name, const T& default_value) {
-  const auto* p = getenv(name);
-  if (p==nullptr){
+template <typename T>
+T getenv_or_default(const char *name, const T &default_value) {
+  const auto *p = getenv(name);
+  if (p == nullptr) {
     return default_value;
   }
   std::stringstream ss;
   ss.str(p);
   T value;
-  ss >>value;
+  ss >> value;
   return value;
 }
 
 TEST_F(MiscTest, getenv_or_default) {
   setenv("foobar_env", "123", 1);
   auto a = getenv_or_default<int>("foobar_env", 1000);
-  std::cout<<a<<std::endl;
+  std::cout << a << std::endl;
+}
+
+TEST_F(MiscTest, test_list) {
+  std::list<int> a{1, 2, 3, 4, 5, 6};
+  std::list<int> b{7, 8, 9, 10, 11, 12};
+  a.splice(a.end(), b);
+  ASSERT_TRUE(b.empty());
+  for (auto it = a.begin(); it != a.end();) {
+    auto e = *it;
+    if (e % 2 == 0 || e % 3 == 0) {
+      a.erase(it++);
+    } else {
+      ++it;
+    }
+  }
+  ASSERT_TRUE(!a.empty());
+  for (auto e : a) {
+    ASSERT_TRUE(e % 2 != 0 && e % 3 != 0);
+    std::cout << e << std::endl;
+  }
 }
 
 int main(int argc, char **argv) {
