@@ -279,6 +279,16 @@ sub all_sub_classes() {
       if ($child ne $parent) {
         push @{$tree->{$parent}}, $e;
       }
+      my $simple_parent = ($parent =~ /\b(\w+)\b$/g,$1);
+      if ($simple_parent eq $parent) {
+        next;
+      }
+      if (!exists $table{$simple_parent}) {
+        $table{$simple_parent} = [ "out-of-tree" ];
+      }
+      if ($child ne $simple_parent) {
+        push @{$tree->{$simple_parent}}, $e;
+      }
     }
   }
   return $tree, \%table;
