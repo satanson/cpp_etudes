@@ -1,5 +1,5 @@
 set (LLVM_PATHS "/usr/local/lib/llvm")
-foreach(llvm_v 11 10 9 8)
+foreach(llvm_v 12 11 10 9 8)
     if (NOT LLVM_FOUND)
         find_package (LLVM ${llvm_v} CONFIG PATHS ${LLVM_PATHS})
     endif ()

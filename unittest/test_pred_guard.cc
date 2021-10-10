@@ -59,6 +59,7 @@ struct ArrayCopy<S, T, AssignableGuard<S, T>> {
     for (auto i = 0; i < n; ++i) {
       dst0[i] = T(src0[i]);
     }
+    std::string a ;
   }
 };
 

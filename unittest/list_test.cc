@@ -13,6 +13,7 @@
 #include <random>
 #include <thread>
 #include <vector>
+#include <memory>
 
 namespace com {
 namespace grakra {
