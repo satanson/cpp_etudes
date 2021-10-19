@@ -273,7 +273,7 @@ sub remove_keywords_and_attributes($) {
 }
 
 sub remove_v8_modifiers($) {
-  ($_[0] =~ s/(class|struct)\s+(?:V8_EXPORT|V8_EXPORT_PRIVATE)\b/$1/gr) =~ s/NON_EXPORTED_BASE\s*\((\s*\w+\s*)\)/$1/gr;
+  ($_[0] =~ s/(class|struct)\s+(?:V8_EXPORT|V8_EXPORT_PRIVATE)\b/$1/gr) =~ s/NON_EXPORTED_BASE\s*\((\s*($RE_SCOPED_IDENTIFIER)\s*)\)/$1/gr;
 }
 
 sub remove_noexcept_and_throw($) {
