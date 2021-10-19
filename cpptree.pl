@@ -39,6 +39,12 @@
 use warnings;
 use strict;
 use Data::Dumper;
+use Storable qw/freeze thaw nstore retrieve/;
+
+sub red_color($) {
+  my ($msg) = @_;
+  "\e[95;31;1m$msg\e[m"
+}
 
 sub ensure_ag_installed() {
   my ($ag_path) = map {chomp;
@@ -164,11 +170,265 @@ my $RE_TWO_COLON = "(?::{2})";
 my $RE_SCOPED_IDENTIFIER = "(?:$RE_TWO_COLON $RE_WS*)? (?: $RE_IDENTIFIER $RE_WS* $RE_TWO_COLON $RE_WS*)* $RE_IDENTIFIER" =~ s/ //gr;
 my $RE_CLASS = "(?:$RE_SCOPED_IDENTIFIER)";
 
+sub read_content($) {
+  my $file_name = shift;
+  if (-f $file_name) {
+    open my $handle, "<", $file_name or die "Fail to open '$file_name' for reading: $!";
+    local $/;
+    my $content = <$handle>;
+    close $handle;
+    return $content;
+  }
+  return undef;
+}
+
+sub write_content($@) {
+  my ($file_name, @lines) = @_;
+  open my $handle, "+>", $file_name or die "Fail to open '$file_name' for writing: $!";
+  print $handle join("\n", @lines);
+  close $handle;
+}
+
+sub read_lines($) {
+  my $file_name = shift;
+  if (-f $file_name) {
+    open my $handle, "<", $file_name or die "Fail to open '$file_name' for reading: $!";
+    my @lines = <$handle>;
+    close $handle;
+    return \@lines;
+  }
+  return undef;
+}
+
+sub gen_re_list($$$) {
+  my ($re_delimiter, $re_item, $optional) = @_;
+  my $re = "(?: $re_item (?: $RE_WS* $re_delimiter $RE_WS* $re_item)*? ) $optional";
+  return $re =~ s/ //gr;
+}
+
+## preprocess source file
+
+my $RE_QUOTED_STRING = qr/("([^"]*\\")*[^"]*")/;
+my $RE_SINGLE_CHAR = qr/'[\\]?.'/;
+my $RE_SLASH_STAR_COMMENT = qr"(/[*]([^/*]*(([*]+|[/]+)[^/*]+)*([*]+|[/]+)?)[*]/)";
+my $RE_NESTED_CHARS_IN_SINGLE_QUOTES = qr/'[{}<>()]'/;
+my $RE_SINGLE_LINE_COMMENT = qr'/[/\\].*';
+my $RE_LEFT_ANGLES = qr'<[<=]+';
+my $RE_TEMPLATE_ARGS_1LAYER = qr'(<\s*(((::)?(\w+::)*\w+\s*,\s*)*(::)?(\w+::)*\w+\s*)>)';
+my $RE_CSV_TOKEN = gen_re_list(",", $RE_SCOPED_IDENTIFIER, "??");
+my $RE_NOEXCEPT_THROW = qr"(\\b(noexcept|throw)\\b)(\\s*\\(\\s*$RE_CSV_TOKEN\\s*\\))?";
+my $RE_MACRO_DEF = qr/(#define([^\n\r]*\\(\n\r?|\r\n?))*([^\n\r]*[^\n\r\\])?((\n\r?)|(\r\n?)|$))/;
+
+sub empty_string_with_blank_lines($) {
+  q/""/ . (join "\n", map {""} split "\n", $_[0]);
+}
+
+sub blank_lines($) {
+  $_[0] =~ tr/\n\r//cdr;
+}
+
+sub replace_single_char($) {
+  $_[0] =~ s/$RE_SINGLE_CHAR/'x'/gr;
+}
+
+sub replace_quoted_string($) {
+  return $_[0] =~ s/$RE_QUOTED_STRING/&empty_string_with_blank_lines($1)/gemr;
+}
+
+sub replace_slash_star_comment($) {
+  $_[0] =~ s/$RE_SLASH_STAR_COMMENT/&blank_lines($1)/gemr;
+}
+
+sub replace_nested_char($) {
+  $_[0] =~ s/$RE_NESTED_CHARS_IN_SINGLE_QUOTES/'x'/gr;
+}
+
+sub replace_single_line_comment($) {
+  $_[0] =~ s/$RE_SINGLE_LINE_COMMENT//gr;
+}
+
+sub replace_left_angles($) {
+  $_[0] =~ s/$RE_LEFT_ANGLES/++/gr;
+}
+
+sub replace_lt($) {
+  $_[0] =~ s/\s+<\s+/ + /gr;
+}
+
+sub replace_template_args_1layer($) {
+  ($_[0] =~ s/$RE_TEMPLATE_ARGS_1LAYER/&blank_lines($1)/gemr, $1);
+}
+
+sub repeat_apply($\&$) {
+  my ($times, $fun, $arg) = @_;
+  my ($result, $continue) = $fun->($arg);
+  if (defined($continue) && $times > 1) {
+    return &repeat_apply($times - 1, $fun, $result);
+  }
+  return $result;
+}
+
+sub remove_keywords_and_attributes($) {
+  $_[0] =~ s/(\b(volatile|const|final|override)\b)|\[\[\w+\]\]//gr;
+}
+
+sub remove_v8_modifiers($) {
+  ($_[0] =~ s/(class|struct)\s+(?:V8_EXPORT|V8_EXPORT_PRIVATE)\b/$1/gr) =~ s/NON_EXPORTED_BASE\s*\((\s*\w+\s*)\)/$1/gr;
+}
+
+sub remove_noexcept_and_throw($) {
+  $_[0] =~ s/$RE_NOEXCEPT_THROW//gr;
+}
+
+sub replace_template_args_4layers($) {
+  repeat_apply(4, &replace_template_args_1layer, $_[0]);
+}
+
+sub gen_re_gcc_attribute() {
+  my $attr = "(?: $RE_IDENTIFIER (?: $RE_WS* \\([^()]+\\) )? )";
+  my $attr_list = "(?: $attr (?: $RE_WS* , $RE_WS* $attr $RE_WS*)*)";
+  my $gcc_attribute = "__attribute__ $RE_WS* \\( \\(? $RE_WS*  $attr_list $RE_WS* \\)? \\)";
+  return $gcc_attribute =~ s/ //gr;
+}
+
+my $RE_GCC_ATTRIBUTE = gen_re_gcc_attribute();
+
+sub remove_gcc_attributes($) {
+  $_[0] =~ s/$RE_GCC_ATTRIBUTE//gr;
+}
+
+sub replace_macro_defs($) {
+  $_[0] =~ s/$RE_MACRO_DEF/&blank_lines($1)/gemr;
+}
+
+sub preprocess_one_cpp_file($) {
+  my $file = shift;
+  return unless -f $file;
+  my $content = read_content($file);
+  return unless defined($content) && length($content) > 0;
+  $content = replace_quoted_string(replace_single_char(replace_slash_star_comment($content)));
+
+  $content = join qq/\n/, map {
+    replace_lt(replace_left_angles(replace_nested_char(replace_single_line_comment($_))))
+  } split qq/\n/, $content;
+
+  $content = remove_keywords_and_attributes($content);
+  $content = remove_gcc_attributes($content);
+  $content = replace_template_args_4layers($content);
+  $content = remove_noexcept_and_throw($content);
+  $content = replace_macro_defs($content);
+  $content = remove_v8_modifiers($content);
+
+  my $tmp_file = "$file.tmp.created_by_call_tree";
+  write_content($tmp_file, $content);
+  rename $tmp_file => $file;
+}
+
+sub get_all_cpp_files() {
+  return grep {
+    defined($_) && length($_) > 0 && (-f $_)
+  } map {
+    chomp;
+    $_
+  } qx(ag -U -G $cpp_filename_pattern $ignore_pattern -l);
+}
+
+sub group_files($@) {
+  my ($num_groups, @files) = @_;
+  my $num_files = scalar(@files);
+  die "Illegal num_groups($num_groups)" if $num_groups < 1;
+  if ($num_files == 0) {
+    return;
+  }
+  $num_groups = $num_files if $num_files < $num_groups;
+  my @groups = map {[]} (1 .. $num_groups);
+  foreach my $i (0 .. ($num_files - 1)) {
+    push @{$groups[$i % $num_groups]}, $files[$i];
+  }
+  return @groups;
+}
+
+sub preprocess_cpp_files(\@) {
+  my @files = grep {defined($_) && length($_) > 0 && (-f $_) && (-T $_)} @{$_[0]};
+  foreach my $f (@files) {
+    my $saved_f = "$f.saved_by_calltree";
+    rename $f => $saved_f;
+    write_content($f, read_content($saved_f));
+    preprocess_one_cpp_file($f);
+  }
+}
+
+sub preprocess_all_cpp_files() {
+  my @files = get_all_cpp_files();
+
+  my @groups = group_files(10, @files);
+  my $num_groups = scalar(@groups);
+  return if $num_groups < 1;
+  my @pids = (undef) x $num_groups;
+  for (my $i = 0; $i < $num_groups; ++$i) {
+    my @group = @{$groups[$i]};
+    my $pid = fork();
+    if ($pid == 0) {
+      preprocess_cpp_files(@group);
+      exit 0;
+    }
+    elsif ($pid > 0) {
+      $pids[$i] = $pid;
+    }
+    else {
+      die "Fail to fork a process: $!";
+    }
+  }
+
+  for (my $i = 0; $i < $num_groups; ++$i) {
+    wait;
+  }
+}
+
+sub restore_saved_files() {
+  my @saved_files = grep {
+    defined($_) && length($_) > 0 && (-f $_)
+  } map {
+    chomp;
+    $_
+  } qx(ag -U -G '.+\\.saved_by_calltree\$' $ignore_pattern -l);
+
+  foreach my $f (@saved_files) {
+    my $original_f = substr($f, 0, length($f) - length(".saved_by_calltree"));
+    rename $f => $original_f;
+  }
+
+  my @tmp_files = grep {
+    defined($_) && length($_) > 0 && (-f $_)
+  } map {
+    chomp;
+    $_
+  } qx(ag -U -G '\\.tmp\\.created_by_calltree\$' $ignore_pattern -l);
+
+  foreach my $f (@tmp_files) {
+    unlink $f;
+  }
+}
+
+sub register_abnormal_shutdown_hook() {
+  my $abnormal_handler = sub {
+    my $cause = shift;
+    $cause = red_color($cause);
+    print qq/Abnormal exit caused by $cause\n/;
+    @SIG{keys %SIG} = qw/DEFAULT/ x (keys %SIG);
+    restore_saved_files();
+    exit 0;
+  };
+  my @sig = qw/__DIE__ QUIT INT TERM ABRT/;
+  @SIG{@sig} = ($abnormal_handler) x scalar(@sig);
+}
+
 sub all_sub_classes() {
   my $attr_re = "\\[\\[[^\\[\\]]+\\]\\]";
   my $access_specifier_re = "final|private|public|protected";
   my $template_arguments_re = "<([^<>]*(?:<(?1)>|[^<>])[^<>]*)?>";
-  my $cls_re = "^\\s*(template\\s*$template_arguments_re)?(?:\\s*typedef)?\\s*\\b(class|struct)\\b\\s*([a-zA-Z_]\\w*)\\s*[^{};*()=]*?{";
+  my $cls_re = "^[ \\t]*(template\\s*$template_arguments_re)?(?:\\s*typedef)?[ \\t]*\\b(class|struct)\\b\\s*([a-zA-Z_]\\w*)\\s*[^{};*()=]*?{";
+  print "cls_re=$cls_re\n";
   my $cls_filter_re = "^(\\S+)\\s*:\\s*(?:class|struct)\\s+\\w+(\\s+:\\s+(\\s*[:\\w]+\\s*,\\s*)*[:\\w]+)?s*";
 
   my $class0_re = "(?:class|struct)\\s+($RE_CLASS)";
@@ -294,6 +554,64 @@ sub all_sub_classes() {
   return $tree, \%table;
 }
 
+sub get_cached_or_run(&$$;@) {
+  my ($func, $validate_func, $cached_file, @args) = @_;
+  if (file_newer_than_script($cached_file)) {
+    my $result = retrieve($cached_file);
+    if (defined($result) && ref($result) eq ref([]) && $validate_func->(@$result)) {
+      return @$result;
+    }
+  }
+  my @result = $func->(@args);
+  nstore [@result], $cached_file;
+  return @result;
+}
+
+sub get_cache_or_run_keyed(\@$$;@) {
+  my ($key, $file, $func, @args) = @_;
+
+  die "Invalid data" unless defined($key) && ref($key) eq ref([]);
+  die "Invalid func" unless defined($func);
+
+  my @key = @$key;
+  my $expect_key = join "\0", @key;
+
+  my $check_key = sub(\%) {
+    my $data = shift;
+    return exists $data->{cached_key} && $data->{cached_key} eq $expect_key;
+  };
+  my ($data) = get_cached_or_run {
+    +{ cached_key => $expect_key, cached_data => [ $func->(@args) ] }
+  } $check_key, $file;
+  return @{$data->{cached_data}};
+}
+
+sub script_basename() {
+  get_path_of_script() =~ m{/([^/]+?)(?:\.\w+)?$};
+  $1
+}
+
+sub get_cached_or_all_sub_classes() {
+  restore_saved_files();
+  my $script_basename = script_basename();
+  my $file = ".$script_basename.dat";
+  my @key = ("key");
+  my $do_summary = sub() {
+    print "preprocess_all_cpp_files\n";
+    preprocess_all_cpp_files();
+    print "register_abnormal_shutdown_hook\n";
+    register_abnormal_shutdown_hook();
+    print "extract_all_sub_classes: begin\n";
+    my @result = all_sub_classes();
+    print "extract_all_sub_classes: end\n";
+    @SIG{keys %SIG} = qw/DEFAULT/ x (keys %SIG);
+    restore_saved_files();
+    return @result;
+  };
+  my @result = get_cache_or_run_keyed(@key, $file, $do_summary);
+  return @result;
+}
+
 my $cls = shift || die "missing class name";
 my $filter = shift;
 my $verbose = shift;
@@ -304,8 +622,7 @@ $filter = ".*" unless (defined($filter) && $filter ne "");
 $verbose = undef if (defined($verbose) && $verbose == 0);
 $depth = 0 unless defined($depth);
 
-my ($tree, $table) = all_sub_classes();
-
+my ($tree, $table) = get_cached_or_all_sub_classes();
 
 sub remove_loop($$$) {
   my ($tree, $name, $path) = @_;

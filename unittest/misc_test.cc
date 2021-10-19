@@ -568,6 +568,7 @@ TEST_F(MiscTest, test_list) {
 
 struct A0000 {
     A0000(std::string const& s) : name(s) { std::cout << "construct A0000(" << name << ")" << std::endl; }
+    bool pred() { return name.find("ab", 0) != std::string::npos; }
     ~A0000() { std::cout << "destruct A0000(" << name << ")" << std::endl; }
 
 private:
@@ -584,11 +585,44 @@ private:
     A0000 a1;
 };
 
-TEST_F(MiscTest, testCtorDtor){
+TEST_F(MiscTest, testCtorDtor) {
     A000 a("base", "field1", "field2");
-    int b=0;
-    std::frexp(0.2,&b);
+    int b = 0;
+    std::frexp(0.2, &b);
 }
+#include <queue>
+using Driver = A0000;
+using DriverPtr = std::shared_ptr<A0000>;
+using DriverQueue = std::queue<DriverPtr>;
+using DriverList = std::list<DriverPtr>;
+void put_driver(DriverQueue& queue, const DriverPtr& driver) {
+    queue.emplace(driver);
+}
+
+TEST_F(MiscTest, testQueue) {
+    DriverList driver_list;
+    DriverQueue driver_queue;
+    driver_list.push_back(std::make_shared<Driver>("a"));
+    driver_list.push_back(std::make_shared<Driver>("b"));
+    driver_list.push_back(std::make_shared<Driver>("c"));
+    driver_list.push_back(std::make_shared<Driver>("d"));
+    driver_list.push_back(std::make_shared<Driver>("e"));
+    auto driver_it = driver_list.begin();
+    while (driver_it != driver_list.end()) {
+        put_driver(driver_queue, *driver_it);
+        driver_list.erase(driver_it++);
+    }
+}
+
+TEST_F(MiscTest, testNoneOf) {
+    std::vector<A0000> as{A0000("abc"), A0000("abcd"), A0000("ab")};
+    std::vector<A0000> as2;
+    ASSERT_TRUE(std::all_of(as.begin(), as.end(), [](auto& a) { return a.pred(); }));
+    ASSERT_TRUE(std::any_of(as.begin(), as.end(), [](auto& a) { return a.pred(); }));
+    ASSERT_FALSE(std::none_of(as.begin(), as.end(), [](auto& a) { return a.pred(); }));
+    ASSERT_TRUE(std::all_of(as2.begin(), as2.end(), [](auto& a) { return a.pred(); }));
+}
+
 int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
