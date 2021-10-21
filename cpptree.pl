@@ -93,7 +93,11 @@ sub merge_lines_multiline_break_enabled(\@) {
     else {
       if (defined($prev_file)) {
         # non-first lines of a match block
-        $prev_line = $prev_line . $three_parts[$i][2];
+        if ($prev_line =~ /\w$/ && $three_parts[$i][2] =~ /^\w/) {
+          $prev_line = $prev_line . " " . $three_parts[$i][2];
+        } else {
+          $prev_line = $prev_line . $three_parts[$i][2];
+        }
       }
       else {
         # first line of a match block

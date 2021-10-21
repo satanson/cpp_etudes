@@ -104,7 +104,11 @@ sub merge_lines_multiline_break_enabled(\@) {
     else {
       if (defined($prev_file)) {
         # non-first lines of a match block
-        $prev_line = $prev_line . $three_parts[$i][2];
+        if ($prev_line =~ /\w$/ && $three_parts[$i][2] =~ /^\w/) {
+          $prev_line = $prev_line . " " . $three_parts[$i][2];
+        } else {
+          $prev_line = $prev_line . $three_parts[$i][2];
+        }
       }
       else {
         # first line of a match block
@@ -434,7 +438,7 @@ sub register_abnormal_shutdown_hook() {
 
 sub all_sub_classes() {
   my $access_specifier_re = "final|private|public|protected|abstract";
-  my $cls_re = "^\\s*\\b(class|interface)\\b\\s*([a-zA-Z_]\\w*)\\s*[^{]*?{";
+  my $cls_re = "^[ \\t]*\\b(class|interface)\\b\\s*([a-zA-Z_]\\w*)\\s*[^{]*?{";
   my $cls_filter_re = "^(\\S+)\\s*:\\s*(?:class|interface)\\s+\\w+(\\s+:\\s+(\\s*[:\\w]+\\s*,\\s*)*[:\\w]+)?s*";
 
   my $class0_re = "(?:class|interface)\\s+($RE_CLASS)";
@@ -519,8 +523,8 @@ sub all_sub_classes() {
     $class2_1_re, $class3_1_re, $class4_1_re, $class5_1_re, $class6_1_re, $class7_1_re,
   );
 
-  @matches = map {$_->[1]} sort {$a->[0] cmp $b->[0]} map {/^(\S+)\s*:\s*$class0_re/;
-    [ $2, $_ ]} @matches;
+  @matches = map {$_->[1]} sort { $a->[0] cmp $b->[0] } map { /^(\S+)\s*:\s*$class0_re/; [ $2, $_ ] } @matches;
+
   for my $re (@class_re_list) {
     my @parent_matches = grep {defined($_)} map {if (/^(\S+)\s*:\s*$re\s*/) {[ $1, $2, $3 ]}
     else {undef}} @matches;
