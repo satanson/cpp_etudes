@@ -590,6 +590,7 @@ TEST_F(MiscTest, testCtorDtor) {
     int b = 0;
     std::frexp(0.2, &b);
 }
+#include <chrono>
 #include <queue>
 using Driver = A0000;
 using DriverPtr = std::shared_ptr<A0000>;
@@ -621,6 +622,18 @@ TEST_F(MiscTest, testNoneOf) {
     ASSERT_TRUE(std::any_of(as.begin(), as.end(), [](auto& a) { return a.pred(); }));
     ASSERT_FALSE(std::none_of(as.begin(), as.end(), [](auto& a) { return a.pred(); }));
     ASSERT_TRUE(std::all_of(as2.begin(), as2.end(), [](auto& a) { return a.pred(); }));
+}
+
+TEST_F(MiscTest, testSeconds) {
+    using std::chrono::seconds;
+    using std::chrono::milliseconds;
+    using std::chrono::steady_clock;
+    using std::chrono::duration_cast;
+    auto dueTime = seconds(300);
+    auto now = steady_clock::now().time_since_epoch();
+    auto deadline = duration_cast<milliseconds>(now + dueTime).count();
+    std::cout<<(deadline-duration_cast<milliseconds>(now).count()) <<std::endl;
+    std::cout <<"now="<<now.count() <<std::endl;
 }
 
 int main(int argc, char** argv) {
