@@ -154,7 +154,7 @@ my $ignore_pattern = join "", map {" --ignore '$_' "}
   qw(*test* *benchmark* *CMakeFiles* *contrib/* *third_party/*
     *thirdparty/* *3rd-[pP]arty/* *3rd[pP]arty/* *deps/*);
 
-my $cpp_filename_pattern = qq/'\\.(c|cc|cpp|C|h|hh|hpp|H)\$'/;
+my $cpp_filename_pattern = qq/'\\.(c|cc|cpp|cu|C|h|hh|hpp|cuh|H)\$'/;
 
 my $RE_WS = "(?:\\s)";
 my $RE_WS_NON_NL = "(?:[\\t\\x{20}])";

@@ -58,7 +58,7 @@ sub ensure_ag_installed() {
 ensure_ag_installed;
 
 my $ignore_pattern = join "", map {" --ignore '$_' "} qw(*test* *benchmark* *CMakeFiles* *contrib/* *thirdparty/* *3rd-[pP]arty/* *3rd[pP]arty/*);
-my $cpp_filename_pattern = qq/'\\.(c|cc|cpp|C|h|hh|hpp|H)\$'/;
+my $cpp_filename_pattern = qq/'\\.(c|cc|cpp|cu|C|h|hh|hpp|cuh|H)\$'/;
 
 sub multiline_break_enabled() {
   my ($enabled) = map {chomp;
