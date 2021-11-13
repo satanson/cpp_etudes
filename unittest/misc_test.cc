@@ -636,6 +636,28 @@ TEST_F(MiscTest, testSeconds) {
     std::cout <<"now="<<now.count() <<std::endl;
 }
 
+TEST_F(MiscTest,testSetEqualRange) {
+    std::set<int> a;
+    for (int i=0;i<10;++i){
+        a.insert(i*2);
+    }
+    for (auto it = a.begin(); it != a.end(); ++it){
+        std::cout <<*it <<", ";
+    }
+    std::cout<<"\n";
+
+    for (int i=0; i < 10; ++i) {
+        int v = i*3-4;
+        std::cout << "seek v="<<v<<" :";
+        auto bounds = a.equal_range(v);
+        bounds.second++;
+        for (auto it = bounds.first; it != bounds.second; ++it) {
+            std::cout <<*it << ", ";
+        }
+        std::cout <<"\n";
+    }
+}
+
 int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
