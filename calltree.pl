@@ -270,7 +270,10 @@ my $RE_LEFT_ANGLES = qr'<[<=]+';
 my $RE_TEMPLATE_ARGS_1LAYER = qr'(<\s*(((::)?(\w+::)*\w+\s*,\s*)*(::)?(\w+::)*\w+\s*)>)';
 my $RE_CSV_TOKEN = gen_re_list(",", $RE_SCOPED_IDENTIFIER, "??");
 my $RE_NOEXCEPT_THROW = qr"(\\b(noexcept|throw)\\b)(\\s*\\(\\s*$RE_CSV_TOKEN\\s*\\))?";
-my $RE_MACRO_DEF = qr/(#define([^\n\r]*\\(\n\r?|\r\n?))*([^\n\r]*[^\n\r\\])?((\n\r?)|(\r\n?)|$))/;
+my $RE_MACRO_DEF = qr/(#definoexceptne([^\n\r]*\\(\n\r?|\r\n?))*([^\n\r]*[^\n\r\\])?((\n\r?)|(\r\n?)|$))/;
+my $RE_CONDITIONAL_COMPILE_BEGIN_BRANCH = qr/^[\t ]*#(if|endif).*$/;
+my $RE_CONDITIONAL_COMPILE_MID_BRANCH = qr/(?s)(^[\t ]*#elif.*?)(?=^[\t ]*#elif)/ms;
+my $RE_CONDITIONAL_COMPILE_END_BRANCH = qr/(?s)(^[\t ]*#elif.*?#endif)/ms;
 
 sub empty_string_with_blank_lines($) {
   q/""/ . (join "\n", map {""} split "\n", $_[0]);
@@ -292,6 +295,18 @@ sub replace_slash_star_comment($) {
   $_[0] =~ s/$RE_SLASH_STAR_COMMENT/&blank_lines($1)/gemr;
 }
 
+sub replace_conditional_compilation_begin_branch($) {
+  $_[0] =~ s/$RE_CONDITIONAL_COMPILE_BEGIN_BRANCH//gr;
+}
+
+sub replace_conditional_compilation_mid_branch($) {
+  ($_[0] =~ s/$RE_CONDITIONAL_COMPILE_MID_BRANCH/&blank_lines($1)/gemr, $1);
+}
+
+sub replace_conditional_compilation_end_branch($) {
+  $_[0] =~ s/$RE_CONDITIONAL_COMPILE_END_BRANCH/&blank_lines($1)/gemr;
+}
+
 sub replace_nested_char($) {
   $_[0] =~ s/$RE_NESTED_CHARS_IN_SINGLE_QUOTES/'x'/gr;
 }
@@ -310,6 +325,14 @@ sub replace_lt($) {
 
 sub replace_template_args_1layer($) {
   ($_[0] =~ s/$RE_TEMPLATE_ARGS_1LAYER/&blank_lines($1)/gemr, $1);
+}
+
+sub replace_seastar($) {
+  $_[0] =~ s/^[\n ]*SEASTAR_CONCEPT.*$/ /gr;
+}
+
+sub remove_noexcept($) {
+  $_[0] =~ s/\bnoexcept\b/ /gr;
 }
 
 sub repeat_apply($\&$) {
@@ -346,16 +369,23 @@ sub preprocess_one_cpp_file($) {
   return unless -f $file;
   my $content = read_content($file);
   return unless defined($content) && length($content) > 0;
+  $content = repeat_apply(10, &replace_conditional_compilation_mid_branch, $content);
+  $content = replace_conditional_compilation_end_branch($content);
+  $content = join qq/\n/, map {
+    replace_conditional_compilation_begin_branch($_);
+  } split qq/\n/, $content;
+
   $content = replace_quoted_string(replace_single_char(replace_slash_star_comment($content)));
 
   $content = join qq/\n/, map {
-    replace_lt(replace_left_angles(replace_nested_char(replace_single_line_comment($_))))
+    replace_seastar(replace_lt(replace_left_angles(replace_nested_char(replace_single_line_comment($_)))))
   } split qq/\n/, $content;
 
   $content = remove_keywords_and_attributes($content);
   $content = remove_gcc_attributes($content);
   $content = replace_template_args_4layers($content);
   $content = remove_noexcept_and_throw($content);
+  $content = remove_noexcept($content);
   $content = replace_macro_defs($content);
 
   my $tmp_file = "$file.tmp.created_by_call_tree";

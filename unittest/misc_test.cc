@@ -632,32 +632,51 @@ TEST_F(MiscTest, testSeconds) {
     auto dueTime = seconds(300);
     auto now = steady_clock::now().time_since_epoch();
     auto deadline = duration_cast<milliseconds>(now + dueTime).count();
-    std::cout<<(deadline-duration_cast<milliseconds>(now).count()) <<std::endl;
-    std::cout <<"now="<<now.count() <<std::endl;
+    std::cout << (deadline - duration_cast<milliseconds>(now).count()) << std::endl;
+    std::cout << "now=" << now.count() << std::endl;
 }
 
-TEST_F(MiscTest,testSetEqualRange) {
+TEST_F(MiscTest, testSetEqualRange) {
     std::set<int> a;
-    for (int i=0;i<10;++i){
-        a.insert(i*2);
+    for (int i = 0; i < 10; ++i) {
+        a.insert(i * 2);
     }
-    for (auto it = a.begin(); it != a.end(); ++it){
-        std::cout <<*it <<", ";
+    for (auto it = a.begin(); it != a.end(); ++it) {
+        std::cout << *it << ", ";
     }
-    std::cout<<"\n";
+    std::cout << "\n";
 
-    for (int i=0; i < 10; ++i) {
-        int v = i*3-4;
-        std::cout << "seek v="<<v<<" :";
+    for (int i = 0; i < 10; ++i) {
+        int v = i * 3 - 4;
+        std::cout << "seek v=" << v << " :";
         auto bounds = a.equal_range(v);
         bounds.second++;
         for (auto it = bounds.first; it != bounds.second; ++it) {
-            std::cout <<*it << ", ";
+            std::cout << *it << ", ";
         }
-        std::cout <<"\n";
+        std::cout << "\n";
     }
 }
 
+struct NoExceptClass {
+    NoExceptClass() = default;
+    ~NoExceptClass() = default;
+    void do_except_work()noexcept {
+        vector<int> a;
+        auto& b = a.back();
+        std::cout<<b<<"can not reach here\n";
+    }
+    void do_except_work2() {
+        vector<int> a;
+        auto& b = a.back();
+        std::cout<<b<<"can not reach here\n";
+    }
+};
+TEST_F(MiscTest, testNoExceptClass) {
+    NoExceptClass no_except_class;
+    // no_except_class.do_except_work();
+    // no_except_class.do_except_work2();
+}
 int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
