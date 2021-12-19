@@ -31,8 +31,8 @@ sub norm_time2($$) {
 
 my @lines0=map {chomp;$_} <$fh>;
 my @lines=grep {/$indexNamePat0/} map {$_.":".$lines0[$_-1]} 1..scalar(@lines0);
-my @norm_lines1=map {/$indexNamePat1/;[norm_time1($1, $2), $_]} @lines;
-my @norm_lines2=map {/$indexNamePat2/;[norm_time2($1, $2), $_]} @lines;
+my @norm_lines1=map {/$indexNamePat1/;[norm_time1($1, $2), $_]} grep {/$indexNamePat1/} @lines;
+my @norm_lines2=map {/$indexNamePat2/;[norm_time2($1, $2), $_]} grep {/$indexNamePat2/} @lines;
 my @norm_lines=(@norm_lines1, @norm_lines2);
 my @sorted_lines = sort {$a->[0] <=> $b->[0]} @norm_lines;
 for my $line (@sorted_lines) {
