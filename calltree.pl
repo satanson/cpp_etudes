@@ -948,12 +948,19 @@ sub default_score(\%) {
 
 sub called_tree($$$$$) {
   my ($called_graph, $name, $filter, $files_excluded, $depth) = @_;
+
+  my $deduplicate = 0;
+  if ($depth < 0) {
+    $depth = abs($depth);
+    $deduplicate = 1;
+  }
+
   my $get_id_and_child = sub($$) {
     my ($called_graph, $node) = @_;
     my $name = $node->{name};
     my $simple_name = simple_name($name);
     my $file_info = $node->{file_info};
-    my $unique_id = "$file_info:$name";
+    my $unique_id = "$file_info";
 
     if ($file_info ne "" && $file_info =~ /$files_excluded/) {
       return (undef, undef);
@@ -965,7 +972,14 @@ sub called_tree($$$$$) {
     }
     else {
       # deep copy
-      my @child = map {
+      my @child = grep {
+        if ($deduplicate) {
+          !exists $node->{simple_name} || $_->{simple_name} ne $node->{simple_name}
+        }
+        else {
+          !exists $node->{file_info} || $_->{file_info} ne $node->{file_info}
+        }
+      } map {
         my $child = {
           name        => $_->{name},
           simple_name => $_->{simple_name},
@@ -1419,7 +1433,7 @@ my $files_excluded = shift;
 $filter = (defined($filter) && $filter ne "") ? $filter : ".*";
 $mode = (defined($mode) && int($mode) >= 0) ? int($mode) : 1;
 $verbose = (defined($verbose) && $verbose ne "0") ? "verbose" : undef;
-$depth = (defined($depth) && int($depth) > 0) ? int($depth) : 3;
+$depth = defined($depth)? int($depth) : 3;
 $files_excluded = (defined($files_excluded) && $files_excluded ne "") ? $files_excluded : '^$';
 
 sub show_tree() {
