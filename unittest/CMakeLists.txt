@@ -23,6 +23,7 @@ set(TESTS
         test_function_match.cc
         test_async.cc
         test_futex.cc
+        test_interpreters.cc
         )
 foreach (src ${TESTS})
     get_filename_component(exe ${src} NAME_WE)

@@ -16,6 +16,7 @@ set(BENCHMARKS
         benchmark_memequal_shuffle0.cc
         benchmark_memequal_shuffle1.cc
         benchmark_raw_allocator.cc
+        benchmark_interpreters.cc
         )
 foreach (src ${BENCHMARKS})
     get_filename_component(exe ${src} NAME_WE)
