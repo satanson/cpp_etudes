@@ -485,7 +485,7 @@ sub merge_lines_multiline_break_enabled(\@) {
     if (!defined($three_parts[$i])) {
       if (defined($prev_file)) {
         # $i-1 is last line of a match block
-        push @result, [ $prev_file, $prev_lineno, $prev_line ];
+        push @result, [ $prev_file, $prev_lineno, $three_parts[$i-1][1], $prev_line ];
         ($prev_file, $prev_lineno, $prev_line) = (undef, undef, undef);
       }
       else {
@@ -505,7 +505,7 @@ sub merge_lines_multiline_break_enabled(\@) {
   }
 
   if (defined($prev_file)) {
-    push @result, [ $prev_file, $prev_lineno, $prev_line ];
+    push @result, [ $prev_file, $prev_lineno, $three_parts[-1][1], $prev_line ];
   }
   return @result;
 }
@@ -527,12 +527,12 @@ sub merge_lines_multiline_break_disabled(\@) {
       $prev_lineno_adjacent += 1;
     }
     else {
-      push @result, [ $prev_file, $prev_lineno, $prev_line ];
+      push @result, [ $prev_file, $prev_lineno, $three_parts[$i][1], $prev_line ];
       ($prev_file, $prev_lineno, $prev_line) = ($file, $lineno, $line);
       $prev_lineno_adjacent = $prev_lineno;
     }
   }
-  push @result, [ $prev_file, $prev_lineno, $prev_line ];
+  push @result, [ $prev_file, $prev_lineno, $three_parts[-1][1], $prev_line ];
   return @result;
 }
 
@@ -603,7 +603,7 @@ sub extract_all_funcs(\%$$) {
   printf "function definition after merge: %d\n", scalar(@func_file_line_def);
 
   my $re_func_def_name = qr!$RE_FUNC_DEFINITION_NAME!;
-  my @func_def = map {$_->[2]} @func_file_line_def;
+  my @func_def = map {$_->[3]} @func_file_line_def;
   my @func_name = map {$_ =~ $re_func_def_name;
     $1} @func_def;
 
@@ -641,6 +641,7 @@ sub extract_all_funcs(\%$$) {
     my $caller_simple_name = $func_simple_name[$i];
     my $scope = scope($caller_name);
     my $filename = filename($file_info);
+    my ($file, $start_lineno, $end_lineno) = @{$func_file_line_def[$i]}[0..2];
 
     my @callees = @{$func_callees[$i]};
     foreach my $seq (0 .. $#callees) {$callees[$seq]{seq} = $seq}
@@ -659,12 +660,15 @@ sub extract_all_funcs(\%$$) {
     my %callee_name2simple = map {$_->{name} => simple_name($_->{name})} @callees;
 
     my $caller_node = {
-      name        => $caller_name,
-      simple_name => $caller_simple_name,
-      scope       => $scope,
-      file_info   => $file_info,
-      filename    => $filename,
-      callees     => [ @callees ],
+      name         => $caller_name,
+      simple_name  => $caller_simple_name,
+      scope        => $scope,
+      file_info    => $file_info,
+      file         => $file,
+      start_lineno => $start_lineno,
+      end_lineno   => $end_lineno,
+      filename     => $filename,
+      callees      => [ @callees ],
     };
 
     if (!exists $calling{$caller_name}) {
@@ -923,7 +927,7 @@ sub default_score(\%) {
 }
 
 sub called_tree($$$$$) {
-  my ($called_graph, $name, $filter, $files_excluded, $depth) = @_;
+  my ($called_graph, $name, $filter, $files_included, $depth) = @_;
 
   my $deduplicate = 0;
   if ($depth < 0) {
@@ -938,7 +942,7 @@ sub called_tree($$$$$) {
     my $file_info = $node->{file_info};
     my $unique_id = "$file_info";
 
-    if ($file_info ne "" && $file_info =~ /$files_excluded/) {
+    if ($file_info ne "" && !$files_included->($file_info)) {
       return (undef, undef);
     }
 
@@ -981,30 +985,75 @@ sub called_tree($$$$$) {
 }
 
 sub fuzzy_called_tree($$$$$$) {
-  my ($called_names, $called, $name_pattern, $filter, $files_excluded, $depth) = @_;
+  my ($called_names, $called, $name_pattern, $filter, $files_included, $depth) = @_;
   my $root = { file_info => "", name => $name_pattern, leaf => undef };
   my @names = grep {/$name_pattern/} @$called_names;
 
   $root->{child} = [
     grep {defined($_)} map {
-      &called_tree($called, $_, $filter, $files_excluded, $depth);
+      &called_tree($called, $_, $filter, $files_included, $depth);
     } @names
   ];
   return $root;
 }
 
+sub search_called_tree($$$$$$) {
+  my ($called, $name_pattern, $match_lines, $filter, $files_included, $depth) = @_;
+  my %nodes = map {($_, $_)} map {@$_} values %$called;
+  my %match_lines = map {($_->[0], [])} @$match_lines;
+  foreach (@$match_lines) {push @{$match_lines{$_->[0]}}, $_->[1]}
+  my @nodes = values %nodes;
+  @nodes = grep {
+    my $n = $_;
+    if (!exists $match_lines{$n->{file}} || !$files_included->($n->{file})) {
+      undef;
+    }
+    else {
+      my @lineno = @{$match_lines{$n->{file}}};
+      any {$n->{start_lineno} <= $_ <= $n->{end_lineno}} @lineno;
+    }
+  } @nodes;
+
+  my $root = { file_info => "", name => $name_pattern, leaf => undef };
+  $root->{child} = [
+    map {
+      my $n = $_;
+      my @child = map {
+        my $subtree = $_;
+
+        if (exists $subtree->{child}) {
+          (@{$subtree->{child}});
+        }
+        else {
+          ();
+        }
+      } &called_tree($called, $n->{name}, $filter, $files_included, $depth);
+
+      my $node = {
+        name        => $n->{name},
+        simple_name => $n->{simple_name},
+        file_info   => $n->{file_info},
+        leaf        => "internal",
+        child       => [ @child ]
+      };
+      $node;
+    } @nodes
+  ];
+  return $root;
+}
+
 sub unified_called_tree($$$$) {
-  my ($name, $filter, $files_excluded, $depth) = @_;
+  my ($name, $filter, $files_included, $depth) = @_;
   if (exists $called->{$name}) {
-    return &called_tree($called, $name, $filter, $files_excluded, $depth);
+    return &called_tree($called, $name, $filter, $files_included, $depth);
   }
   else {
-    return &fuzzy_called_tree($called_names, $called, $name, $filter, $files_excluded, $depth);
+    return &fuzzy_called_tree($called_names, $called, $name, $filter, $files_included, $depth);
   }
 }
 
 sub calling_tree($$$$$$) {
-  my ($calling_graph, $name, $filter, $files_excluded, $depth, $uniques) = @_;
+  my ($calling_graph, $name, $filter, $files_included, $depth, $uniques) = @_;
 
   my $new_variant_node = sub($) {
     my ($node) = @_;
@@ -1057,7 +1106,7 @@ sub calling_tree($$$$$$) {
     my $unique_id = "$file_info:$call";
     $uniques->{"$file_info.$name"} = 1;
 
-    if ($file_info ne "" && $file_info =~ /$files_excluded/) {
+    if ($file_info ne "" && $files_included->($file_info)) {
       return (undef, undef);
     }
 
@@ -1145,7 +1194,7 @@ sub adjust_calling_tree($) {
 }
 
 sub fuzzy_calling_tree($$$$$$) {
-  my ($calling_names, $calling_graph, $name_pattern, $filter, $files_excluded, $depth) = @_;
+  my ($calling_names, $calling_graph, $name_pattern, $filter, $files_included, $depth) = @_;
   my @names = grep {/$name_pattern/} @$calling_names;
   my @trees = ();
   my $uniques = {};
@@ -1155,7 +1204,7 @@ sub fuzzy_calling_tree($$$$$$) {
     my $child0_name = $child0->{name};
     my $child0_unique_id = "$child0_file_info.$child0_name";
     next if exists $uniques->{$child0_unique_id};
-    my $tree = calling_tree($calling_graph, $name, $filter, $files_excluded, $depth, $uniques);
+    my $tree = calling_tree($calling_graph, $name, $filter, $files_included, $depth, $uniques);
     push @trees, $tree if defined($tree);
   }
   return {
@@ -1168,13 +1217,13 @@ sub fuzzy_calling_tree($$$$$$) {
 }
 
 sub unified_calling_tree($$$$) {
-  my ($name, $filter, $files_excluded, $depth) = @_;
+  my ($name, $filter, $files_included, $depth) = @_;
   my $root = undef;
   if (exists $calling->{$name}) {
-    $root = &calling_tree($calling, $name, $filter, $files_excluded, $depth * 2, {});
+    $root = &calling_tree($calling, $name, $filter, $files_included, $depth * 2, {});
   }
   else {
-    $root = &fuzzy_calling_tree($calling_names, $calling, $name, $filter, $files_excluded, $depth * 2);
+    $root = &fuzzy_calling_tree($calling_names, $calling, $name, $filter, $files_included, $depth * 2);
   }
   return &adjust_calling_tree($root);
 }
@@ -1319,7 +1368,7 @@ sub group_by(&;@) {
 }
 
 sub outermost_tree($$) {
-  my ($name, $files_excluded) = @_;
+  my ($name, $files_included) = @_;
   my %names = map {
     $_ => 1
   } grep {
@@ -1329,7 +1378,7 @@ sub outermost_tree($$) {
   } @$calling_names;
 
   my @names = grep {!exists $called->{$_}} sort {$a cmp $b} keys %names;
-  my @trees = grep {defined($_)} map {calling_tree($calling, $_, "\\w+", $files_excluded, 2, {})} @names;
+  my @trees = grep {defined($_)} map {calling_tree($calling, $_, "\\w+", $files_included, 2, {})} @names;
   @trees = map {
     ($_->{branch_type} eq "variants" ? @{$_->{child}} : $_);
   } @trees;
@@ -1356,7 +1405,7 @@ sub outermost_tree($$) {
 }
 
 sub innermost_tree($$) {
-  my ($name, $files_excluded) = @_;
+  my ($name, $files_included) = @_;
   my %names = map {
     $_ => 1
   } grep {
@@ -1366,7 +1415,7 @@ sub innermost_tree($$) {
   } @$called_names;
 
   my @names = grep {!exists $calling->{$_}} sort {$a cmp $b} keys %names;
-  my @trees = grep {defined($_)} map {called_tree($called, $_, "\\w+", $files_excluded, 1)} @names;
+  my @trees = grep {defined($_)} map {called_tree($called, $_, "\\w+", $files_included, 1)} @names;
 
   @trees = map {
     $_->{child} = [];
@@ -1405,34 +1454,72 @@ my $filter = shift;
 my $mode = shift;
 my $verbose = shift;
 my $depth = shift;
-my $files_excluded = shift;
+my $files_included = shift;
 
 $filter = (defined($filter) && $filter ne "") ? $filter : ".*";
 $mode = (defined($mode) && int($mode) >= 0) ? int($mode) : 1;
 $verbose = (defined($verbose) && $verbose ne "0") ? "verbose" : undef;
 $depth = defined($depth) ? int($depth) : 3;
-$files_excluded = (defined($files_excluded) && $files_excluded ne "") ? $files_excluded : '^$';
+$files_included = (defined($files_included) && $files_included ne "") ? $files_included : '.*';
+
+my $files_included_gen = sub($) {
+  my $re = shift;
+  if ($re =~ /^-/) {
+    $re = substr $re, 1;
+    sub($) {
+      my $a = shift;
+      $a !~ /$re/;
+    }
+  }
+  else {
+    sub($) {
+      my $a = shift;
+      $a =~ /$re/;
+    }
+  }
+};
+
+$files_included = $files_included_gen->($files_included);
+
+sub search_matched_lines($) {
+  my $re = shift;
+  grep {defined($_)} map {
+    if (/^([^:]+):(\d+):.*$/) {
+      [ $1, $2 ]
+    }
+    else {
+      undef
+    }
+  } map {chomp;
+    $_} qx(ag -U -G $java_filename_pattern $ignore_pattern '$re');
+}
 
 sub show_tree() {
   ($calling, $called, $calling_names, $called_names) =
     get_cached_or_extract_all_funcs(%ignored, $env_trivial_threshold, $env_length_threshold);
   if ($mode == 0) {
-    my $tree = unified_calling_tree($func, $filter, $files_excluded, $depth);
+    my $tree = unified_calling_tree($func, $filter, $files_included, $depth);
     my @lines = format_calling_tree($tree, $verbose);
     return join qq//, map {"$_\n"} @lines;
   }
   elsif ($mode == 1) {
-    my $tree = unified_called_tree($func, $filter, $files_excluded, $depth);
+    my $tree = unified_called_tree($func, $filter, $files_included, $depth);
     my @lines = format_called_tree($tree, $verbose);
     return join qq//, map {"$_\n"} @lines;
   }
   elsif ($mode == 2) {
-    my $tree = outermost_tree($func, $files_excluded);
+    my $tree = outermost_tree($func, $files_included);
     my @lines = format_calling_tree($tree, $verbose);
     return join qq//, map {"$_\n"} @lines;
   }
   elsif ($mode == 3) {
-    my $tree = innermost_tree($func, $files_excluded);
+    my $tree = innermost_tree($func, $files_included);
+    my @lines = format_called_tree($tree, $verbose);
+    return join qq//, map {"$_\n"} @lines;
+  }
+  elsif ($mode == 4) {
+    my @match_lines = search_matched_lines($func);
+    my $tree = search_called_tree($called, $func, \@match_lines, $filter, $files_included, $depth);
     my @lines = format_called_tree($tree, $verbose);
     return join qq//, map {"$_\n"} @lines;
   }

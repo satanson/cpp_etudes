@@ -621,6 +621,24 @@ my $filter = shift;
 my $verbose = shift;
 my $depth = shift;
 my $pathFilter = shift;
+my $pathFilter_gen = sub($) {
+  my $re = shift;
+  if ($re =~ /^-/) {
+    $re = substr $re, 1;
+    sub($) {
+      my $a = shift;
+      $a !~ /$re/;
+    }
+  }
+  else {
+    sub($) {
+      my $a = shift;
+      $a =~ /$re/;
+    }
+  }
+};
+$pathFilter = ".*" unless (defined($pathFilter) && $pathFilter ne "");
+$pathFilter = $pathFilter_gen->($pathFilter);
 
 $filter = ".*" unless (defined($filter) && $filter ne "");
 $verbose = undef if (defined($verbose) && $verbose == 0);
@@ -659,7 +677,7 @@ my $level = 0;
 sub sub_class($$;$) {
   my ($file_info, $cls, $filter) = @_;
   $filter = ".*" unless defined($filter);
-  return undef if $file_info && $pathFilter && $file_info =~ /$pathFilter/;
+  return undef if $file_info && !$pathFilter->($file_info);
   $level++;
   #print "level=$level, file_info=$file_info, cls=$cls\n";
   my $root = { file_info => $file_info, name => $cls, child => [], tall => 1 };
