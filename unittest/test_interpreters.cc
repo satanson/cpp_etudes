@@ -22,13 +22,26 @@ TEST_F(TestInterpreters, TestBasic) {
     ASSERT_EQ(result, 252);
 }
 
-TEST_F(TestInterpreters, TestThreaded) {
+TEST_F(TestInterpreters, TestTokenThreaded) {
     std::vector<int32_t> instructions{
             make_instruction<OP_LITERAL>(10), make_instruction<OP_LITERAL>(11), make_instruction<OP_ADD>(),
             make_instruction<OP_LITERAL>(12), make_instruction<OP_MUL>(),       make_instruction<OP_END>(),
     };
     std::vector<int32_t> stack(instructions.size());
-    auto result = direct_threading(&instructions.front(), instructions.size(), &stack.front());
+    auto result = token_threaded(&instructions.front(), instructions.size(), &stack.front());
+    ASSERT_EQ(result, 252);
+}
+
+TEST_F(TestInterpreters, TestDirectThreaded) {
+    std::vector<int32_t> instructions{
+            make_instruction<OP_LITERAL>(10), make_instruction<OP_LITERAL>(11), make_instruction<OP_ADD>(),
+            make_instruction<OP_LITERAL>(12), make_instruction<OP_MUL>(),       make_instruction<OP_END>(),
+    };
+    std::vector<int32_t> stack(instructions.size());
+    std::vector<int32_t> operands(instructions.size());
+    std::vector<void*> target_addresses(instructions.size());
+    auto result = direct_threaded(&instructions.front(), instructions.size(), &stack.front(), &operands.front(),
+                                  &target_addresses.front());
     ASSERT_EQ(result, 252);
 }
 } // namespace interpreters
