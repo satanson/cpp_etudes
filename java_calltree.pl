@@ -1491,7 +1491,7 @@ sub search_matched_lines($) {
       undef
     }
   } map {chomp;
-    $_} qx(ag -U -G $java_filename_pattern $ignore_pattern '$re');
+    $_} qx(ag -U -G $java_filename_pattern  $ignore_pattern '$re');
 }
 
 sub show_tree() {

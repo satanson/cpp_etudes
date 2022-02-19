@@ -677,6 +677,18 @@ TEST_F(MiscTest, testNoExceptClass) {
     // no_except_class.do_except_work();
     // no_except_class.do_except_work2();
 }
+TEST_F(MiscTest, testStringPackedInteger){
+    int64_t a = 0xdeadbeef;
+    std::string s;
+    s.resize(sizeof(a));
+    memcpy(s.data(), &a, sizeof(a));
+    std::reverse(s.begin(), s.end());
+    int64_t b = 0;
+    int64_t c = 0;
+    std::copy(s.begin(), s.end(), (char*)&b);
+    std::copy(s.rbegin(), s.rend(), (char*)&c);
+    std::cout<<std::hex<<"b="<<b<<", c="<<c<<std::endl;
+}
 int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
