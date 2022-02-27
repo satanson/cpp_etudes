@@ -1036,7 +1036,7 @@ sub search_called_tree($$$$$$) {
     }
     else {
       my @lineno = @{$match_lines{$n->{file}}};
-      any {$n->{start_lineno} <= $_ <= $n->{end_lineno}} @lineno;
+      any {$n->{start_lineno} <= $_ && $_ <= $n->{end_lineno}} @lineno;
     }
   } @nodes;
 
