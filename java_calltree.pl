@@ -1106,7 +1106,7 @@ sub calling_tree($$$$$$) {
     my $unique_id = "$file_info:$call";
     $uniques->{"$file_info.$name"} = 1;
 
-    if ($file_info ne "" && $files_included->($file_info)) {
+    if ($file_info ne "" && !$files_included->($file_info)) {
       return (undef, undef);
     }
 
