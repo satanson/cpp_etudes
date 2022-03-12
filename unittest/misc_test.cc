@@ -689,6 +689,18 @@ TEST_F(MiscTest, testStringPackedInteger){
     std::copy(s.rbegin(), s.rend(), (char*)&c);
     std::cout<<std::hex<<"b="<<b<<", c="<<c<<std::endl;
 }
+std::string return_string(const string& s) {
+    return std::string("abc")+s;
+}
+void print_c_str(const char* s){
+    std::string s0 = s;
+    std::cout<<s0<<std::endl;
+}
+TEST_F(MiscTest, testStringCstr){
+    for (int i=0; i<100;++i) {
+        print_c_str(return_string("_124").c_str());
+    }
+}
 int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
