@@ -24,6 +24,7 @@ set(TESTS
         test_async.cc
         test_futex.cc
         test_interpreters.cc
+        test_seq_mutex.cc
         )
 foreach (src ${TESTS})
     get_filename_component(exe ${src} NAME_WE)
