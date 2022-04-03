@@ -16,6 +16,7 @@
 #include <guard.hh>
 #include <iostream>
 #include <list>
+#include <map>
 #include <memory>
 #include <random>
 
@@ -700,6 +701,28 @@ TEST_F(MiscTest, testStringCstr){
     for (int i=0; i<100;++i) {
         print_c_str(return_string("_124").c_str());
     }
+}
+TEST_F(MiscTest, testConstStringAssignment) {
+    std::string s = "abcdefg";
+    std::map<std::string, std::string> str2str;
+    const std::string& s_value = s;
+    const std::string& s_key = "key";
+    str2str.insert(std::make_pair(s_key, s_value));
+    str2str.clear();
+    const string s1 = rand() > 10 ? s : "";
+}
+template <typename T>
+std::shared_ptr<T> invoke_func(std::function<std::shared_ptr<T>(void)> create_func) {
+    return create_func();
+}
+TEST_F(MiscTest, testInvokeFunc) {
+    int a = 100;
+    std::string s = "abc";
+    auto s2 = invoke_func<std::string>([a, s]() mutable {
+        s.append(std::to_string(a));
+        return std::shared_ptr<std::string>(new std::string(s));
+    });
+    std::cout << *s2 << std::endl;
 }
 int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);
