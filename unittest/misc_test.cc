@@ -724,6 +724,76 @@ TEST_F(MiscTest, testInvokeFunc) {
     });
     std::cout << *s2 << std::endl;
 }
+
+TEST_F(MiscTest,testTransactionId) {
+    uint64_t t = 0x00ff'0000'ff00'0000llu;
+    uint32_t x = t >>32;
+    uint32_t y = t & ~0llu >>32;
+    uint32_t z = t & (~1llu >>32);
+    uint32_t w = (t & ~1llu) >>32;
+    std::cout <<x<<","<<y<<","<<z<<","<<w<<std::endl;
+}
+template<typename T>
+void print_vec(std::vector<T>const& vec){
+    std::cout<<"cap="<<vec.capacity()<<", size="<<vec.size()<<", data=[";
+    for (auto& e: vec){
+        std::cout<<e<<", ";
+    }
+    std::cout<<"]"<<std::endl;
+}
+
+TEST_F(MiscTest, testAssign) {
+    vector<int> v;
+    v.assign(10,1);
+    print_vec(v);
+    v.assign(2,2);
+    print_vec(v);
+    v.assign(11, 3);
+    print_vec(v);
+    v.assign(10, 1);
+    size_t count = 0;
+    for (int i=0;i < 10;++i){
+        v[i] &= (i%2==0);
+        count+=(i%2==0);
+    }
+    print_vec(v);
+    std::cout<<count<<std::endl;
+    std::shared_ptr<int> a;
+    a =a;
+    std::shared_ptr<int> b(a);
+}
+class B0 {
+public:
+    B0(int i):i(i){
+        std::cout<<"ctor B0"<<"("<<i<<")"<<std::endl;
+    }
+    ~B0(){
+        std::cout<<"dtor B0"<<"("<<i<<")"<<std::endl;
+    }
+private:
+    int i;
+};
+
+class B1 {
+public:
+    B1(){
+        b1 = std::make_shared<B0>(1);
+        b2 = std::make_shared<B0>(2);
+        b3 = std::make_shared<B0>(3);
+        std::cout<<"ctor B1"<<std::endl;
+    }
+    ~B1() {
+        std::cout<<"dtor B1"<<std::endl;
+        b2.reset();
+    }
+private:
+    std::shared_ptr<B0> b1;
+    std::shared_ptr<B0> b2;
+    std::shared_ptr<B0> b3;
+};
+TEST_F(MiscTest, TestB1) {
+    B1 b1;
+}
 int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();

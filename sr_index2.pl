@@ -81,29 +81,29 @@ while(<>) {
     next;
   }
 
-  if (/(MemoryLimit|PeakMemoryUsage|InstanceNum):\s+(\S+)/) {
+  if (/\b(MemoryLimit|PeakMemoryUsage|InstanceNum):\s+(\S+)/) {
     $plan->{$fragment}{$1}=$2;
     $plan->{$fragment}{id}=$fragment;
     next;
   }
 
-  if (/(InstanceNum):\s+(\S+)/) {
+  if (/\b(InstanceNum):\s+(\S+)/) {
     $plan->{$fragment}{$1}=$2+0;
     $plan->{$fragment}{id}=$fragment;
     next;
   }
 
-  if (/DegreeOfParallelism:\s+(\d+)/) {
+  if (/\bDegreeOfParallelism:\s+(\d+)/) {
     $plan->{$fragment}{pipelines}{$pipeline}{DegreeOfParallelism}=$1+0;
     next;
   }
 
-  if (/(ActiveTime|DriverTotalTime|OverheadTime|PendingTime|InputEmptyTime|FirstInputEmptyTime|FollowupInputEmptyTime|OutputFullTime|PreconditionBlockTime):\s+(\S+)/) {
+  if (/\b(ActiveTime|DriverTotalTime|OverheadTime|PendingTime|InputEmptyTime|FirstInputEmptyTime|FollowupInputEmptyTime|OutputFullTime|PreconditionBlockTime):\s+(\S+)/) {
     $plan->{$fragment}{pipelines}{$pipeline}{$1}=norm_time($2);
     next;
   }
 
-  if (/(LocalRfWaitingSet|ScheduleAccumulatedChunkMoved|ScheduleAccumulatedRowsPerChunk|ScheduleCounter|ScheduleEffectiveCounter):\s+(\d+)/){
+  if (/\b(LocalRfWaitingSet|ScheduleAccumulatedChunkMoved|ScheduleAccumulatedRowsPerChunk|ScheduleCounter|ScheduleEffectiveCounter):\s+(\d+)/){
     $plan->{$fragment}{pipelines}{$pipeline}{$1}=$2;
     next;
   }
@@ -119,19 +119,19 @@ while(<>) {
     next;
   }
 
-  if (/(PullChunkNum|PushChunkNum|PullRowNum|DestID|PushRowNum):\s+(\S+)/) {
+  if (/\b(PullChunkNum|PushChunkNum|PullRowNum|DestID|PushRowNum):\s+(\S+)/) {
     my $operator_id = join "_", ($fragment, $pipeline, $operator);
     $plan->{$fragment}{pipelines}{$pipeline}{operators}{$operator}{$1}=norm_num($2);
     $plan->{$fragment}{pipelines}{$pipeline}{operators}{$operator}{id}=$operator_id;
     next;
   }
-  if (/(BytesPassThrough|BytesSent|UpcompressedBytes):\s+(.*)/) {
+  if (/\b(BytesPassThrough|BytesSent|UpcompressedBytes):\s+(.*)/) {
     my $operator_id = join "_", ($fragment, $pipeline, $operator);
     $plan->{$fragment}{pipelines}{$pipeline}{operators}{$operator}{$1}=$2;
     $plan->{$fragment}{pipelines}{$pipeline}{operators}{$operator}{id}=$operator_id;
     next;
   }
-  if (/(RuntimeInFilterNum|RuntimeBloomFilterNum):\s+(.*)/) {
+  if (/\b(RuntimeInFilterNum|RuntimeBloomFilterNum):\s+(.*)/) {
     my $operator_id = join "_", ($fragment, $pipeline, $operator);
     $plan->{$fragment}{pipelines}{$pipeline}{operators}{$operator}{$1}=$2+0;
     $plan->{$fragment}{pipelines}{$pipeline}{operators}{$operator}{id}=$operator_id;
