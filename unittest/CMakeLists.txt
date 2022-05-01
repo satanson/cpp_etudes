@@ -25,6 +25,7 @@ set(TESTS
         test_futex.cc
         test_interpreters.cc
         test_seq_mutex.cc
+        test_analysis.cc
         )
 foreach (src ${TESTS})
     get_filename_component(exe ${src} NAME_WE)
