@@ -3,6 +3,7 @@
 #include <map>
 #include <memory>
 #include <optional>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -22,6 +23,15 @@ public:
 
 private:
     size_t _id;
+};
+
+template <typename E>
+class ExprFactory {
+public:
+    template <typename... Args>
+    static ExprPtr create(Args&&... args) {
+        return std::dynamic_pointer_cast<Expr>(std::make_shared<E>(std::forward<Args>(args)...));
+    }
 };
 
 class SimpleExpr : public Expr {
@@ -101,41 +111,118 @@ template <SimpleType T>
 using DataType = typename DataTypeTrait<T>::DataType;
 class LiteralExprBase : public SimpleExpr {};
 template <SimpleType T>
-class LiteralExpr : LiteralExprBase {
+class LiteralExpr : public LiteralExprBase {
 public:
     using Type = DataType<T>;
     LiteralExpr(const Type& value) : _value(value) {}
     Type get_value() { return _value; }
+    std::string to_string() override {
+        constexpr auto* name = DataTypeTrait<T>::Name;
+        std::stringstream ss;
+        ss << "LiteralExpr(type=" << name << ", value=" << _value << ")";
+        return ss.str();
+    }
 
 private:
     Type _value;
 };
 
-class VarDefExpr : SimpleExpr {
+class VarDefExpr : public SimpleExpr {
 public:
     VarDefExpr(std::string const& var, ExprPtr const& expr) : _var(var), _expr(expr) {}
 
 public:
     const std::string& get_var() const { return _var; }
     const std::shared_ptr<Expr>& get_expr() const { return _expr; }
+    std::string to_string() override {
+        std::stringstream ss;
+        ss << "VarDefExpr(var=" << _var << ", expr=" << _expr->to_string() << ")";
+        return ss.str();
+    }
 
 private:
     std::string _var;
     ExprPtr _expr;
 };
 
-class VarUseExpr : SimpleExpr {
+class VarUseExpr : public SimpleExpr {
 public:
+    VarUseExpr(const std::string& var) : _var(var) {}
     std::string get_var() { return _var; }
+    std::string to_string() override {
+        std::stringstream ss;
+        ss << "VarUseExpr(var=" << _var << ")";
+        return ss.str();
+    }
 
 private:
     std::string _var;
 };
-enum OpType { OP_ADD, OP_SUB, OP_MUL, OP_DIV };
-class ArithmeticExpr : CompoundExpr {
+enum OpType { OP_ADD, OP_SUB, OP_MUL, OP_DIV, OP_MOD, OP_EQ, OP_NE, OP_LE, OP_GE, OP_LT, OP_GT };
+class ArithmeticExpr : public CompoundExpr {
 public:
     ArithmeticExpr(OpType op, Exprs const& exprs) : CompoundExpr(exprs), _op(op) {}
     OpType op() { return _op; }
+    std::string to_string() override {
+        std::stringstream ss;
+        std::string op_name = "unknown";
+        switch (_op) {
+        case OP_ADD:
+            op_name = "add(+)";
+            break;
+        case OP_SUB:
+            op_name = "sub(-)";
+            break;
+        case OP_MUL:
+            op_name = "mul(*)";
+            break;
+        case OP_DIV:
+            op_name = "div(/)";
+            break;
+        case OP_MOD:
+            op_name = "mod(%)";
+            break;
+        }
+        ss << "ArithmeticExpr(op=" << op_name << ", lhs=" << child(0)->to_string() << ", rhs=" << child(1)->to_string()
+           << ")";
+        return ss.str();
+    }
+
+private:
+    OpType _op;
+};
+
+class RelationExpr : public CompoundExpr {
+public:
+    RelationExpr(OpType op, Exprs const& exprs) : CompoundExpr(exprs), _op(op) {}
+    OpType op() { return _op; }
+    std::string to_string() override {
+        std::stringstream ss;
+        std::string op_name = "unknown";
+        switch (_op) {
+        case OP_EQ:
+            op_name = "eq(==)";
+            break;
+        case OP_NE:
+            op_name = "ne(!=)";
+            break;
+        case OP_GE:
+            op_name = "ge(>=)";
+            break;
+        case OP_LE:
+            op_name = "le(<=)";
+            break;
+        case OP_GT:
+            op_name = "gt(>)";
+            break;
+        case OP_LT:
+            op_name = "lt(<)";
+            break;
+        }
+        ss << "RelationExpr(op=" << op_name << ", lhs=" << child(0)->to_string() << ", rhs=" << child(1)->to_string()
+           << ")";
+        return ss.str();
+    }
 
 private:
     OpType _op;
@@ -144,6 +231,18 @@ private:
 class PhiExpr : CompoundExpr {
 public:
     PhiExpr(Exprs const& exprs) : CompoundExpr(exprs) {}
+    std::string to_string() override {
+        std::stringstream ss;
+        ss << "PhiExpr(";
+        if (num_children() >= 1) {
+            ss << "expr0=" << child(0)->to_string();
+        }
+        for (int i = 1; i < num_children(); ++i) {
+            ss << ", expr" << i << "=" << child(i)->to_string();
+        }
+        ss << ")";
+        return ss.str();
+    }
 };
 
 class Statement;
@@ -162,7 +261,12 @@ private:
 
 class SimpleStmt : public Statement {
 public:
-    SimpleStmt(ExprPtr const& var_def) : _var_def(var_def) {}
+    explicit SimpleStmt(ExprPtr const& var_def) : _var_def(var_def) {}
+    std::string to_string() override {
+        std::stringstream ss;
+        ss << "SimpleStmt(var_def=" << _var_def->to_string() << ")";
+        return ss.str();
+    }
 
 private:
     ExprPtr _var_def;
@@ -179,12 +283,28 @@ public:
     size_t dest_id() { return _dest_id; }
     std::optional<size_t> else_dest_id() { return _else_dest_id; }
     std::optional<ExprPtr> cond_expr() { return _cond_expr; }
+    std::string to_string() {
+        std::stringstream ss;
+        ss << "BranchStmt(cond_expr=" << (_cond_expr.has_value() ? "none" : _cond_expr.value()->to_string())
+           << ", dest_id=" << _dest_id << ", else_dest_id" << (_else_dest_id.has_value() ? -1 : _else_dest_id.value())
+           << ")";
+        return ss.str();
+    }
 
 private:
     size_t _dest_id;
     std::optional<size_t> _else_dest_id;
     std::optional<ExprPtr> _cond_expr;
 };
+
+template <typename S>
+struct StmtFactory {
+    template <typename... Args>
+    static StatmentPtr create(Args&&... args) {
+        return std::dynamic_pointer_cast<Statement>(std::make_shared<S>(std::forward<Args>(args)...));
+    }
+};
+
 class StmtBlock;
 using StmtBlockPtr = std::shared_ptr<StmtBlock>;
 using StmtBlocks = std::vector<StmtBlockPtr>;
@@ -199,8 +319,11 @@ public:
     std::vector<size_t>& pred_ids() { return _pred_ids; }
     void set_succ_ids(std::vector<size_t> const& succ_ids) { _succ_ids = succ_ids; }
     void set_pred_ids(std::vector<size_t> const& pred_ids) { _succ_ids = pred_ids; }
+    void set_id(size_t id) { _id = id; }
+    size_t id() const { return _id; }
 
 private:
+    size_t _id;
     std::vector<size_t> _succ_ids;
     std::vector<size_t> _pred_ids;
     Statements _stmts;
@@ -208,8 +331,24 @@ private:
 
 class Cfg {
 public:
-    StmtBlockPtr& begin_block() { return _begin_block; }
-    StmtBlocks& end_blocks() { return _end_blocks; }
+    StmtBlockPtr& begin_block() { return _blocks[_begin_block_id]; }
+    StmtBlocks end_blocks() {
+        std::vector<StmtBlockPtr> blk;
+        blk.reserve(_end_block_ids.size());
+        for (auto id : _end_block_ids) {
+            blk.push_back(_blocks[id]);
+        }
+        return blk;
+    }
+    void add(StmtBlockPtr&& blk) {
+        if (blk->succ_ids().empty()) {
+            _begin_block_id = blk->id();
+        }
+        if (blk->pred_ids().empty()) {
+            _end_block_ids.push_back(blk->id());
+        }
+        _blocks.emplace(blk->id(), std::move(blk));
+    }
     StmtBlocks blocks() {
         StmtBlocks blocks;
         for (auto it = _blocks.begin(); it != _blocks.end(); ++it) {
@@ -218,21 +357,22 @@ public:
         return blocks;
     }
     StmtBlocks pred(StmtBlockPtr const& block) {
-        StmtBlocks  pred_blocks;
-        for (auto id:block->pred_ids()){
+        StmtBlocks pred_blocks;
+        for (auto id : block->pred_ids()) {
             pred_blocks.push_back(_blocks[id]);
         }
         return pred_blocks;
     }
     StmtBlocks succ(StmtBlockPtr const& block) {
-        StmtBlocks  succ_blocks;
-        for (auto id:block->succ_ids()){
+        StmtBlocks succ_blocks;
+        for (auto id : block->succ_ids()) {
             succ_blocks.push_back(_blocks[id]);
         }
         return succ_blocks;
     }
+
 private:
-    StmtBlockPtr _begin_block;
-    StmtBlocks _end_blocks;
+    size_t _begin_block_id;
+    std::vector<size_t> _end_block_ids;
     Id2StmtBlocks _blocks;
 };

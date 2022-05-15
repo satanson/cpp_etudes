@@ -1377,7 +1377,8 @@ sub outermost_tree($$) {
     ($_ =~ /$name/)
   } @$calling_names;
 
-  my @names = grep {!exists $called->{$_}} sort {$a cmp $b} keys %names;
+  #my @names = grep {!exists $called->{$_}} sort {$a cmp $b} keys %names;
+  my @names = sort {$a cmp $b} keys %names;
   my @trees = grep {defined($_)} map {calling_tree($calling, $_, "\\w+", $files_included, 2, {})} @names;
   @trees = map {
     ($_->{branch_type} eq "variants" ? @{$_->{child}} : $_);
