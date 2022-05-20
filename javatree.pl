@@ -437,28 +437,27 @@ sub register_abnormal_shutdown_hook() {
 }
 
 sub all_sub_classes() {
-  my $access_specifier_re = "final|private|public|protected|abstract";
+  my $access_specifier_re = "\\b(?:final|private|public|protected|abstract)\\b";
   my $cls_re = "^[ \\t]*\\b(class|interface)\\b\\s*([a-zA-Z_]\\w*)\\s*[^{]*?{";
-  my $cls_filter_re = "^(\\S+)\\s*:\\s*(?:class|interface)\\s+\\w+(\\s+:\\s+(\\s*[:\\w]+\\s*,\\s*)*[:\\w]+)?s*";
+  my $cls_filter_re = "^(\\S+)\\s*:\\s*\\b(?:class|interface)\\b\\s+\\w+(\\s+:\\s+(\\s*[:\\w]+\\s*,\\s*)*[:\\w]+)?s*";
 
   my $class0_re = "(?:class|interface)\\s+($RE_CLASS)";
 
-  my $class1_0_re = "(?:class|interface)\\s+($RE_CLASS)\\s*extends\\s*($RE_CLASS)";
-  my $class2_0_re = "(?:class|interface)\\s+($RE_CLASS)\\s*extends(?:\\s*$RE_CLASS\\s*)\\s*implements\\s*($RE_CLASS)";
-  my $class3_0_re = "(?:class|interface)\\s+($RE_CLASS)\\s*extends(?:\\s*$RE_CLASS\\s*)\\s*implements(?:\\s*$RE_CLASS\\s*,){1}\\s*($RE_CLASS)";
-  my $class4_0_re = "(?:class|interface)\\s+($RE_CLASS)\\s*extends(?:\\s*$RE_CLASS\\s*)\\s*implements(?:\\s*$RE_CLASS\\s*,){2}\\s*($RE_CLASS)";
-  my $class5_0_re = "(?:class|interface)\\s+($RE_CLASS)\\s*extends(?:\\s*$RE_CLASS\\s*)\\s*implements(?:\\s*$RE_CLASS\\s*,){3}\\s*($RE_CLASS)";
-  my $class6_0_re = "(?:class|interface)\\s+($RE_CLASS)\\s*extends(?:\\s*$RE_CLASS\\s*)\\s*implements(?:\\s*$RE_CLASS\\s*,){4}\\s*($RE_CLASS)";
-  my $class7_0_re = "(?:class|interface)\\s+($RE_CLASS)\\s*extends(?:\\s*$RE_CLASS\\s*)\\s*implements(?:\\s*$RE_CLASS\\s*,){5}\\s*($RE_CLASS)";
+  my $class1_0_re = "\\b(?:class|interface)\\b\\s+($RE_CLASS)\\s*extends\\s*($RE_CLASS)";
+  my $class2_0_re = "\\b(?:class|interface)\\b\\s+($RE_CLASS)\\s*extends(?:\\s*$RE_CLASS\\s*)\\s*implements\\s*($RE_CLASS)";
+  my $class3_0_re = "\\b(?:class|interface)\\b\\s+($RE_CLASS)\\s*extends(?:\\s*$RE_CLASS\\s*)\\s*implements(?:\\s*$RE_CLASS\\s*,){1}\\s*($RE_CLASS)";
+  my $class4_0_re = "\\b(?:class|interface)\\b\\s+($RE_CLASS)\\s*extends(?:\\s*$RE_CLASS\\s*)\\s*implements(?:\\s*$RE_CLASS\\s*,){2}\\s*($RE_CLASS)";
+  my $class5_0_re = "\\b(?:class|interface)\\b\\s+($RE_CLASS)\\s*extends(?:\\s*$RE_CLASS\\s*)\\s*implements(?:\\s*$RE_CLASS\\s*,){3}\\s*($RE_CLASS)";
+  my $class6_0_re = "\\b(?:class|interface)\\b\\s+($RE_CLASS)\\s*extends(?:\\s*$RE_CLASS\\s*)\\s*implements(?:\\s*$RE_CLASS\\s*,){4}\\s*($RE_CLASS)";
+  my $class7_0_re = "\\b(?:class|interface)\\b\\s+($RE_CLASS)\\s*extends(?:\\s*$RE_CLASS\\s*)\\s*implements(?:\\s*$RE_CLASS\\s*,){5}\\s*($RE_CLASS)";
 
-  my $class1_1_re = "(?:class|interface)\\s+($RE_CLASS)\\s*implements\\s*($RE_CLASS)";
-  print "class1_1_re=$class1_1_re\n";
-  my $class2_1_re = "(?:class|interface)\\s+($RE_CLASS)\\s*implements(?:\\s*$RE_CLASS\\s*,){1}\\s*($RE_CLASS)";
-  my $class3_1_re = "(?:class|interface)\\s+($RE_CLASS)\\s*implements(?:\\s*$RE_CLASS\\s*,){2}\\s*($RE_CLASS)";
-  my $class4_1_re = "(?:class|interface)\\s+($RE_CLASS)\\s*implements(?:\\s*$RE_CLASS\\s*,){3}\\s*($RE_CLASS)";
-  my $class5_1_re = "(?:class|interface)\\s+($RE_CLASS)\\s*implements(?:\\s*$RE_CLASS\\s*,){4}\\s*($RE_CLASS)";
-  my $class6_1_re = "(?:class|interface)\\s+($RE_CLASS)\\s*implements(?:\\s*$RE_CLASS\\s*,){5}\\s*($RE_CLASS)";
-  my $class7_1_re = "(?:class|interface)\\s+($RE_CLASS)\\s*implements(?:\\s*$RE_CLASS\\s*,){6}\\s*($RE_CLASS)";
+  my $class1_1_re = "\\(?:class|interface)\\b\\s+($RE_CLASS)\\s*implements\\s*($RE_CLASS)";
+  my $class2_1_re = "\\(?:class|interface)\\b\\s+($RE_CLASS)\\s*implements(?:\\s*$RE_CLASS\\s*,){1}\\s*($RE_CLASS)";
+  my $class3_1_re = "\\(?:class|interface)\\b\\s+($RE_CLASS)\\s*implements(?:\\s*$RE_CLASS\\s*,){2}\\s*($RE_CLASS)";
+  my $class4_1_re = "\\(?:class|interface)\\b\\s+($RE_CLASS)\\s*implements(?:\\s*$RE_CLASS\\s*,){3}\\s*($RE_CLASS)";
+  my $class5_1_re = "\\(?:class|interface)\\b\\s+($RE_CLASS)\\s*implements(?:\\s*$RE_CLASS\\s*,){4}\\s*($RE_CLASS)";
+  my $class6_1_re = "\\(?:class|interface)\\b\\s+($RE_CLASS)\\s*implements(?:\\s*$RE_CLASS\\s*,){5}\\s*($RE_CLASS)";
+  my $class7_1_re = "\\(?:class|interface)\\b\\s+($RE_CLASS)\\s*implements(?:\\s*$RE_CLASS\\s*,){6}\\s*($RE_CLASS)";
 
   my @matches = ();
 
