@@ -429,19 +429,19 @@ sub register_abnormal_shutdown_hook() {
 
 sub all_sub_classes() {
   my $attr_re = "\\[\\[[^\\[\\]]+\\]\\]";
-  my $access_specifier_re = "final|private|public|protected";
+  my $access_specifier_re = "\\b(?:final|private|public|protected)\\b";
   my $template_arguments_re = "<([^<>]*(?:<(?1)>|[^<>])[^<>]*)?>";
-  my $cls_re = "^[ \\t]*(template\\s*$template_arguments_re)?(?:\\s*typedef)?[ \\t]*\\b(class|struct)\\b\\s*([a-zA-Z_]\\w*)\\s*[^{};*()=]*?{";
+  my $cls_re = "^[ \\t]*(\\btemplate\\b\\s*$template_arguments_re)?(?:\\s*\\btypedef\\b)?[ \\t]*\\b(class|struct)\\b\\s*([a-zA-Z_]\\w*)\\s*[^{};*()=]*?{";
   print "cls_re=$cls_re\n";
-  my $cls_filter_re = "^(\\S+)\\s*:\\s*(?:class|struct)\\s+\\w+(\\s+:\\s+(\\s*[:\\w]+\\s*,\\s*)*[:\\w]+)?s*";
+  my $cls_filter_re = "^(\\S+)\\s*:\\s*\\b(?:class|struct)\\b\\s+\\w+(\\s+:\\s+(\\s*[:\\w]+\\s*,\\s*)*[:\\w]+)?s*";
 
-  my $class0_re = "(?:class|struct)\\s+($RE_CLASS)";
-  my $class1_re = "(?:class|struct)\\s+($RE_CLASS)\\s*:\\s*($RE_CLASS)";
-  my $class2_re = "(?:class|struct)\\s+($RE_CLASS)\\s*:(?:\\s*$RE_CLASS\\s*,){1}\\s*($RE_CLASS)";
-  my $class3_re = "(?:class|struct)\\s+($RE_CLASS)\\s*:(?:\\s*$RE_CLASS\\s*,){2}\\s*($RE_CLASS)";
-  my $class4_re = "(?:class|struct)\\s+($RE_CLASS)\\s*:(?:\\s*$RE_CLASS\\s*,){3}\\s*($RE_CLASS)";
-  my $class5_re = "(?:class|struct)\\s+($RE_CLASS)\\s*:(?:\\s*$RE_CLASS\\s*,){4}\\s*($RE_CLASS)";
-  my $class6_re = "(?:class|struct)\\s+($RE_CLASS)\\s*:(?:\\s*$RE_CLASS\\s*,){5}\\s*($RE_CLASS)";
+  my $class0_re = "\\b(?:class|struct)\\b\\s+($RE_CLASS)";
+  my $class1_re = "\\b(?:class|struct)\\b\\s+($RE_CLASS)\\s*:\\s*($RE_CLASS)";
+  my $class2_re = "\\b(?:class|struct)\\b\\s+($RE_CLASS)\\s*:(?:\\s*$RE_CLASS\\s*,){1}\\s*($RE_CLASS)";
+  my $class3_re = "\\b(?:class|struct)\\b\\s+($RE_CLASS)\\s*:(?:\\s*$RE_CLASS\\s*,){2}\\s*($RE_CLASS)";
+  my $class4_re = "\\b(?:class|struct)\\b\\s+($RE_CLASS)\\s*:(?:\\s*$RE_CLASS\\s*,){3}\\s*($RE_CLASS)";
+  my $class5_re = "\\b(?:class|struct)\\b\\s+($RE_CLASS)\\s*:(?:\\s*$RE_CLASS\\s*,){4}\\s*($RE_CLASS)";
+  my $class6_re = "\\b(?:class|struct)\\b\\s+($RE_CLASS)\\s*:(?:\\s*$RE_CLASS\\s*,){5}\\s*($RE_CLASS)";
 
   my $cache_file = ".cpptree.list";
   my @matches = ();
@@ -480,7 +480,7 @@ sub all_sub_classes() {
     my @file_info = map {$_->[0]} @file_info_and_line;
     my @line = map {$_->[1]} @file_info_and_line;
 
-    my @transform_re = ($attr_re, $access_specifier_re, ($template_arguments_re) x 4, "template", "\\s*{\$", "(?<=\\s)\\s+");
+    my @transform_re = ($attr_re, $access_specifier_re, ($template_arguments_re) x 4, "\\btemplate\\b", "\\s*{\$", "(?<=\\s)\\s+");
     for my $re (@transform_re) {
       @line = map {s/$re//g;
         $_} @line;
