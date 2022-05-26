@@ -451,13 +451,13 @@ sub all_sub_classes() {
   my $class6_0_re = "\\b(?:class|interface)\\b\\s+($RE_CLASS)\\s*extends(?:\\s*$RE_CLASS\\s*)\\s*implements(?:\\s*$RE_CLASS\\s*,){4}\\s*($RE_CLASS)";
   my $class7_0_re = "\\b(?:class|interface)\\b\\s+($RE_CLASS)\\s*extends(?:\\s*$RE_CLASS\\s*)\\s*implements(?:\\s*$RE_CLASS\\s*,){5}\\s*($RE_CLASS)";
 
-  my $class1_1_re = "\\(?:class|interface)\\b\\s+($RE_CLASS)\\s*implements\\s*($RE_CLASS)";
-  my $class2_1_re = "\\(?:class|interface)\\b\\s+($RE_CLASS)\\s*implements(?:\\s*$RE_CLASS\\s*,){1}\\s*($RE_CLASS)";
-  my $class3_1_re = "\\(?:class|interface)\\b\\s+($RE_CLASS)\\s*implements(?:\\s*$RE_CLASS\\s*,){2}\\s*($RE_CLASS)";
-  my $class4_1_re = "\\(?:class|interface)\\b\\s+($RE_CLASS)\\s*implements(?:\\s*$RE_CLASS\\s*,){3}\\s*($RE_CLASS)";
-  my $class5_1_re = "\\(?:class|interface)\\b\\s+($RE_CLASS)\\s*implements(?:\\s*$RE_CLASS\\s*,){4}\\s*($RE_CLASS)";
-  my $class6_1_re = "\\(?:class|interface)\\b\\s+($RE_CLASS)\\s*implements(?:\\s*$RE_CLASS\\s*,){5}\\s*($RE_CLASS)";
-  my $class7_1_re = "\\(?:class|interface)\\b\\s+($RE_CLASS)\\s*implements(?:\\s*$RE_CLASS\\s*,){6}\\s*($RE_CLASS)";
+  my $class1_1_re = "\\b(?:class|interface)\\b\\s+($RE_CLASS)\\s*implements\\s*($RE_CLASS)";
+  my $class2_1_re = "\\b(?:class|interface)\\b\\s+($RE_CLASS)\\s*implements(?:\\s*$RE_CLASS\\s*,){1}\\s*($RE_CLASS)";
+  my $class3_1_re = "\\b(?:class|interface)\\b\\s+($RE_CLASS)\\s*implements(?:\\s*$RE_CLASS\\s*,){2}\\s*($RE_CLASS)";
+  my $class4_1_re = "\\b(?:class|interface)\\b\\s+($RE_CLASS)\\s*implements(?:\\s*$RE_CLASS\\s*,){3}\\s*($RE_CLASS)";
+  my $class5_1_re = "\\b(?:class|interface)\\b\\s+($RE_CLASS)\\s*implements(?:\\s*$RE_CLASS\\s*,){4}\\s*($RE_CLASS)";
+  my $class6_1_re = "\\b(?:class|interface)\\b\\s+($RE_CLASS)\\s*implements(?:\\s*$RE_CLASS\\s*,){5}\\s*($RE_CLASS)";
+  my $class7_1_re = "\\b(?:class|interface)\\b\\s+($RE_CLASS)\\s*implements(?:\\s*$RE_CLASS\\s*,){6}\\s*($RE_CLASS)";
 
   my @matches = ();
 
