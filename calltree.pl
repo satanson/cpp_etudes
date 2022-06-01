@@ -274,6 +274,7 @@ my $RE_MACRO_DEF = qr/(#definoexceptne([^\n\r]*\\(\n\r?|\r\n?))*([^\n\r]*[^\n\r\
 my $RE_CONDITIONAL_COMPILE_BEGIN_BRANCH = qr/^[\t ]*#(if|endif).*$/;
 my $RE_CONDITIONAL_COMPILE_MID_BRANCH = qr/(?s)(^[\t ]*#elif.*?)(?=^[\t ]*#elif)/ms;
 my $RE_CONDITIONAL_COMPILE_END_BRANCH = qr/(?s)(^[\t ]*#elif.*?#endif)/ms;
+my $RE_ARROW_RETURN = qr/(?<=\))(\s*->\s*(::)?(\s*\w+\s*::)*\s*\w+\s*)(?={)/;
 
 sub empty_string_with_blank_lines($) {
   q/""/ . (join "\n", map {""} split "\n", $_[0]);
@@ -364,6 +365,10 @@ sub replace_macro_defs($) {
   $_[0] =~ s/$RE_MACRO_DEF/&blank_lines($1)/gemr;
 }
 
+sub replace_arrow_return($) {
+  $_[0] =~ s/$RE_ARROW_RETURN/&blank_lines($1)/gemr;
+}
+
 sub preprocess_one_cpp_file($) {
   my $file = shift;
   return unless -f $file;
@@ -387,6 +392,7 @@ sub preprocess_one_cpp_file($) {
   $content = remove_noexcept_and_throw($content);
   $content = remove_noexcept($content);
   $content = replace_macro_defs($content);
+  $content = replace_arrow_return($content);
 
   my $tmp_file = "$file.tmp.created_by_call_tree";
   write_content($tmp_file, $content);
@@ -752,7 +758,7 @@ sub get_cached_or_extract_all_funcs(\%$$) {
       extract_all_funcs(%$ignored, $trivial_threshold, $length_threshold);
     print "extract_all_funcs: end\n";
     @SIG{keys %SIG} = qw/DEFAULT/ x (keys %SIG);
-    restore_saved_files();
+    #restore_saved_files();
     return @result;
   };
   # qx(touch $file);
