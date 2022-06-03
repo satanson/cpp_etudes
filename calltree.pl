@@ -758,7 +758,7 @@ sub get_cached_or_extract_all_funcs(\%$$) {
       extract_all_funcs(%$ignored, $trivial_threshold, $length_threshold);
     print "extract_all_funcs: end\n";
     @SIG{keys %SIG} = qw/DEFAULT/ x (keys %SIG);
-    #restore_saved_files();
+    restore_saved_files();
     return @result;
   };
   # qx(touch $file);
