@@ -20,6 +20,9 @@ sub norm_time($) {
   elsif ($t=~/^(\d+)s(\d+)ms$/) {
     return ($1+0)*1000+$2;
   }
+  elsif ($t=~/^(\d+)m(\d+)s$/) {
+    return (($1+0)*60+$2)*1000;
+  }
   elsif ($t=~/^-(\d+(?:\.\d+)?)(ns|us|ms)$/){
     return -($1+0.0)/$unit{$2};
   }
@@ -31,8 +34,8 @@ sub norm_time($) {
 
 sub norm_num($) {
   my $n = shift;
-  my %unit=(M=>1000000, K=>1000);
-  if ($n=~/^(\d+(?:\.\d+)?)(M|K)$/) {
+  my %unit=(B=>1000000000,M=>1000000, K=>1000);
+  if ($n=~/^(\d+(?:\.\d+)?)(B|M|K)$/) {
     return ($1+0.0)*$unit{$2};
   } elsif ($n=~/^\d+$/) {
     return $n+0;
