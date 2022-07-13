@@ -1048,6 +1048,9 @@ sub search_called_tree($$$$$$) {
 
   my $root = { file_info => "", name => $name_pattern, leaf => undef };
   $root->{child} = [
+    sort {
+      $a->{name} cmp $b->{name}
+    }
     map {
       my $n = $_;
       my @child = map {

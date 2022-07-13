@@ -95,6 +95,16 @@ TEST_F(TestUtil, testDateConversion) {
     }
 }
 
+TEST_F(TestUtil, testTerityExprReferenceAssignment) {
+    std::vector<int> a{1,2,4};
+    std::vector<int> b{1,2,4};
+    int choose = std::rand();
+    auto& c = choose? a:b;
+    std::cout<<&a<<std::endl;
+    std::cout<<&b<<std::endl;
+    std::cout<<&c<<std::endl;
+}
+
 } // namespace util
 } // namespace grakra
 } // namespace com
