@@ -429,7 +429,7 @@ sub register_abnormal_shutdown_hook() {
 
 sub all_sub_classes() {
   my $attr_re = "\\[\\[[^\\[\\]]+\\]\\]";
-  my $access_specifier_re = "\\b(?:final|private|public|protected)\\b";
+  my $access_specifier_re = "\\b(?:final|virtual|private|public|protected)\\b";
   my $template_arguments_re = "<([^<>]*(?:<(?1)>|[^<>])[^<>]*)?>";
   my $cls_re = "^[ \\t]*(\\btemplate\\b\\s*$template_arguments_re)?(?:\\s*\\btypedef\\b)?[ \\t]*\\b(class|struct)\\b\\s*([a-zA-Z_]\\w*)\\s*[^{};*()=]*?{";
   print "cls_re=$cls_re\n";
@@ -517,8 +517,6 @@ sub all_sub_classes() {
 
   my $tree = {};
   my @class_re_list = ($class1_re, $class2_re, $class3_re, $class4_re, $class5_re, $class6_re);
-
-  @matches = map {s/$template_arguments_re//gr} map {s/$access_specifier_re//gr} @matches;
 
   @matches = map {$_->[1]} sort {$a->[0] cmp $b->[0]} map {/^(\S+)\s*:\s*$class0_re/;
     [ $2, $_ ]} @matches;
