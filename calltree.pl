@@ -332,6 +332,10 @@ sub replace_seastar($) {
   $_[0] =~ s/^[\n ]*SEASTAR_CONCEPT.*$/ /gr;
 }
 
+sub remove_misc($) {
+  $_[0] =~ s/(?<=\))(\s*\w+\s*)(?={)/&blank_lines($1)/gemr;
+}
+
 sub remove_noexcept($) {
   $_[0] =~ s/\bnoexcept\b/ /gr;
 }
@@ -393,6 +397,7 @@ sub preprocess_one_cpp_file($) {
   $content = remove_noexcept($content);
   $content = replace_macro_defs($content);
   $content = replace_arrow_return($content);
+  $content = remove_misc($content);
 
   my $tmp_file = "$file.tmp.created_by_call_tree";
   write_content($tmp_file, $content);
