@@ -662,15 +662,15 @@ TEST_F(MiscTest, testSetEqualRange) {
 struct NoExceptClass {
     NoExceptClass() = default;
     ~NoExceptClass() = default;
-    void do_except_work()noexcept {
+    void do_except_work() noexcept {
         vector<int> a;
         auto& b = a.back();
-        std::cout<<b<<"can not reach here\n";
+        std::cout << b << "can not reach here\n";
     }
     void do_except_work2() {
         vector<int> a;
         auto& b = a.back();
-        std::cout<<b<<"can not reach here\n";
+        std::cout << b << "can not reach here\n";
     }
 };
 TEST_F(MiscTest, testNoExceptClass) {
@@ -678,7 +678,7 @@ TEST_F(MiscTest, testNoExceptClass) {
     // no_except_class.do_except_work();
     // no_except_class.do_except_work2();
 }
-TEST_F(MiscTest, testStringPackedInteger){
+TEST_F(MiscTest, testStringPackedInteger) {
     int64_t a = 0xdeadbeef;
     std::string s;
     s.resize(sizeof(a));
@@ -688,17 +688,17 @@ TEST_F(MiscTest, testStringPackedInteger){
     int64_t c = 0;
     std::copy(s.begin(), s.end(), (char*)&b);
     std::copy(s.rbegin(), s.rend(), (char*)&c);
-    std::cout<<std::hex<<"b="<<b<<", c="<<c<<std::endl;
+    std::cout << std::hex << "b=" << b << ", c=" << c << std::endl;
 }
 std::string return_string(const string& s) {
-    return std::string("abc")+s;
+    return std::string("abc") + s;
 }
-void print_c_str(const char* s){
+void print_c_str(const char* s) {
     std::string s0 = s;
-    std::cout<<s0<<std::endl;
+    std::cout << s0 << std::endl;
 }
-TEST_F(MiscTest, testStringCstr){
-    for (int i=0; i<100;++i) {
+TEST_F(MiscTest, testStringCstr) {
+    for (int i = 0; i < 100; ++i) {
         print_c_str(return_string("_124").c_str());
     }
 }
@@ -725,67 +725,71 @@ TEST_F(MiscTest, testInvokeFunc) {
     std::cout << *s2 << std::endl;
 }
 
-TEST_F(MiscTest,testTransactionId) {
+TEST_F(MiscTest, testTransactionId) {
     uint64_t t = 0x00ff'0000'ff00'0000llu;
-    uint32_t x = t >>32;
-    uint32_t y = t & ~0llu >>32;
-    uint32_t z = t & (~1llu >>32);
-    uint32_t w = (t & ~1llu) >>32;
-    std::cout <<x<<","<<y<<","<<z<<","<<w<<std::endl;
+    uint32_t x = t >> 32;
+    uint32_t y = t & ~0llu >> 32;
+    uint32_t z = t & (~1llu >> 32);
+    uint32_t w = (t & ~1llu) >> 32;
+    std::cout << x << "," << y << "," << z << "," << w << std::endl;
 }
-template<typename T>
-void print_vec(std::vector<T>const& vec){
-    std::cout<<"cap="<<vec.capacity()<<", size="<<vec.size()<<", data=[";
-    for (auto& e: vec){
-        std::cout<<e<<", ";
+template <typename T>
+void print_vec(std::vector<T> const& vec) {
+    std::cout << "cap=" << vec.capacity() << ", size=" << vec.size() << ", data=[";
+    for (auto& e : vec) {
+        std::cout << e << ", ";
     }
-    std::cout<<"]"<<std::endl;
+    std::cout << "]" << std::endl;
 }
 
 TEST_F(MiscTest, testAssign) {
     vector<int> v;
-    v.assign(10,1);
+    v.assign(10, 1);
     print_vec(v);
-    v.assign(2,2);
+    v.assign(2, 2);
     print_vec(v);
     v.assign(11, 3);
     print_vec(v);
     v.assign(10, 1);
     size_t count = 0;
-    for (int i=0;i < 10;++i){
-        v[i] &= (i%2==0);
-        count+=(i%2==0);
+    for (int i = 0; i < 10; ++i) {
+        v[i] &= (i % 2 == 0);
+        count += (i % 2 == 0);
     }
     print_vec(v);
-    std::cout<<count<<std::endl;
+    std::cout << count << std::endl;
     std::shared_ptr<int> a;
-    a =a;
+    a = a;
     std::shared_ptr<int> b(a);
 }
 class B0 {
 public:
-    B0(int i):i(i){
-        std::cout<<"ctor B0"<<"("<<i<<")"<<std::endl;
+    B0(int i) : i(i) {
+        std::cout << "ctor B0"
+                  << "(" << i << ")" << std::endl;
     }
-    ~B0(){
-        std::cout<<"dtor B0"<<"("<<i<<")"<<std::endl;
+    ~B0() {
+        std::cout << "dtor B0"
+                  << "(" << i << ")" << std::endl;
     }
+
 private:
     int i;
 };
 
 class B1 {
 public:
-    B1(){
+    B1() {
         b1 = std::make_shared<B0>(1);
         b2 = std::make_shared<B0>(2);
         b3 = std::make_shared<B0>(3);
-        std::cout<<"ctor B1"<<std::endl;
+        std::cout << "ctor B1" << std::endl;
     }
     ~B1() {
-        std::cout<<"dtor B1"<<std::endl;
+        std::cout << "dtor B1" << std::endl;
         b2.reset();
     }
+
 private:
     std::shared_ptr<B0> b1;
     std::shared_ptr<B0> b2;
@@ -794,6 +798,69 @@ private:
 TEST_F(MiscTest, TestB1) {
     B1 b1;
 }
+TEST_F(MiscTest, TestUniquePtr) {
+    std::vector<std::unique_ptr<B1>> bs;
+    //bs.resize(10);
+    for (auto i = 0; i < 10; ++i) {
+        bs.push_back(std::make_unique<B1>());
+    }
+}
+
+TEST_F(MiscTest, TestIteratorBackwardVector) {
+    std::vector<int> vec{1, 2, 3, 4, 5, 6};
+    for (auto it = vec.rbegin(); it != vec.rend(); ++it) {
+        std::cout << *it << std::endl;
+    }
+    std::function<void()> f;
+    f();
+}
+
+static inline std::string base_name_of_conjugate_op(const std::string& s) {
+    std::string lc;
+    lc.resize(s.size());
+    std::transform(s.begin(), s.end(), lc.begin(), [](char c) { return (char)std::tolower(c); });
+    const char* source = "_source";
+    const char* sink = "_sink";
+    if (memcmp(lc.data() + lc.size() - 7, source, 7) == 0) {
+        lc.resize(lc.size() - 7);
+    } else if (memcmp(lc.data() + lc.size() - 5, sink, 5) == 0) {
+        lc.resize(lc.size() - 5);
+    }
+    return lc;
+}
+
+TEST_F(MiscTest, testBaseNameOfConjugateName) {
+    std::cout << base_name_of_conjugate_op("abc_sink") << std::endl;
+    std::cout << base_name_of_conjugate_op("abcd_source") << std::endl;
+    std::cout << base_name_of_conjugate_op("Abc_sInk") << std::endl;
+    std::cout << base_name_of_conjugate_op("abCD_sOURce") << std::endl;
+}
+
+struct C1 {
+    std::vector<int> f0;
+    std::unordered_map<int, int> f1;
+};
+
+TEST_F(MiscTest, testUniquePtrAssignment) {
+    std::unique_ptr<C1> c1 = std::make_unique<C1>();
+    c1->f0.push_back(1);
+    c1->f0.push_back(2);
+    c1->f0.push_back(3);
+    c1->f1[1] = 11;
+    c1->f1[2] = 22;
+    c1->f1[3] = 33;
+    c1 = std::make_unique<C1>();
+    std::cout << c1->f0.size() << std::endl;
+    std::cout << c1->f1.size() << std::endl;
+}
+#include <any>
+TEST_F(MiscTest, testAny) {
+    std::any a = 1;
+    std::cout<<a.has_value()<<std::endl;
+    a.reset();
+    std::cout<<a.has_value()<<std::endl;
+}
+
 int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();

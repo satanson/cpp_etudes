@@ -308,6 +308,10 @@ sub replace_lt($) {
   $_[0] =~ s/\s+<\s+/ + /gr;
 }
 
+sub replace_whitespaces($) {
+  $_[0] =~ s/(?:^\s+)|(?:\s+$)|(?:(?<=\p{IsPunct})\s+)|(?:\s+(?=\p{IsPunct}))//gr;
+}
+
 sub replace_template_args_1layer($) {
   ($_[0] =~ s/$RE_TEMPLATE_ARGS_1LAYER/&blank_lines($1)/gemr, $1);
 }
@@ -354,7 +358,7 @@ sub preprocess_one_java_file($) {
   $content = replace_quoted_string(replace_single_char(replace_slash_star_comment($content)));
 
   $content = join qq/\n/, map {
-    replace_lt(replace_left_angles(replace_nested_char(replace_single_line_comment($_))))
+    replace_whitespaces(replace_lt(replace_left_angles(replace_nested_char(replace_single_line_comment($_)))))
   } split qq/\n/, $content;
 
   $content = remove_keywords_and_attributes($content);

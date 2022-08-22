@@ -332,6 +332,10 @@ sub replace_seastar($) {
   $_[0] =~ s/^[\n ]*SEASTAR_CONCEPT.*$/ /gr;
 }
 
+sub replace_whitespaces($) {
+  $_[0] =~ s/(?:^\s+)|(?:\s+$)|(?:(?<=\p{IsPunct})\s+)|(?:\s+(?=\p{IsPunct}))//gr;
+}
+
 sub remove_misc($) {
   $_[0] =~ s/(?<=\))(\s*\w+\s*)(?={)/&blank_lines($1)/gemr;
 }
@@ -387,7 +391,7 @@ sub preprocess_one_cpp_file($) {
   $content = replace_quoted_string(replace_single_char(replace_slash_star_comment($content)));
 
   $content = join qq/\n/, map {
-    replace_seastar(replace_lt(replace_left_angles(replace_nested_char(replace_single_line_comment($_)))))
+    replace_whitespaces(replace_seastar(replace_lt(replace_left_angles(replace_nested_char(replace_single_line_comment($_))))))
   } split qq/\n/, $content;
 
   $content = remove_keywords_and_attributes($content);

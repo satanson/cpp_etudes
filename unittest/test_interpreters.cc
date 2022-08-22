@@ -44,6 +44,7 @@ TEST_F(TestInterpreters, TestDirectThreaded) {
                                   &target_addresses.front());
     ASSERT_EQ(result, 252);
 }
+
 } // namespace interpreters
 int main(int argc, char** argv) {
     testing::InitGoogleTest(&argc, argv);
