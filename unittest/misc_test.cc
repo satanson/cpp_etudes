@@ -856,9 +856,107 @@ TEST_F(MiscTest, testUniquePtrAssignment) {
 #include <any>
 TEST_F(MiscTest, testAny) {
     std::any a = 1;
-    std::cout<<a.has_value()<<std::endl;
+    std::cout << a.has_value() << std::endl;
     a.reset();
-    std::cout<<a.has_value()<<std::endl;
+    std::cout << a.has_value() << std::endl;
+}
+
+void invoke_f(const std::string& s, void (*f)(const std::string&)) {
+    f(s);
+}
+TEST_F(MiscTest, testFunction) {
+    int a = 100;
+    invoke_f("foobar", [](const std::string& s) {
+        std::string r;
+        r.append(s);
+        r.append(std::to_string(100));
+        std::cout << r << std::endl;
+    });
+}
+
+template <typename, template <typename...> typename, typename...>
+struct detector {
+    using value_t = std::false_type;
+};
+
+template <template <typename...> typename Op, typename... Args>
+struct detector<std::void_t<Op<Args...>>, Op, Args...> {
+    using value_t = std::true_type;
+};
+
+template <template <typename...> typename Op, typename... Args>
+using is_detect = typename detector<void, Op, Args...>::value_t;
+
+template <typename T, typename TRef = T&&>
+TRef __mydeclval(int);
+template <typename T>
+T __mydeclval(long);
+
+template <typename...>
+struct mydeclval_preventor {
+    static constexpr bool stop = false;
+};
+template <typename T>
+auto mydeclval() -> decltype(__mydeclval<T>(0)) {
+    static_assert(mydeclval_preventor<T>::stop, "abc");
+    return __mydeclval<T>(0);
+}
+
+namespace test_polymorphic_dispatch {
+class Fish {
+public:
+    void swim() { std::cout << "Fish can swim" << std::endl; }
+};
+class Bird {
+public:
+    void fly() { std::cout << "Bird can fly" << std::endl; }
+};
+template <typename T>
+class Animal {
+public:
+    template <typename S>
+    using can_fly_t = decltype(mydeclval<S>().fly());
+    template <typename S>
+    using can_swim_t = decltype(mydeclval<S>().swim());
+    static constexpr bool can_fly = is_detect<can_fly_t, T>::value;
+    static constexpr bool can_swim = is_detect<can_swim_t, T>::value;
+    void behavior() {
+        if constexpr (can_fly) {
+            t.fly();
+        } else if constexpr (can_swim) {
+            t.swim();
+        }
+    }
+private:
+    T t;
+};
+
+} // namespace test_polymorphic_dispatch
+
+TEST_F(MiscTest, testStaticDispatch) {
+    namespace tpd = test_polymorphic_dispatch;
+    tpd::Animal<tpd::Fish> animal0;
+    tpd::Animal<tpd::Bird> animal1;
+    animal0.behavior();
+    animal1.behavior();
+}
+
+template <typename DesiredTypeName>
+inline std::string getTypeName() {
+    std::string Name = __PRETTY_FUNCTION__;
+
+    std::string  Key = "DesiredTypeName = ";
+    Name = Name.substr(Name.find(Key));
+    assert(!Name.empty() && "Unable to find the template parameter!");
+    Name = Name.substr(Key.size());
+
+    assert(Name.back() == ']' && "Name doesn't end in the substitution key!");
+    return Name.substr(0, Name.size()-1);
+}
+TEST_F(MiscTest, testGetTypeName) {
+    namespace tpd = test_polymorphic_dispatch;
+    using T = tpd::Animal<tpd::Fish>;
+    std::cout<<getTypeName<T>()<<std::endl;
 }
 
 int main(int argc, char** argv) {
