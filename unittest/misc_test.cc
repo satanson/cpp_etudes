@@ -927,6 +927,7 @@ public:
             t.swim();
         }
     }
+
 private:
     T t;
 };
@@ -945,18 +946,46 @@ template <typename DesiredTypeName>
 inline std::string getTypeName() {
     std::string Name = __PRETTY_FUNCTION__;
 
-    std::string  Key = "DesiredTypeName = ";
+    std::string Key = "DesiredTypeName = ";
     Name = Name.substr(Name.find(Key));
     assert(!Name.empty() && "Unable to find the template parameter!");
     Name = Name.substr(Key.size());
 
     assert(Name.back() == ']' && "Name doesn't end in the substitution key!");
-    return Name.substr(0, Name.size()-1);
+    return Name.substr(0, Name.size() - 1);
 }
 TEST_F(MiscTest, testGetTypeName) {
     namespace tpd = test_polymorphic_dispatch;
     using T = tpd::Animal<tpd::Fish>;
-    std::cout<<getTypeName<T>()<<std::endl;
+    std::cout << getTypeName<T>() << std::endl;
+}
+using MapFunc = std::function<double(double)>;
+using ReduceFunc = std::function<double(double, double)>;
+static ReduceFunc add_func = [](double a, double b) { return a + b; };
+static MapFunc pi_map1_func = [](double a) {
+    long l = (long)a;
+    long s = -(l & 1L);
+    return (double)((((l << 1) + 1L) ^ s) - s);
+};
+static MapFunc pi_map2_func = [](double a) { return 4.0 / a; };
+
+TEST_F(MiscTest, testPi) {
+    std::vector<double> data;
+    data.resize(1000);
+    for (auto i = 0; i < data.size(); ++i) {
+        data[i] = (double)i;
+    }
+    for (auto i = 0; i < data.size(); ++i) {
+        data[i] = pi_map1_func(data[i]);
+    }
+    for (auto i = 0; i < data.size(); ++i) {
+        data[i] = pi_map2_func(data[i]);
+    }
+    double result = 0;
+    for (auto i = 0; i < data.size(); ++i) {
+        result = add_func(result, data[i]);
+    }
+    std::cout << result << std::endl;
 }
 
 int main(int argc, char** argv) {
