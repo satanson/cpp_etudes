@@ -179,7 +179,7 @@ sub gen_re_list($$$) {
 
 sub gen_re_initializer_list_of_ctor() {
   my $re_csv = gen_re_list(",", "(?:[^,]+?)", "??");
-  my $initializer = "(?: $RE_IDENTIFIER  $RE_WS*  (?: (?: \\( $RE_WS*  $re_csv  $RE_WS* \\) ) | (?: \\{ $RE_WS*  $re_csv  $RE_WS* \\} ) ) )";
+  my $initializer = "(?: $RE_SCOPED_IDENTIFIER  $RE_WS*  (?: (?: \\( $RE_WS*  $re_csv  $RE_WS* \\) ) | (?: \\{ $RE_WS*  $re_csv  $RE_WS* \\} ) ) )";
   my $re_csv_initializer = gen_re_list(",", "(?: $initializer )", "");
   my $initializer_list = "(?: (?<=\\) ) $RE_WS* : $RE_WS* $re_csv_initializer $RE_WS* (?={) )";
 
@@ -767,7 +767,7 @@ sub get_cached_or_extract_all_funcs(\%$$) {
       extract_all_funcs(%$ignored, $trivial_threshold, $length_threshold);
     print "extract_all_funcs: end\n";
     @SIG{keys %SIG} = qw/DEFAULT/ x (keys %SIG);
-    # restore_saved_files();
+    restore_saved_files();
     return @result;
   };
   # qx(touch $file);
