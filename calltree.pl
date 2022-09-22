@@ -270,10 +270,10 @@ my $RE_LEFT_ANGLES = qr'<[<=]+';
 my $RE_TEMPLATE_ARGS_1LAYER = qr'(<\s*(((::)?(\w+::)*\w+\s*,\s*)*(::)?(\w+::)*\w+\s*)>)';
 my $RE_CSV_TOKEN = gen_re_list(",", $RE_SCOPED_IDENTIFIER, "??");
 my $RE_NOEXCEPT_THROW = qr"(\\b(noexcept|throw)\\b)(\\s*\\(\\s*$RE_CSV_TOKEN\\s*\\))?";
-my $RE_MACRO_DEF = qr/(#definoexceptne([^\n\r]*\\(\n\r?|\r\n?))*([^\n\r]*[^\n\r\\])?((\n\r?)|(\r\n?)|$))/;
+my $RE_MACRO_DEF = qr/(#define([^\n\r]*\\(\n\r?|\r\n?))*([^\n\r]*[^\n\r\\])?((\n\r?)|(\r\n?)|$))/;
 my $RE_CONDITIONAL_COMPILE_BEGIN_BRANCH = qr/^[\t ]*#(if|endif).*$/;
-my $RE_CONDITIONAL_COMPILE_MID_BRANCH = qr/(?s)(^[\t ]*#elif.*?)(?=^[\t ]*#elif)/ms;
-my $RE_CONDITIONAL_COMPILE_END_BRANCH = qr/(?s)(^[\t ]*#elif.*?#endif)/ms;
+my $RE_CONDITIONAL_COMPILE_MID_BRANCH = qr/(?s)(^[\t ]*#elif.*?)(?=^[\t ]*#(?:elif|else))/ms;
+my $RE_CONDITIONAL_COMPILE_END_BRANCH = qr/(?s)(^[\t ]*#(?:elif|else).*?#endif)/ms;
 my $RE_ARROW_RETURN = qr/(?<=\))(\s*->\s*(::)?(\s*\w+\s*::)*\s*\w+\s*)(?={)/;
 
 sub empty_string_with_blank_lines($) {
@@ -767,7 +767,7 @@ sub get_cached_or_extract_all_funcs(\%$$) {
       extract_all_funcs(%$ignored, $trivial_threshold, $length_threshold);
     print "extract_all_funcs: end\n";
     @SIG{keys %SIG} = qw/DEFAULT/ x (keys %SIG);
-    restore_saved_files();
+    # restore_saved_files();
     return @result;
   };
   # qx(touch $file);

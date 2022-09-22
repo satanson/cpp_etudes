@@ -988,6 +988,111 @@ TEST_F(MiscTest, testPi) {
     std::cout << result << std::endl;
 }
 
+template <typename _Tp, typename = void>
+struct my_is_referenceable : public false_type {};
+
+template <typename _Tp>
+struct my_is_referenceable<_Tp, __void_t<_Tp&>> : public true_type {};
+
+void void_func() {}
+int int_func() {
+    return 0;
+}
+TEST_F(MiscTest, testMeta) {
+    static_assert(my_is_referenceable<int>::value, "abc");
+    using a = my_is_referenceable<std::function<void(void)>>;
+    static_assert(a::value, "abc");
+    using b = my_is_referenceable<void>;
+    //static_assert(b::value, "abc");
+    using c = my_is_referenceable<decltype(int_func())>;
+    static_assert(c::value, "abc");
+}
+
+struct ReferenceMethod {
+    void print() & { std::cout << "invoked"; }
+};
+
+TEST_F(MiscTest, testReferenceMethod) {
+    ReferenceMethod a;
+    a.print();
+    //ReferenceMethod().print();
+}
+
+template <typename... Args>
+struct SizeOfVariadicTemplate {
+    static constexpr int n = sizeof...(Args);
+};
+
+TEST_F(MiscTest, testAlign) {
+    auto check = [](int64_t n) { return (n & ~((-1) << 3)) == 0; };
+    for (int i = 0; i < 100; ++i) {
+        std::cout << "i=" << i << "; ans=" << check(i) << std::endl;
+    }
+
+    std::cout << SizeOfVariadicTemplate<int, int, float, double>::n << std::endl;
+}
+
+// sum: [int]->int
+template <int... xs>
+struct Sum {};
+
+// sum x  = x
+template <int x>
+struct Sum<x> {
+    static constexpr int value = x;
+};
+// sum [x:xs] = x + sum(xs)
+template <int x, int... xs>
+struct Sum<x, xs...> {
+    static constexpr int value = x + Sum<xs...>::value;
+};
+
+TEST_F(MiscTest, testSum) {
+    std::cout << Sum<1, 2, 3, 4, 5, 6, 7>::value << std::endl;
+    //using func = void(int);
+    //using func = std::function<void(int)>;
+    auto f = [](int a) {};
+    using func = decltype(f);
+    //static_assert(std::is_function_v<func>,"abc");
+}
+
+template <typename Callable>
+struct CallAs {};
+
+template <typename ReturnT, typename... ParamTypes>
+struct FunctorD {
+    using CallT = ReturnT (*)(void*, ParamTypes...);
+
+    template <typename CallAsT>
+    static ReturnT CallImpl(void* p, ParamTypes... params) {
+        CallAsT& func = *reinterpret_cast<CallAsT*>(p);
+        return func(params...);
+    }
+    template <typename CallableT, typename CallAsT>
+    FunctorD(CallableT func, CallAs<CallAsT>) {
+        f = new char[sizeof(CallableT)];
+        new (f) CallableT(std::move(func));
+        callImpl = &CallImpl<CallAsT>;
+    }
+
+    ReturnT operator()(ParamTypes... params) { return callImpl(f, params...); }
+    CallT callImpl;
+    void* f;
+};
+struct FunctorE {
+    int operator()(int a, int b) {return a+b;}
+};
+TEST_F(MiscTest, testCallAs) {
+    FunctorD<int,int,int> f1(FunctorE(), CallAs<FunctorE>{});
+    std::cout<<f1(1,1)<<std::endl;
+}
+
+TEST_F(MiscTest, testInt128Div) {
+    int128_t a =1;
+    int128_t b =0;
+    int128_t c =a/b;
+}
+
 int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
