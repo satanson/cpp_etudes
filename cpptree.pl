@@ -222,6 +222,7 @@ my $RE_TEMPLATE_ARGS_1LAYER = qr'(<\s*(((::)?(\w+::)*\w+\s*,\s*)*(::)?(\w+::)*\w
 my $RE_CSV_TOKEN = gen_re_list(",", $RE_SCOPED_IDENTIFIER, "??");
 my $RE_NOEXCEPT_THROW = qr"(\\b(noexcept|throw)\\b)(\\s*\\(\\s*$RE_CSV_TOKEN\\s*\\))?";
 my $RE_MACRO_DEF = qr/(#define([^\n\r]*\\(\n\r?|\r\n?))*([^\n\r]*[^\n\r\\])?((\n\r?)|(\r\n?)|$))/;
+my $MACRO_MODIFIER = qr/\b(class|struct)\b\s+(?:[_A-Z]+\s+)+\b(\w+)\b/;
 
 sub empty_string_with_blank_lines($) {
   q/""/ . (join "\n", map {""} split "\n", $_[0]);
@@ -245,6 +246,10 @@ sub replace_slash_star_comment($) {
 
 sub replace_nested_char($) {
   $_[0] =~ s/$RE_NESTED_CHARS_IN_SINGLE_QUOTES/'x'/gr;
+}
+
+sub remove_macro_modifier($) {
+  $_[0] =~ s/$MACRO_MODIFIER/$1 $2/gr;
 }
 
 sub replace_single_line_comment($) {
@@ -322,6 +327,7 @@ sub preprocess_one_cpp_file($) {
   $content = remove_noexcept_and_throw($content);
   $content = replace_macro_defs($content);
   $content = remove_v8_modifiers($content);
+  $content = remove_macro_modifier($content);
 
   my $tmp_file = "$file.tmp.created_by_call_tree";
   write_content($tmp_file, $content);
