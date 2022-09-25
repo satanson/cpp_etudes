@@ -1092,6 +1092,13 @@ TEST_F(MiscTest, testInt128Div) {
     int128_t b =0;
     int128_t c =a/b;
 }
+TEST_F(MiscTest, testReduce) {
+    std::vector<std::string> xs = {"1","2","3","4","5"};
+    auto x = std::transform_reduce(xs.begin(), xs.end(), 0L, [](size_t a, size_t b){
+        return a+b;
+    }, [](const std::string& x){ return strtoul(x.c_str(), nullptr, 10);});
+    std::cout<<x<<std::endl;
+}
 
 int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);

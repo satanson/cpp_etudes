@@ -276,8 +276,17 @@ my $RE_CONDITIONAL_COMPILE_MID_BRANCH = qr/(?s)(^[\t ]*#elif.*?)(?=^[\t ]*#(?:el
 my $RE_CONDITIONAL_COMPILE_END_BRANCH = qr/(?s)(^[\t ]*#(?:elif|else).*?#endif)/ms;
 my $RE_ARROW_RETURN = qr/(?<=\))(\s*->\s*(::)?(\s*\w+\s*::)*\s*\w+\s*)(?={)/;
 
+sub with_blank_lines($$) {
+  my ($var, $lines) = (@_);
+  $var . (join "\n", map {""} split "\n", $lines);
+}
+
 sub empty_string_with_blank_lines($) {
-  q/""/ . (join "\n", map {""} split "\n", $_[0]);
+  with_blank_lines(qq/""/, $_[0]);
+}
+
+sub xvar_with_blank_lines($) {
+  with_blank_lines("x", $_[0]);
 }
 
 sub blank_lines($) {
@@ -286,6 +295,13 @@ sub blank_lines($) {
 
 sub replace_single_char($) {
   $_[0] =~ s/$RE_SINGLE_CHAR/'x'/gr;
+}
+
+my $ignored_functions = "(?:clEnumValN|cl::value|cl::init|cl::desc|cl::Hidden|cl::ValueOptional|cl::values|cl::value_desc|cl::CommaSeparated)";
+my $nested_parentheses = qr/(\b$ignored_functions\b(?:\([^()]*([^()]*\((?-1)*\)[^()]*|[^()]*\([^()]*\)[^()]*)*[^()]*\))?)/;
+
+sub replace_ignored_functions($) {
+  return $_[0] =~ s/$nested_parentheses/&xvar_with_blank_lines($1)/gemr
 }
 
 sub replace_quoted_string($) {
@@ -383,6 +399,7 @@ sub preprocess_one_cpp_file($) {
   my $content = read_content($file);
   return unless defined($content) && length($content) > 0;
   $content = repeat_apply(10, &replace_conditional_compilation_mid_branch, $content);
+  $content = repeat_apply(4, &replace_ignored_functions, $content);
   $content = replace_conditional_compilation_end_branch($content);
   $content = join qq/\n/, map {
     replace_conditional_compilation_begin_branch($_);
