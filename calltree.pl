@@ -648,7 +648,7 @@ sub extract_all_funcs(\%$$) {
   print qq(ag -U $multiline_break -G $cpp_filename_pattern $ignore_pattern '$RE_FUNC_DEFINITION'), "\n";
   my @matches = map {
     chomp;
-    $_
+    $_." "
   } qx(ag -U $multiline_break -G $cpp_filename_pattern $ignore_pattern '$RE_FUNC_DEFINITION');
 
   printf "extract lines: %d\n", scalar(@matches);
@@ -665,6 +665,7 @@ sub extract_all_funcs(\%$$) {
     $1} @func_def;
 
   my $re_func_call = qr!$RE_FUNC_CALL!;
+  printf "re_function_call=$RE_FUNC_CALL\n";
   printf "process callees: begin\n";
   my @func_callees = map {
     my (undef, @rest) = extract_all_callees($_, $re_func_call);
