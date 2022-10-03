@@ -595,7 +595,7 @@ sub extract_all_funcs(\%$$) {
   print qq(ag -U $multiline_break -G $java_filename_pattern $ignore_pattern '$RE_FUNC_DEFINITION'), "\n";
   my @matches = map {
     chomp;
-    $_
+    $_." "
   } qx(ag -U $multiline_break -G $java_filename_pattern $ignore_pattern '$RE_FUNC_DEFINITION');
 
   printf "extract lines: %d\n", scalar(@matches);
@@ -774,8 +774,8 @@ my %ignored = map {$_ => 1} @ignored;
 
 my ($calling, $called, $calling_names, $called_names) = (undef, undef, undef, undef);
 
-sub sub_tree($$$$$$$) {
-  my ($graph, $node, $level, $depth, $path, $get_id_and_child, $install_child) = @_;
+sub sub_tree($$$$$$$$) {
+  my ($graph, $node, $level, $depth, $path, $get_id_and_child, $install_child, $pruned) = @_;
 
   my ($matched, $node_id, @child) = $get_id_and_child->($graph, $node);
   return undef unless defined($node_id);
@@ -784,7 +784,7 @@ sub sub_tree($$$$$$$) {
     if (scalar(@child) == 0) {
       $node->{leaf} = "outermost";
     }
-    elsif ($level >= $depth) {
+    elsif (($level + 1) >= $depth) {
       $node->{leaf} = "deep";
     }
     elsif (exists $path->{$node_id}) {
@@ -802,8 +802,11 @@ sub sub_tree($$$$$$$) {
   $path->{$node_id} = 1;
 
   my @child_nodes = ();
-  foreach my $chd (@child) {
-    push @child_nodes, &sub_tree($graph, $chd, $level, $depth, $path, $get_id_and_child, $install_child);
+  my $unique_name = $node->{file_info} . "::" . $node->{name};
+  if (!exists $pruned->{$unique_name}) {
+    foreach my $chd (@child) {
+      push @child_nodes, &sub_tree($graph, $chd, $level, $depth, $path, $get_id_and_child, $install_child, $pruned);
+    }
   }
 
   # delete node_id from path;
@@ -818,6 +821,10 @@ sub sub_tree($$$$$$$) {
   }
   else {
     $install_child->($node, []);
+    if ($node->{leaf} eq "internal") {
+      $pruned->{$unique_name} = 1;
+      $node->{leaf} = "pruned";
+    }
     return $matched ? $node : undef;
   }
 }
@@ -985,7 +992,7 @@ sub called_tree($$$$$) {
     file_info   => "",
   };
 
-  return &sub_tree($called_graph, $node, 0, $depth, {}, $get_id_and_child, $install_child);
+  return &sub_tree($called_graph, $node, 0, $depth, {}, $get_id_and_child, $install_child, {});
 }
 
 sub fuzzy_called_tree($$$$$$) {
@@ -1180,7 +1187,7 @@ sub calling_tree($$$$$$) {
 
   my $node = $new_callee_or_match_node->({ name => $name, call => $name, simple_name => $name });
 
-  return &sub_tree($calling_graph, $node, 0, $depth, {}, $get_id_and_child, $install_child);
+  return &sub_tree($calling_graph, $node, 0, $depth, {}, $get_id_and_child, $install_child, {});
 }
 
 sub adjust_calling_tree($) {
