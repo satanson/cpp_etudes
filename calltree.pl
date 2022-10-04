@@ -1315,7 +1315,7 @@ sub fuzzy_calling_tree($$$$$$) {
     my $child0_file_info = $child0->{file_info};
     my $child0_name = $child0->{name};
     my $child0_unique_id = "$child0_file_info.$child0_name";
-    #next if exists $uniques->{$child0_unique_id};
+    next if exists $uniques->{$child0_unique_id};
     my $tree = calling_tree($calling_graph, $name, $filter, $files_included, $depth, $uniques);
     push @trees, $tree if defined($tree);
   }
