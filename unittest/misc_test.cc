@@ -1100,6 +1100,25 @@ TEST_F(MiscTest, testReduce) {
     std::cout<<x<<std::endl;
 }
 
+#include <shared_mutex>
+
+
+class AssertHeldShardMutex: public std::shared_mutex {
+public:
+    void lock() {}
+    bool try_lock() { }
+    void unlock() { }
+
+    // Shared ownership
+
+    void lock_shared() {}
+    bool try_lock_shared() { }
+    void unlock_shared() {};
+private:
+    pthread_key_t _key;
+
+};
+
 int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
