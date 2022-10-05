@@ -831,6 +831,7 @@ my %ignored = map {$_ => 1} @ignored;
 my ($Global_calling, $Global_called, $Global_calling_names, $Global_called_names) = (undef, undef, undef, undef);
 my $Global_pruned_cache = {};
 my $Global_pruned_subtrees = {};
+my $Global_common_quiet = 0;
 my $Global_common_height = 0;
 my $Global_common_count = 0;
 
@@ -1402,7 +1403,7 @@ sub format_pruned_tree($$$\&\&) {
 
 sub format_common_tree($$\&\&) {
   my ($pruned_subtrees, $verbose, $get_entry, $get_child) = @_;
-  if (scalar(%$pruned_subtrees)) {
+  if (!$Global_common_quiet && scalar(%$pruned_subtrees)) {
     my @child = sort {$a->{common_idx} <=> $b->{common_idx}} values %$pruned_subtrees;
     my $common_node = {
       name          => "[common]",
@@ -1691,7 +1692,8 @@ my $Opt_files_included = shift;
 $Opt_filter = (defined($Opt_filter) && $Opt_filter ne "") ? $Opt_filter : ".*";
 $Opt_mode = (defined($Opt_mode) && int($Opt_mode) >= 0) ? int($Opt_mode) : 1;
 $Opt_verbose = (defined($Opt_verbose) && int($Opt_verbose) >= 0) ? int($Opt_verbose) : 0;
-$Global_common_height = int($Opt_verbose / 100);
+$Global_common_quiet = int($Opt_verbose / 1000);
+$Global_common_height = int($Opt_verbose % 1000 / 100);
 $Global_common_count = int($Opt_verbose % 100 / 10);
 $Opt_verbose = $Opt_verbose % 10;
 die "verbose should ranges [0..1], $Opt_verbose provided" unless (0 <= $Opt_verbose <= 1);
