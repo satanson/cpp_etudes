@@ -1403,7 +1403,7 @@ sub format_pruned_tree($$$\&\&) {
 sub format_common_tree($$\&\&) {
   my ($pruned_subtrees, $verbose, $get_entry, $get_child) = @_;
   if (scalar(%$pruned_subtrees)) {
-    my @child = sort {$a->{common_idx} cmp $b->{common_idx}} values %$pruned_subtrees;
+    my @child = sort {$a->{common_idx} <=> $b->{common_idx}} values %$pruned_subtrees;
     my $common_node = {
       name          => "[common]",
       simple_name   => "[common]",
@@ -1419,7 +1419,7 @@ sub format_common_tree($$\&\&) {
       my $entry = $get_entry->($node, $verbose, $common_idx);
       if ($should_prepend && exists($node->{common_idx})) {
         my $common_idx = $node->{common_idx};
-        $entry = "\e[33;35;1m[$common_idx] \e[m" . $entry;
+        $entry = "\e[33;35;1m$common_idx.\e[m" . $entry;
       }
       return $entry;
     };
@@ -1444,6 +1444,22 @@ sub format_common_tree($$\&\&) {
     return format_tree($common_node, 0, $verbose, 1, &$prepend_common_idx_get_entry, &$get_child_maybe_pruned);
   }
   return ();
+}
+
+sub format_convergent_common_tree($$\&\&) {
+  my ($pruned_subtrees, $verbose, $get_entry, $get_child) = @_;
+  my $format_func = sub {return format_common_tree($pruned_subtrees, $verbose, &$get_entry, &$get_child)};
+  my @prev_lines = $format_func->();
+  while (1) {
+    my @lines = $format_func->();
+    if (scalar(@prev_lines) == scalar(@lines)) {
+      last;
+    }
+    else {
+      @prev_lines = @lines;
+    }
+  }
+  return @prev_lines;
 }
 
 my $Global_isatty = -t STDOUT;
@@ -1479,7 +1495,7 @@ sub format_called_tree($$) {
   my ($root, $verbose) = @_;
   my $enabled_prune = $Global_common_count >= 2 && $Global_common_height >= 3;
   my @lines = format_pruned_tree($root, $verbose, $enabled_prune, &get_entry_of_called_tree, &get_child_of_called_tree);
-  push @lines, format_common_tree($Global_pruned_subtrees, $verbose, &get_entry_of_called_tree, &get_child_of_called_tree);
+  push @lines, format_convergent_common_tree($Global_pruned_subtrees, $verbose, &get_entry_of_called_tree, &get_child_of_called_tree);
   return map {"  $_"} ("", @lines, "");
 }
 
@@ -1496,13 +1512,14 @@ sub get_entry_of_calling_tree($$$) {
     $file_info = "vim $file_info";
   }
 
-  #my $count = 0;
-  #if (exists($node->{cache_key}) && exists($pruned_cache->{$node->{cache_key}})) {
-  #  my $pruned_node = $pruned_cache->{$node->{cache_key}};
-  #  $count = $pruned_node->{count};
-  #}
-
-  #$name = "$name(count=$count)";
+  # my $count = 0;
+  # my $height = 0;
+  # if (exists($node->{cache_key}) && exists($Global_pruned_cache->{$node->{cache_key}})) {
+  #   my $pruned_node = $Global_pruned_cache->{$node->{cache_key}};
+  #   $count = $pruned_node->{count};
+  #   $height = $pruned_node->{height};
+  # }
+  # $name = "$name(count=$count, height=$height)";
 
   if ($Global_isatty) {
     if (defined($common_idx)) {
@@ -1651,7 +1668,7 @@ sub format_calling_tree($$) {
   my $enabled_prune = $Global_common_count >= 2 && $Global_common_height >= 3;
   $root->{level} = 0;
   my @lines = format_pruned_tree($root, $verbose, $enabled_prune, &get_entry_of_calling_tree, &get_child_of_calling_tree);
-  push @lines, format_common_tree($Global_pruned_subtrees, $verbose, &get_entry_of_calling_tree, &get_child_of_calling_tree);
+  push @lines, format_convergent_common_tree($Global_pruned_subtrees, $verbose, &get_entry_of_calling_tree, &get_child_of_calling_tree);
   return map {"  $_"} ("", @lines, "");
 }
 
