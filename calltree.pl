@@ -1344,41 +1344,60 @@ sub unified_calling_tree($$$$) {
   return &adjust_calling_tree($root);
 }
 
-sub format_tree($$$\&\&) {
-  my ($root, $verbose, $enable_prune, $get_entry, $get_child) = @_;
+sub format_tree($$$$\&\&) {
+  my ($root, $level, $verbose, $enable_prune, $get_entry, $get_child) = @_;
+  $root->{level} = $level;
   unless (defined($root) && %$root) {
     return ();
-  }
-  my @child = ();
-  my $cached_node = undef;
-  if (exists($root->{cache_key}) && exists($Global_pruned_cache->{$root->{cache_key}})) {
-    $cached_node = $Global_pruned_cache->{$root->{cache_key}};
-    @child = $get_child->($cached_node);
-  }
-  if (!@child) {
-    @child = $get_child->($root);
   }
 
   my ($common_idx) = should_prune_subtree($root, $enable_prune);
   my $entry = $get_entry->($root, $verbose, $common_idx);
   my @result = ($entry);
 
-  if (scalar(@child) == 0 || defined($common_idx)) {
+  my @child = $get_child->($root);
+  if (!scalar(@child)) {
     return @result;
   }
 
   my $last_child = pop @child;
 
   foreach my $chd (@child) {
-    my ($first, @rest) = &format_tree($chd, $verbose, $enable_prune, $get_entry, $get_child);
+    my ($first, @rest) = &format_tree($chd, $level + 1, $verbose, $enable_prune, $get_entry, $get_child);
     push @result, "├── $first";
     push @result, map {"│   $_"} @rest;
   }
 
-  my ($first, @rest) = &format_tree($last_child, $verbose, $enable_prune, $get_entry, $get_child);
+  my ($first, @rest) = &format_tree($last_child, $level + 1, $verbose, $enable_prune, $get_entry, $get_child);
   push @result, "└── $first";
   push @result, map {"    $_"} @rest;
   return @result;
+}
+
+sub format_pruned_tree($$$\&\&) {
+  my ($root, $verbose, $enabled_prune, $get_entry, $get_child) = @_;
+
+  my $get_child_maybe_pruned = sub($) {
+    my ($node) = @_;
+    # not-cached node, return its children directly
+    if (!exists($node->{cache_key})) {
+      return $get_child->($node);
+    }
+    # already exists in Global_pruned_subtrees, prune this children.
+    my $cache_key = $node->{cache_key};
+    if (exists($Global_pruned_subtrees->{$cache_key})) {
+      return ();
+    }
+    # get cached node from Global_pruned_cache
+    if (exists($Global_pruned_cache->{$cache_key})) {
+      my $cached_node = $Global_pruned_cache->{$cache_key};
+      return $get_child->($cached_node);
+    }
+    else {
+      return $get_entry - ($node);
+    }
+  };
+  return format_tree($root, 0, $verbose, $enabled_prune, &$get_entry, &$get_child_maybe_pruned);
 }
 
 sub format_common_tree($$\&\&) {
@@ -1395,14 +1414,34 @@ sub format_common_tree($$\&\&) {
     };
     my $prepend_common_idx_get_entry = sub($$$) {
       my ($node, $verbose, $common_idx) = @_;
+      my $should_prepend = $node->{level} == 1;
+      $common_idx = $should_prepend ? undef : $common_idx;
       my $entry = $get_entry->($node, $verbose, $common_idx);
-      if (exists($node->{common_idx})) {
+      if ($should_prepend && exists($node->{common_idx})) {
         my $common_idx = $node->{common_idx};
         $entry = "\e[33;35;1m[$common_idx] \e[m" . $entry;
       }
       return $entry;
     };
-    return format_tree($common_node, $verbose, 0, &$prepend_common_idx_get_entry, &$get_child);
+
+    my $get_child_maybe_pruned = sub($) {
+      my ($node) = @_;
+      if (!exists($node->{cache_key})) {
+        return $get_child->($node);
+      }
+      my $cache_key = $node->{cache_key};
+      if (exists($Global_pruned_subtrees->{$cache_key}) && $node->{level} > 1) {
+        return ();
+      }
+      elsif (exists($Global_pruned_cache->{$cache_key})) {
+        my $cached_node = $Global_pruned_cache->{$cache_key};
+        return $get_child->($cached_node);
+      }
+      else {
+        return $get_child->($node);
+      }
+    };
+    return format_tree($common_node, 0, $verbose, 1, &$prepend_common_idx_get_entry, &$get_child_maybe_pruned);
   }
   return ();
 }
@@ -1439,7 +1478,7 @@ sub get_child_of_called_tree($) {
 sub format_called_tree($$) {
   my ($root, $verbose) = @_;
   my $enabled_prune = $Global_common_count >= 2 && $Global_common_height >= 3;
-  my @lines = format_tree($root, $verbose, $enabled_prune, &get_entry_of_called_tree, &get_child_of_called_tree);
+  my @lines = format_pruned_tree($root, $verbose, $enabled_prune, &get_entry_of_called_tree, &get_child_of_called_tree);
   push @lines, format_common_tree($Global_pruned_subtrees, $verbose, &get_entry_of_called_tree, &get_child_of_called_tree);
   return map {"  $_"} ("", @lines, "");
 }
@@ -1610,7 +1649,8 @@ sub get_child_of_calling_tree($) {
 sub format_calling_tree($$) {
   my ($root, $verbose) = @_;
   my $enabled_prune = $Global_common_count >= 2 && $Global_common_height >= 3;
-  my @lines = format_tree($root, $verbose, $enabled_prune, &get_entry_of_calling_tree, &get_child_of_calling_tree);
+  $root->{level} = 0;
+  my @lines = format_pruned_tree($root, $verbose, $enabled_prune, &get_entry_of_calling_tree, &get_child_of_calling_tree);
   push @lines, format_common_tree($Global_pruned_subtrees, $verbose, &get_entry_of_calling_tree, &get_child_of_calling_tree);
   return map {"  $_"} ("", @lines, "");
 }
