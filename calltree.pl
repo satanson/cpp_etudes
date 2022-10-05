@@ -84,7 +84,7 @@ sub get_cached_or_run(&$$;@) {
     }
   }
   my @result = $func->(@args);
-  nstore [@result], $cached_file;
+  nstore [ @result ], $cached_file;
   return @result;
 }
 
@@ -543,7 +543,7 @@ sub merge_lines_multiline_break_enabled(\@) {
     if (!defined($three_parts[$i])) {
       if (defined($prev_file)) {
         # $i-1 is last line of a match block
-        push @result, [ $prev_file, $prev_lineno, $three_parts[$i-1][1], $prev_line ];
+        push @result, [ $prev_file, $prev_lineno, $three_parts[$i - 1][1], $prev_line ];
         ($prev_file, $prev_lineno, $prev_line) = (undef, undef, undef);
       }
       else {
@@ -649,7 +649,7 @@ sub extract_all_funcs(\%$$) {
   print qq(ag -U $multiline_break -G $cpp_filename_pattern $ignore_pattern '$RE_FUNC_DEFINITION'), "\n";
   my @matches = map {
     chomp;
-    $_." "
+    $_ . " "
   } qx(ag -U $multiline_break -G $cpp_filename_pattern $ignore_pattern '$RE_FUNC_DEFINITION');
 
   printf "extract lines: %d\n", scalar(@matches);
@@ -700,7 +700,7 @@ sub extract_all_funcs(\%$$) {
     my $caller_simple_name = $func_simple_name[$i];
     my $scope = scope($caller_name);
     my $filename = filename($file_info);
-    my ($file, $start_lineno, $end_lineno) = @{$func_file_line_def[$i]}[0..2];
+    my ($file, $start_lineno, $end_lineno) = @{$func_file_line_def[$i]}[0 .. 2];
 
     my @callees = @{$func_callees[$i]};
     foreach my $seq (0 .. $#callees) {$callees[$seq]{seq} = $seq}
@@ -828,21 +828,19 @@ my $env_length_threshold = get_env_or_default {
 
 my %ignored = map {$_ => 1} @ignored;
 
-my ($calling, $called, $calling_names, $called_names) = (undef, undef, undef, undef);
-my $pruned_cache = {};
-my $pruned_subtrees = {};
-my $topmost_node = 0;
-my $common_height = 0;
-my $common_count = 0;
+my ($Global_calling, $Global_called, $Global_calling_names, $Global_called_names) = (undef, undef, undef, undef);
+my $Global_pruned_cache = {};
+my $Global_pruned_subtrees = {};
+my $Global_common_height = 0;
+my $Global_common_count = 0;
 
-sub should_prune_subtree($) {
-  my ($node) = @_;
-  my $prune_subtree = $common_count >= 2 && $common_height >= 3;
-  if ($prune_subtree && exists($node->{cache_key}) && exists($pruned_cache->{$node->{cache_key}})) {
+sub should_prune_subtree($$) {
+  my ($node, $enable_prune) = @_;
+  if ($enable_prune && exists($node->{cache_key}) && exists($Global_pruned_cache->{$node->{cache_key}})) {
     my $cache_key = $node->{cache_key};
-    my $cached_node = $pruned_cache->{$cache_key};
-    if ($cached_node->{height} >= $common_height && $cached_node->{count} >= $common_count) {
-      $pruned_subtrees->{$cache_key} = $cached_node;
+    my $cached_node = $Global_pruned_cache->{$cache_key};
+    if ($cached_node->{height} >= $Global_common_height && $cached_node->{count} >= $Global_common_count) {
+      $Global_pruned_subtrees->{$cache_key} = $cached_node;
       return return 1;
     }
   }
@@ -880,7 +878,7 @@ sub sub_tree($$$$$$$$) {
   $path->{$node_id} = 1;
 
   my @child_nodes = ();
-  my $unique_name = $node->{file_info}."::".$node->{name};
+  my $unique_name = $node->{file_info} . "::" . $node->{name};
   if (exists $pruned->{$unique_name}) {
     my $cached_node = $pruned->{$unique_name};
     $level--;
@@ -889,14 +887,16 @@ sub sub_tree($$$$$$$$) {
     # return undef if the current node is pruned
     if (!defined($cached_node)) {
       return undef;
-    } else {
+    }
+    else {
       $cached_node->{count} += 1;
       $node->{cache_key} = $unique_name;
       $node->{cache_seqno} = $cached_node->{count};
       $node->{height} = $cached_node->{height};
       return $node;
     }
-  } else {
+  }
+  else {
     foreach my $chd (@child) {
       push @child_nodes, &sub_tree($graph, $chd, $level, $depth, $path, $get_id_and_child, $install_child, $pruned);
     }
@@ -910,7 +910,7 @@ sub sub_tree($$$$$$$$) {
 
   if (@child_nodes) {
     $install_child->($node, [ @child_nodes ]);
-    $node->{height} = max(map{$_->{height}} @child_nodes) + 1;
+    $node->{height} = max(map {$_->{height}} @child_nodes) + 1;
     $node->{count} = 1;
     $node->{cache_key} = $unique_name;
     $pruned->{$unique_name} = $node;
@@ -921,7 +921,7 @@ sub sub_tree($$$$$$$$) {
     $node->{height} = 1;
     $node->{count} = 1;
     $node->{cache_key} = $unique_name;
-    my $opt_node =  $matched ? $node : undef;
+    my $opt_node = $matched ? $node : undef;
     if ($node->{leaf} eq "internal") {
       $pruned->{$unique_name} = $opt_node;
     }
@@ -1091,7 +1091,7 @@ sub called_tree($$$$$) {
     simple_name => $name,
     file_info   => "",
   };
-  return &sub_tree($called_graph, $node, 0, $depth, {}, $get_id_and_child, $install_child, $pruned_cache);
+  return &sub_tree($called_graph, $node, 0, $depth, {}, $get_id_and_child, $install_child, $Global_pruned_cache);
 }
 
 sub fuzzy_called_tree($$$$$$) {
@@ -1129,38 +1129,38 @@ sub search_called_tree($$$$$$) {
     sort {
       $a->{name} cmp $b->{name}
     }
-    map {
-      my $n = $_;
-      my @child = map {
-        my $subtree = $_;
-        if (exists $subtree->{child}) {
-          (@{$subtree->{child}});
-        }
-        else {
-          ();
-        }
-      } &called_tree($called, $n->{name}, $filter, $files_included, $depth);
+      map {
+        my $n = $_;
+        my @child = map {
+          my $subtree = $_;
+          if (exists $subtree->{child}) {
+            (@{$subtree->{child}});
+          }
+          else {
+            ();
+          }
+        } &called_tree($called, $n->{name}, $filter, $files_included, $depth);
 
-      my $node = {
-        name        => $n->{name},
-        simple_name => $n->{simple_name},
-        file_info   => $n->{file_info},
-        leaf        => "internal",
-        child       => [ @child ]
-      };
-      $node;
-    } @nodes
+        my $node = {
+          name        => $n->{name},
+          simple_name => $n->{simple_name},
+          file_info   => $n->{file_info},
+          leaf        => "internal",
+          child       => [ @child ]
+        };
+        $node;
+      } @nodes
   ];
   return $root;
 }
 
 sub unified_called_tree($$$$) {
   my ($name, $filter, $files_included, $depth) = @_;
-  if (exists $called->{$name}) {
-    return &called_tree($called, $name, $filter, $files_included, $depth);
+  if (exists $Global_called->{$name}) {
+    return &called_tree($Global_called, $name, $filter, $files_included, $depth);
   }
   else {
-    return &fuzzy_called_tree($called_names, $called, $name, $filter, $files_included, $depth);
+    return &fuzzy_called_tree($Global_called_names, $Global_called, $name, $filter, $files_included, $depth);
   }
 }
 
@@ -1188,13 +1188,13 @@ sub calling_tree($$$$$$) {
 
     unless (is_pure_name($name)) {
       if (exists $calling_graph->{$name} && scalar(@{$calling_graph->{$name}}) == 1) {
-        my $node = $new_variant_node->($calling->{$name}[0]);
+        my $node = $new_variant_node->($calling_graph->{$name}[0]);
         $node->{origin_call} = $call;
         return $node;
       }
 
       if (exists $calling_graph->{$simple_name} && scalar(@{$calling_graph->{$simple_name}}) == 1) {
-        my $node = $new_variant_node->($calling->{$simple_name}[0]);
+        my $node = $new_variant_node->($calling_graph->{$simple_name}[0]);
         $node->{origin_call} = $call;
       }
     }
@@ -1285,7 +1285,7 @@ sub calling_tree($$$$$$) {
 
   my $node = $new_callee_or_match_node->({ name => $name, call => $name, simple_name => $name });
 
-  return &sub_tree($calling_graph, $node, 0, $depth, {}, $get_id_and_child, $install_child, $pruned_cache);
+  return &sub_tree($calling_graph, $node, 0, $depth, {}, $get_id_and_child, $install_child, $Global_pruned_cache);
 }
 
 sub adjust_calling_tree($) {
@@ -1331,34 +1331,34 @@ sub fuzzy_calling_tree($$$$$$) {
 sub unified_calling_tree($$$$) {
   my ($name, $filter, $files_included, $depth) = @_;
   my $root = undef;
-  if (exists $calling->{$name}) {
-    $root = &calling_tree($calling, $name, $filter, $files_included, $depth * 2, {});
+  if (exists $Global_calling->{$name}) {
+    $root = &calling_tree($Global_calling, $name, $filter, $files_included, $depth * 2, {});
   }
   else {
-    $root = &fuzzy_calling_tree($calling_names, $calling, $name, $filter, $files_included, $depth * 2);
+    $root = &fuzzy_calling_tree($Global_calling_names, $Global_calling, $name, $filter, $files_included, $depth * 2);
   }
   return &adjust_calling_tree($root);
 }
 
-sub format_tree($$\&\&) {
-  my ($root, $verbose, $get_entry, $get_child) = @_;
+sub format_tree($$$\&\&) {
+  my ($root, $verbose, $enable_prune, $get_entry, $get_child) = @_;
   unless (defined($root) && %$root) {
     return ();
   }
   my @child = ();
   my $cached_node = undef;
-  if (exists($root->{cache_key}) && exists($pruned_cache->{$root->{cache_key}})) {
-    $cached_node = $pruned_cache->{$root->{cache_key}};
+  if (exists($root->{cache_key}) && exists($Global_pruned_cache->{$root->{cache_key}})) {
+    $cached_node = $Global_pruned_cache->{$root->{cache_key}};
     @child = $get_child->($cached_node);
   }
   if (!@child) {
     @child = $get_child->($root);
   }
 
-  my $entry = $get_entry->($root, $verbose);
+  my $entry = $get_entry->($root, $verbose, $enable_prune);
   my @result = ($entry);
 
-  my $should_prune = should_prune_subtree($root);
+  my $should_prune = should_prune_subtree($root, $enable_prune);
   if (scalar(@child) == 0 || $should_prune) {
     return @result;
   }
@@ -1366,45 +1366,40 @@ sub format_tree($$\&\&) {
   my $last_child = pop @child;
 
   foreach my $chd (@child) {
-    $topmost_node++;
-    my ($first, @rest) = &format_tree($chd, $verbose, $get_entry, $get_child);
-    $topmost_node--;
+    my ($first, @rest) = &format_tree($chd, $verbose, $enable_prune, $get_entry, $get_child);
     push @result, "├── $first";
     push @result, map {"│   $_"} @rest;
   }
 
-  $topmost_node++;
-  my ($first, @rest) = &format_tree($last_child, $verbose, $get_entry, $get_child);
-  $topmost_node--;
+  my ($first, @rest) = &format_tree($last_child, $verbose, $enable_prune, $get_entry, $get_child);
   push @result, "└── $first";
   push @result, map {"    $_"} @rest;
-
-  if (!$topmost_node && $common_count >= 2 && $common_height >= 3) {
-    if (scalar(%$pruned_subtrees)) {
-      my @child = sort {$a->{name} cmp $b->{name}} values %$pruned_subtrees;
-      my $common_node = {
-        name          => "[common]",
-        simple_name   => "[common]",
-        file_info     => "",
-        leaf          => "outermost",
-        "branch_type" => "matches",
-        child         => [ @child ],
-      };
-      $common_count = 0;
-      $common_height = 0;
-      my @common_result = &format_tree($common_node, $verbose, $get_entry, $get_child);
-      push @result, ("", @common_result);
-    }
-  }
   return @result;
 }
 
-my $isatty = -t STDOUT;
+sub format_common_tree($$\&\&) {
+  my ($pruned_subtrees, $verbose, $get_entry, $get_child) = @_;
+  if (scalar(%$pruned_subtrees)) {
+    my @child = sort {$a->{name} cmp $b->{name}} values %$pruned_subtrees;
+    my $common_node = {
+      name          => "[common]",
+      simple_name   => "[common]",
+      file_info     => "",
+      leaf          => "outermost",
+      "branch_type" => "matches",
+      child         => [ @child ],
+    };
+    return format_tree($common_node, $verbose, 0, &$get_entry, &$get_child);
+  }
+  return ();
+}
 
-sub get_entry_of_called_tree($$) {
-  my ($node, $verbose) = @_;
+my $Global_isatty = -t STDOUT;
 
-  my $should_prune = should_prune_subtree($node);
+sub get_entry_of_called_tree($$$) {
+  my ($node, $verbose, $enable_prune) = @_;
+
+  my $should_prune = should_prune_subtree($node, $enable_prune);
   my $name = $node->{name};
   my $file_info = $node->{file_info};
   if ($file_info) {
@@ -1412,9 +1407,10 @@ sub get_entry_of_called_tree($$) {
     $file_info = "vim $file_info";
   }
   if (!$should_prune) {
-    $name = $isatty ? "\e[33;32;1m$name\e[m" : $name;
-  } else{
-    $name = $isatty ? "\e[33;35;1m$name\t[common]\e[m" : "$name\t[common]";
+    $name = $Global_isatty ? "\e[33;32;1m$name\e[m" : $name;
+  }
+  else {
+    $name = $Global_isatty ? "\e[33;35;1m$name\t[common]\e[m" : "$name\t[common]";
   }
   if (defined($verbose) && defined($file_info) && length($file_info) > 0) {
     $name = "$name\t[$file_info]";
@@ -1429,14 +1425,16 @@ sub get_child_of_called_tree($) {
 
 sub format_called_tree($$) {
   my ($root, $verbose) = @_;
-  my @lines = format_tree($root, $verbose, &get_entry_of_called_tree, &get_child_of_called_tree);
+  my $enabled_prune = $Global_common_count >= 2 && $Global_common_height >= 3;
+  my @lines = format_tree($root, $verbose, $enabled_prune, &get_entry_of_called_tree, &get_child_of_called_tree);
+  push @lines, format_common_tree($Global_pruned_subtrees, $verbose, &get_entry_of_called_tree, &get_child_of_called_tree);
   return map {"  $_"} ("", @lines, "");
 }
 
 
-sub get_entry_of_calling_tree($$) {
-  my ($node, $verbose) = @_;
-  my $should_prune = should_prune_subtree($node);
+sub get_entry_of_calling_tree($$$) {
+  my ($node, $verbose, $enable_prune) = @_;
+  my $should_prune = should_prune_subtree($node, $enable_prune);
   my $name = $node->{name};
   my $branch_type = $node->{branch_type};
   my $file_info = $node->{file_info};
@@ -1455,7 +1453,7 @@ sub get_entry_of_calling_tree($$) {
 
   #$name = "$name(count=$count)";
 
-  if ($isatty) {
+  if ($Global_isatty) {
     if ($should_prune) {
       $name = "\e[33;35;1m$name\t[common]\e[m";
     }
@@ -1537,11 +1535,11 @@ sub outermost_tree($$) {
     !is_pure_name($_)
   } grep {
     ($_ =~ /$name/)
-  } @$calling_names;
+  } @$Global_calling_names;
 
   #my @names = grep {!exists $called->{$_}} sort {$a cmp $b} keys %names;
   my @names = sort {$a cmp $b} keys %names;
-  my @trees = grep {defined($_)} map {calling_tree($calling, $_, "\\w+", $files_included, 2, {})} @names;
+  my @trees = grep {defined($_)} map {calling_tree($Global_calling, $_, "\\w+", $files_included, 2, {})} @names;
   @trees = map {
     ($_->{branch_type} eq "variants" ? @{$_->{child}} : $_);
   } @trees;
@@ -1575,10 +1573,10 @@ sub innermost_tree($$) {
     ($_ =~ /$name/) && ($_ !~ /^~/);
   } map {
     simple_name($_)
-  } @$called_names;
+  } @$Global_called_names;
 
-  my @names = grep {!exists $calling->{$_}} sort {$a cmp $b} keys %names;
-  my @trees = grep {defined($_)} map {called_tree($called, $_, "\\w+", $files_included, 1)} @names;
+  my @names = grep {!exists $Global_calling->{$_}} sort {$a cmp $b} keys %names;
+  my @trees = grep {defined($_)} map {called_tree($Global_called, $_, "\\w+", $files_included, 1)} @names;
 
   @trees = map {
     $_->{child} = [];
@@ -1599,7 +1597,9 @@ sub get_child_of_calling_tree($) {
 }
 sub format_calling_tree($$) {
   my ($root, $verbose) = @_;
-  my @lines = format_tree($root, $verbose, &get_entry_of_calling_tree, &get_child_of_calling_tree);
+  my $enabled_prune = $Global_common_count >= 2 && $Global_common_height >= 3;
+  my @lines = format_tree($root, $verbose, $enabled_prune, &get_entry_of_calling_tree, &get_child_of_calling_tree);
+  push @lines, format_common_tree($Global_pruned_subtrees, $verbose, &get_entry_of_calling_tree, &get_child_of_calling_tree);
   return map {"  $_"} ("", @lines, "");
 }
 
@@ -1610,27 +1610,27 @@ sub cached_sha256_file(@) {
   return ".$script_basename.result.cached." . sha256_hex(@data);
 }
 
-my @key = (@ARGV, $isatty, $env_trivial_threshold, $env_length_threshold);
+my @key = (@ARGV, $Global_isatty, $env_trivial_threshold, $env_length_threshold);
 
-my $func = shift || die "missing function name";
-my $filter = shift;
-my $mode = shift;
-my $verbose = shift;
-my $depth = shift;
-my $files_included = shift;
+my $Opt_func = shift || die "missing function name";
+my $Opt_filter = shift;
+my $Opt_mode = shift;
+my $Opt_verbose = shift;
+my $Opt_depth = shift;
+my $Opt_files_included = shift;
 
-$filter = (defined($filter) && $filter ne "") ? $filter : ".*";
-$mode = (defined($mode) && int($mode) >= 0) ? int($mode) : 1;
-$verbose = (defined($verbose) && int($verbose) >= 0) ? int($verbose) : 0;
-$common_height = int($verbose / 100);
-$common_count = int($verbose % 100 / 10);
-$verbose = $verbose % 10;
-die "verbose should ranges [0..1], $verbose provided" unless (0 <= $verbose <= 1);
-die "common_height should be ge 3, $common_height provided" unless ($common_height >=0);
-die "common_count should be ge 2, $common_count provided" unless ($common_count>=0);
+$Opt_filter = (defined($Opt_filter) && $Opt_filter ne "") ? $Opt_filter : ".*";
+$Opt_mode = (defined($Opt_mode) && int($Opt_mode) >= 0) ? int($Opt_mode) : 1;
+$Opt_verbose = (defined($Opt_verbose) && int($Opt_verbose) >= 0) ? int($Opt_verbose) : 0;
+$Global_common_height = int($Opt_verbose / 100);
+$Global_common_count = int($Opt_verbose % 100 / 10);
+$Opt_verbose = $Opt_verbose % 10;
+die "verbose should ranges [0..1], $Opt_verbose provided" unless (0 <= $Opt_verbose <= 1);
+die "common_height should be ge 3, $Global_common_height provided" unless ($Global_common_height >= 0);
+die "common_count should be ge 2, $Global_common_count provided" unless ($Global_common_count >= 0);
 
-$depth = defined($depth)? int($depth) : 3;
-$files_included = (defined($files_included) && $files_included ne "") ? $files_included : '.*';
+$Opt_depth = defined($Opt_depth) ? int($Opt_depth) : 3;
+$Opt_files_included = (defined($Opt_files_included) && $Opt_files_included ne "") ? $Opt_files_included : '.*';
 
 my $files_included_gen = sub($) {
   my $re = shift;
@@ -1649,7 +1649,7 @@ my $files_included_gen = sub($) {
   }
 };
 
-$files_included = $files_included_gen->($files_included);
+$Opt_files_included = $files_included_gen->($Opt_files_included);
 
 sub search_matched_lines($) {
   my $re = shift;
@@ -1660,36 +1660,37 @@ sub search_matched_lines($) {
     else {
       undef
     }
-  } map {chomp; $_} qx(ag -U -G $cpp_filename_pattern $ignore_pattern '$re');
+  } map {chomp;
+    $_} qx(ag -U -G $cpp_filename_pattern $ignore_pattern '$re');
 }
 
 sub show_tree() {
-  ($calling, $called, $calling_names, $called_names) =
+  ($Global_calling, $Global_called, $Global_calling_names, $Global_called_names) =
     get_cached_or_extract_all_funcs(%ignored, $env_trivial_threshold, $env_length_threshold);
-  if ($mode == 0) {
-    my $tree = unified_calling_tree($func, $filter, $files_included, $depth);
-    my @lines = format_calling_tree($tree, $verbose);
+  if ($Opt_mode == 0) {
+    my $tree = unified_calling_tree($Opt_func, $Opt_filter, $Opt_files_included, $Opt_depth);
+    my @lines = format_calling_tree($tree, $Opt_verbose);
     return join qq//, map {"$_\n"} @lines;
   }
-  elsif ($mode == 1) {
-    my $tree = unified_called_tree($func, $filter, $files_included, $depth);
-    my @lines = format_called_tree($tree, $verbose);
+  elsif ($Opt_mode == 1) {
+    my $tree = unified_called_tree($Opt_func, $Opt_filter, $Opt_files_included, $Opt_depth);
+    my @lines = format_called_tree($tree, $Opt_verbose);
     return join qq//, map {"$_\n"} @lines;
   }
-  elsif ($mode == 2) {
-    my $tree = outermost_tree($func, $files_included);
-    my @lines = format_calling_tree($tree, $verbose);
+  elsif ($Opt_mode == 2) {
+    my $tree = outermost_tree($Opt_func, $Opt_files_included);
+    my @lines = format_calling_tree($tree, $Opt_verbose);
     return join qq//, map {"$_\n"} @lines;
   }
-  elsif ($mode == 3) {
-    my $tree = innermost_tree($func, $files_included);
-    my @lines = format_called_tree($tree, $verbose);
+  elsif ($Opt_mode == 3) {
+    my $tree = innermost_tree($Opt_func, $Opt_files_included);
+    my @lines = format_called_tree($tree, $Opt_verbose);
     return join qq//, map {"$_\n"} @lines;
   }
-  elsif($mode == 4) {
-    my @match_lines = search_matched_lines($func);
-    my $tree = search_called_tree($called, $func, \@match_lines, $filter, $files_included, $depth);
-    my @lines = format_called_tree($tree, $verbose);
+  elsif ($Opt_mode == 4) {
+    my @match_lines = search_matched_lines($Opt_func);
+    my $tree = search_called_tree($Global_called, $Opt_func, \@match_lines, $Opt_filter, $Opt_files_included, $Opt_depth);
+    my @lines = format_called_tree($tree, $Opt_verbose);
     return join qq//, map {"$_\n"} @lines;
   }
 }
