@@ -840,11 +840,15 @@ sub should_prune_subtree($$) {
     my $cache_key = $node->{cache_key};
     my $cached_node = $Global_pruned_cache->{$cache_key};
     if ($cached_node->{height} >= $Global_common_height && $cached_node->{count} >= $Global_common_count) {
-      $Global_pruned_subtrees->{$cache_key} = $cached_node;
-      return return 1;
+      if (!exists($Global_pruned_subtrees->{$cache_key})) {
+        $Global_pruned_subtrees->{$cache_key} = $cached_node;
+        my $idx = scalar(keys %$Global_pruned_subtrees) - 1;
+        $cached_node->{common_idx} = $idx;
+      }
+      return ($cached_node->{common_idx});
     }
   }
-  return 0;
+  return ();
 }
 
 sub sub_tree($$$$$$$$) {
@@ -1355,11 +1359,11 @@ sub format_tree($$$\&\&) {
     @child = $get_child->($root);
   }
 
-  my $entry = $get_entry->($root, $verbose, $enable_prune);
+  my ($common_idx) = should_prune_subtree($root, $enable_prune);
+  my $entry = $get_entry->($root, $verbose, $common_idx);
   my @result = ($entry);
 
-  my $should_prune = should_prune_subtree($root, $enable_prune);
-  if (scalar(@child) == 0 || $should_prune) {
+  if (scalar(@child) == 0 || defined($common_idx)) {
     return @result;
   }
 
@@ -1380,7 +1384,7 @@ sub format_tree($$$\&\&) {
 sub format_common_tree($$\&\&) {
   my ($pruned_subtrees, $verbose, $get_entry, $get_child) = @_;
   if (scalar(%$pruned_subtrees)) {
-    my @child = sort {$a->{name} cmp $b->{name}} values %$pruned_subtrees;
+    my @child = sort {$a->{common_idx} cmp $b->{common_idx}} values %$pruned_subtrees;
     my $common_node = {
       name          => "[common]",
       simple_name   => "[common]",
@@ -1389,7 +1393,16 @@ sub format_common_tree($$\&\&) {
       "branch_type" => "matches",
       child         => [ @child ],
     };
-    return format_tree($common_node, $verbose, 0, &$get_entry, &$get_child);
+    my $prepend_common_idx_get_entry = sub($$$) {
+      my ($node, $verbose, $common_idx) = @_;
+      my $entry = $get_entry->($node, $verbose, $common_idx);
+      if (exists($node->{common_idx})) {
+        my $common_idx = $node->{common_idx};
+        $entry = "\e[33;35;1m[$common_idx] \e[m" . $entry;
+      }
+      return $entry;
+    };
+    return format_tree($common_node, $verbose, 0, &$prepend_common_idx_get_entry, &$get_child);
   }
   return ();
 }
@@ -1397,20 +1410,20 @@ sub format_common_tree($$\&\&) {
 my $Global_isatty = -t STDOUT;
 
 sub get_entry_of_called_tree($$$) {
-  my ($node, $verbose, $enable_prune) = @_;
+  my ($node, $verbose, $common_idx) = @_;
 
-  my $should_prune = should_prune_subtree($node, $enable_prune);
   my $name = $node->{name};
   my $file_info = $node->{file_info};
   if ($file_info) {
     $file_info =~ s/:/ +/g;
     $file_info = "vim $file_info";
   }
-  if (!$should_prune) {
-    $name = $Global_isatty ? "\e[33;32;1m$name\e[m" : $name;
+  if (defined($common_idx)) {
+    $name = "$name\t[common.$common_idx]";
+    $name = $Global_isatty ? "\e[33;35;1m$name\e[m" : $name;
   }
   else {
-    $name = $Global_isatty ? "\e[33;35;1m$name\t[common]\e[m" : "$name\t[common]";
+    $name = $Global_isatty ? "\e[33;32;1m$name\e[m" : $name;
   }
   if (defined($verbose) && defined($file_info) && length($file_info) > 0) {
     $name = "$name\t[$file_info]";
@@ -1433,8 +1446,7 @@ sub format_called_tree($$) {
 
 
 sub get_entry_of_calling_tree($$$) {
-  my ($node, $verbose, $enable_prune) = @_;
-  my $should_prune = should_prune_subtree($node, $enable_prune);
+  my ($node, $verbose, $common_idx) = @_;
   my $name = $node->{name};
   my $branch_type = $node->{branch_type};
   my $file_info = $node->{file_info};
@@ -1454,8 +1466,8 @@ sub get_entry_of_calling_tree($$$) {
   #$name = "$name(count=$count)";
 
   if ($Global_isatty) {
-    if ($should_prune) {
-      $name = "\e[33;35;1m$name\t[common]\e[m";
+    if (defined($common_idx)) {
+      $name = "\e[33;35;1m$name\t[common.$common_idx]\e[m";
     }
     elsif ($branch_type eq "matches") {
       $name = "\e[97;35;1m$name\e[m";
@@ -1493,8 +1505,8 @@ sub get_entry_of_calling_tree($$$) {
     }
   }
   else {
-    if ($should_prune) {
-      $name = "$name\t[COMMON]";
+    if (defined($common_idx)) {
+      $name = "$name\t[COMMON.$common_idx]";
     }
     elsif ($branch_type eq "variants" && $leaf eq "outermost") {
       $name = "$name\t[OUT-OF-TREE]";
