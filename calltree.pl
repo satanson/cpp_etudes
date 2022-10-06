@@ -8,10 +8,10 @@
 # Usage:  show function call hierarchy of cpp project in the style of Linux utility tree.
 #
 # Format: 
-#   ./calltree.pl <keyword|regex> <filter> <direction(called(1)|calling)> <verbose(0|1)> <depth(num)>
+#   ./calltree.pl <keyword|regex> <func_match_rule> <direction(called(1)|calling)> <verbose(0|1)> <depth(num)>
 #   
 #    - keyword for exact match, regex for fuzzy match;
-#    - subtrees whose leaf nodes does not match filter are pruned, default value is '' means match all;
+#    - subtrees whose leaf nodes does not match func_match_rule are pruned, default value is '' means match all;
 #    - direction: 1, in default, show functions called by other functions in callees' perspective; otherwise, show function calling relation in callers' perspective;
 #    - verbose=0, no file locations output; otherwise succinctly output;
 #    - depth=num, print max derivation depth.
@@ -1060,7 +1060,7 @@ sub default_score(\%) {
 }
 
 sub called_tree($$$$$) {
-  my ($called_graph, $name, $filter, $files_included, $depth) = @_;
+  my ($called_graph, $name, $func_match_rule, $file_match_rule, $depth) = @_;
 
   my $deduplicate = 0;
   if ($depth < 0) {
@@ -1075,11 +1075,11 @@ sub called_tree($$$$$) {
     my $file_info = $node->{file_info};
     my $unique_id = "$file_info";
 
-    if ($file_info ne "" && !$files_included->($file_info)) {
+    if ($file_info ne "" && !$file_match_rule->($file_info)) {
       return (undef, undef);
     }
 
-    my $matched = $name =~ /$filter/;
+    my $matched = $func_match_rule->($name);
     if (!exists $called_graph->{$simple_name}) {
       return ($matched, $unique_id);
     }
@@ -1117,27 +1117,27 @@ sub called_tree($$$$$) {
 }
 
 sub fuzzy_called_tree($$$$$$) {
-  my ($called_names, $called, $name_pattern, $filter, $files_included, $depth) = @_;
+  my ($called_names, $called, $name_pattern, $func_match_rule, $file_match_rule, $depth) = @_;
   my $root = { file_info => "", name => $name_pattern, leaf => undef };
   my @names = grep {/$name_pattern/} @$called_names;
 
   $root->{child} = [
     grep {defined($_)} map {
-      &called_tree($called, $_, $filter, $files_included, $depth);
+      &called_tree($called, $_, $func_match_rule, $file_match_rule, $depth);
     } @names
   ];
   return $root;
 }
 
 sub search_called_tree($$$$$$) {
-  my ($called, $name_pattern, $match_lines, $filter, $files_included, $depth) = @_;
+  my ($called, $name_pattern, $match_lines, $func_match_rule, $file_match_rule, $depth) = @_;
   my %nodes = map {($_, $_)} map {@$_} values %$called;
   my %match_lines = map {($_->[0], [])} @$match_lines;
   foreach (@$match_lines) {push @{$match_lines{$_->[0]}}, $_->[1]}
   my @nodes = values %nodes;
   @nodes = grep {
     my $n = $_;
-    if (!exists $match_lines{$n->{file}} || !$files_included->($n->{file})) {
+    if (!exists $match_lines{$n->{file}} || !$file_match_rule->($n->{file})) {
       undef;
     }
     else {
@@ -1161,7 +1161,7 @@ sub search_called_tree($$$$$$) {
           else {
             ();
           }
-        } &called_tree($called, $n->{name}, $filter, $files_included, $depth);
+        } &called_tree($called, $n->{name}, $func_match_rule, $file_match_rule, $depth);
 
         my $node = {
           name        => $n->{name},
@@ -1177,17 +1177,17 @@ sub search_called_tree($$$$$$) {
 }
 
 sub unified_called_tree($$$$) {
-  my ($name, $filter, $files_included, $depth) = @_;
+  my ($name, $func_match_rule, $file_match_rule, $depth) = @_;
   if (exists $Global_called->{$name}) {
-    return &called_tree($Global_called, $name, $filter, $files_included, $depth);
+    return &called_tree($Global_called, $name, $func_match_rule, $file_match_rule, $depth);
   }
   else {
-    return &fuzzy_called_tree($Global_called_names, $Global_called, $name, $filter, $files_included, $depth);
+    return &fuzzy_called_tree($Global_called_names, $Global_called, $name, $func_match_rule, $file_match_rule, $depth);
   }
 }
 
 sub calling_tree($$$$$$) {
-  my ($calling_graph, $name, $filter, $files_included, $depth, $uniques) = @_;
+  my ($calling_graph, $name, $func_match_rule, $file_match_rule, $depth, $uniques) = @_;
 
   my $new_variant_node = sub($) {
     my ($node) = @_;
@@ -1240,11 +1240,11 @@ sub calling_tree($$$$$$) {
     my $unique_id = "$file_info:$call";
     $uniques->{"$file_info.$name"} = 1;
 
-    if ($file_info ne "" && !$files_included->($file_info)) {
+    if ($file_info ne "" && !$file_match_rule->($file_info)) {
       return (undef, undef);
     }
 
-    my $matched = $simple_name =~ /$filter/;
+    my $matched = $func_match_rule->($simple_name);
     if ($branch_type eq "variants") {
       my $variant_nodes = undef;
       if (exists $calling_graph->{$name}) {
@@ -1328,7 +1328,7 @@ sub adjust_calling_tree($) {
 }
 
 sub fuzzy_calling_tree($$$$$$) {
-  my ($calling_names, $calling_graph, $name_pattern, $filter, $files_included, $depth) = @_;
+  my ($calling_names, $calling_graph, $name_pattern, $func_match_rule, $file_match_rule, $depth) = @_;
   my @names = grep {/$name_pattern/} @$calling_names;
   my @trees = ();
   my $uniques = {};
@@ -1338,7 +1338,7 @@ sub fuzzy_calling_tree($$$$$$) {
     my $child0_name = $child0->{name};
     my $child0_unique_id = "$child0_file_info.$child0_name";
     next if exists $uniques->{$child0_unique_id};
-    my $tree = calling_tree($calling_graph, $name, $filter, $files_included, $depth, $uniques);
+    my $tree = calling_tree($calling_graph, $name, $func_match_rule, $file_match_rule, $depth, $uniques);
     push @trees, $tree if defined($tree);
   }
   return {
@@ -1351,13 +1351,13 @@ sub fuzzy_calling_tree($$$$$$) {
 }
 
 sub unified_calling_tree($$$$) {
-  my ($name, $filter, $files_included, $depth) = @_;
+  my ($name, $func_match_rule, $file_match_rule, $depth) = @_;
   my $root = undef;
   if (exists $Global_calling->{$name}) {
-    $root = &calling_tree($Global_calling, $name, $filter, $files_included, $depth * 2, {});
+    $root = &calling_tree($Global_calling, $name, $func_match_rule, $file_match_rule, $depth * 2, {});
   }
   else {
-    $root = &fuzzy_calling_tree($Global_calling_names, $Global_calling, $name, $filter, $files_included, $depth * 2);
+    $root = &fuzzy_calling_tree($Global_calling_names, $Global_calling, $name, $func_match_rule, $file_match_rule, $depth * 2);
   }
   return &adjust_calling_tree($root);
 }
@@ -1614,7 +1614,7 @@ sub group_by(&;@) {
 }
 
 sub outermost_tree($$) {
-  my ($name, $files_included) = @_;
+  my ($name, $file_match_rule) = @_;
   my %names = map {
     $_ => 1
   } grep {
@@ -1625,7 +1625,7 @@ sub outermost_tree($$) {
 
   #my @names = grep {!exists $called->{$_}} sort {$a cmp $b} keys %names;
   my @names = sort {$a cmp $b} keys %names;
-  my @trees = grep {defined($_)} map {calling_tree($Global_calling, $_, "\\w+", $files_included, 2, {})} @names;
+  my @trees = grep {defined($_)} map {calling_tree($Global_calling, $_, "\\w+", $file_match_rule, 2, {})} @names;
   @trees = map {
     ($_->{branch_type} eq "variants" ? @{$_->{child}} : $_);
   } @trees;
@@ -1652,7 +1652,7 @@ sub outermost_tree($$) {
 }
 
 sub innermost_tree($$) {
-  my ($name, $files_included) = @_;
+  my ($name, $file_match_rule) = @_;
   my %names = map {
     $_ => 1
   } grep {
@@ -1662,7 +1662,7 @@ sub innermost_tree($$) {
   } @$Global_called_names;
 
   my @names = grep {!exists $Global_calling->{$_}} sort {$a cmp $b} keys %names;
-  my @trees = grep {defined($_)} map {called_tree($Global_called, $_, "\\w+", $files_included, 1)} @names;
+  my @trees = grep {defined($_)} map {called_tree($Global_called, $_, "\\w+", $file_match_rule, 1)} @names;
 
   @trees = map {
     $_->{child} = [];
@@ -1700,13 +1700,12 @@ sub cached_sha256_file(@) {
 my @key = (@ARGV, $Global_isatty, $env_trivial_threshold, $env_length_threshold);
 
 my $Opt_func = shift || die "missing function name";
-my $Opt_filter = shift;
+my $Opt_func_match_rule = shift;
 my $Opt_mode = shift;
 my $Opt_verbose = shift;
 my $Opt_depth = shift;
-my $Opt_files_included = shift;
+my $Opt_file_match_rule = shift;
 
-$Opt_filter = (defined($Opt_filter) && $Opt_filter ne "") ? $Opt_filter : ".*";
 $Opt_mode = (defined($Opt_mode) && int($Opt_mode) >= 0) ? int($Opt_mode) : 1;
 $Opt_verbose = (defined($Opt_verbose) && int($Opt_verbose) >= 0) ? int($Opt_verbose) : 0;
 $Global_common_quiet = int($Opt_verbose / 1000);
@@ -1718,11 +1717,16 @@ die "common_height should be ge 3, $Global_common_height provided" unless ($Glob
 die "common_count should be ge 2, $Global_common_count provided" unless ($Global_common_count >= 0);
 
 $Opt_depth = defined($Opt_depth) ? int($Opt_depth) : 3;
-$Opt_files_included = (defined($Opt_files_included) && $Opt_files_included ne "") ? $Opt_files_included : '.*';
+$Opt_file_match_rule = (defined($Opt_file_match_rule) && $Opt_file_match_rule ne "") ? $Opt_file_match_rule : '.*';
 
-my $files_included_gen = sub($) {
+my $match_rule_gen = sub($) {
   my $re = shift;
-  if ($re =~ /^-/) {
+  if (!defined($re) || $re eq "") {
+    sub($) {
+      return 1;
+    }
+  }
+  elsif ($re =~ /^-/) {
     $re = substr $re, 1;
     sub($) {
       my $a = shift;
@@ -1737,7 +1741,8 @@ my $files_included_gen = sub($) {
   }
 };
 
-$Opt_files_included = $files_included_gen->($Opt_files_included);
+$Opt_file_match_rule = $match_rule_gen->($Opt_file_match_rule);
+$Opt_func_match_rule = $match_rule_gen->($Opt_func_match_rule);
 
 sub search_matched_lines($) {
   my $re = shift;
@@ -1756,28 +1761,28 @@ sub show_tree() {
   ($Global_calling, $Global_called, $Global_calling_names, $Global_called_names) =
     get_cached_or_extract_all_funcs(%ignored, $env_trivial_threshold, $env_length_threshold);
   if ($Opt_mode == 0) {
-    my $tree = unified_calling_tree($Opt_func, $Opt_filter, $Opt_files_included, $Opt_depth);
+    my $tree = unified_calling_tree($Opt_func, $Opt_func_match_rule, $Opt_file_match_rule, $Opt_depth);
     my @lines = format_calling_tree($tree, $Opt_verbose);
     return join qq//, map {"$_\n"} @lines;
   }
   elsif ($Opt_mode == 1) {
-    my $tree = unified_called_tree($Opt_func, $Opt_filter, $Opt_files_included, $Opt_depth);
+    my $tree = unified_called_tree($Opt_func, $Opt_func_match_rule, $Opt_file_match_rule, $Opt_depth);
     my @lines = format_called_tree($tree, $Opt_verbose);
     return join qq//, map {"$_\n"} @lines;
   }
   elsif ($Opt_mode == 2) {
-    my $tree = outermost_tree($Opt_func, $Opt_files_included);
+    my $tree = outermost_tree($Opt_func, $Opt_file_match_rule);
     my @lines = format_calling_tree($tree, $Opt_verbose);
     return join qq//, map {"$_\n"} @lines;
   }
   elsif ($Opt_mode == 3) {
-    my $tree = innermost_tree($Opt_func, $Opt_files_included);
+    my $tree = innermost_tree($Opt_func, $Opt_file_match_rule);
     my @lines = format_called_tree($tree, $Opt_verbose);
     return join qq//, map {"$_\n"} @lines;
   }
   elsif ($Opt_mode == 4) {
     my @match_lines = search_matched_lines($Opt_func);
-    my $tree = search_called_tree($Global_called, $Opt_func, \@match_lines, $Opt_filter, $Opt_files_included, $Opt_depth);
+    my $tree = search_called_tree($Global_called, $Opt_func, \@match_lines, $Opt_func_match_rule, $Opt_file_match_rule, $Opt_depth);
     my @lines = format_called_tree($tree, $Opt_verbose);
     return join qq//, map {"$_\n"} @lines;
   }
