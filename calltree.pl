@@ -70,6 +70,8 @@ package RAII {
   }
 }
 
+my $Global_isatty = -t STDOUT;
+
 use Cwd qw/abs_path/;
 sub get_path_of_script() {
   if ($0 !~ qr'/') {
@@ -1412,7 +1414,7 @@ sub format_pruned_tree($$$\&\&) {
       return $get_child->($cached_node);
     }
     else {
-      return $get_entry - ($node);
+      return $get_entry->($node);
     }
   };
   return format_tree($root, 0, $verbose, $enabled_prune, &$get_entry, &$get_child_maybe_pruned);
@@ -1437,7 +1439,11 @@ sub format_common_tree($$\&\&) {
       my $entry = $get_entry->($node, $verbose, $common_idx);
       if ($should_prepend && exists($node->{common_idx})) {
         my $common_idx = $node->{common_idx};
-        $entry = "\e[33;35;1m$common_idx.\e[m" . $entry;
+        if ($Global_isatty) {
+          $entry = "\e[33;35;1m$common_idx.\e[m" . $entry;
+        } else {
+          $entry = "$common_idx." . $entry;
+        }
       }
       return $entry;
     };
@@ -1480,7 +1486,6 @@ sub format_convergent_common_tree($$\&\&) {
   return @prev_lines;
 }
 
-my $Global_isatty = -t STDOUT;
 
 sub get_entry_of_called_tree($$$) {
   my ($node, $verbose, $common_idx) = @_;
