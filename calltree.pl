@@ -53,6 +53,23 @@ sub all(&;@) {
   !(any {!$pred->($_)} @values);
 }
 
+package RAII {
+  sub new {
+    my ($cls, $ref, $unref) = @_;
+    $ref->();
+    my $obj = {
+      unref => $unref,
+    };
+    return bless $obj, $cls;
+  }
+
+  sub DESTROY {
+    local ($., $!, $?, $@, $^E);
+    my ($obj) = @_;
+    $obj->{unref}();
+  }
+}
+
 use Cwd qw/abs_path/;
 sub get_path_of_script() {
   if ($0 !~ qr'/') {
@@ -877,18 +894,22 @@ sub sub_tree($$$$$$$$) {
     return $matched ? $node : undef;
   }
 
-  $level++;
-
-  # add node_id to path;
-  $path->{$node_id} = 1;
+  my $ref = sub() {
+    $level++;
+    # add node_id to path;
+    $path->{$node_id} = 1;
+  };
+  my $unref = sub() {
+    $level--;
+    # delete node_id from path;
+    delete $path->{$node_id};
+  };
+  my $raii = RAII->new($ref, $unref);
 
   my @child_nodes = ();
   my $unique_name = $node->{file_info} . "::" . $node->{name};
   if (exists $pruned->{$unique_name}) {
     my $cached_node = $pruned->{$unique_name};
-    $level--;
-    # delete node_id from path;
-    delete $path->{$node_id};
     # return undef if the current node is pruned
     if (!defined($cached_node)) {
       return undef;
@@ -906,10 +927,6 @@ sub sub_tree($$$$$$$$) {
       push @child_nodes, &sub_tree($graph, $chd, $level, $depth, $path, $get_id_and_child, $install_child, $pruned);
     }
   }
-
-  # delete node_id from path;
-  delete $path->{$node_id};
-  $level--;
 
   @child_nodes = grep {defined($_)} @child_nodes;
 
