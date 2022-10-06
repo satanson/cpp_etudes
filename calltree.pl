@@ -808,7 +808,6 @@ sub get_cached_or_extract_all_funcs(\%$$) {
     restore_saved_files();
     return @result;
   };
-  # qx(touch $file);
   my @result = get_cache_or_run_keyed(@key, $file, $do_summary);
   return @result;
 }
@@ -950,6 +949,41 @@ sub sub_tree($$$$$$$$) {
       $pruned->{$unique_name} = $opt_node;
     }
     return $opt_node;
+  }
+}
+
+sub remove_loop($$$) {
+  my ($cache, $cache_key, $visited) = @_;
+
+  my $remove_child = sub($$) {
+    my ($n, $k) = @_;
+    $n->{child} = [ grep {!exists($_->{cache_key}) || $_->{cache_key} ne $k} @{$n->{child}} ];
+  };
+
+  my $ref = sub() {
+    $visited->{$cache_key} = 1;
+  };
+  my $unref = sub() {
+    delete($visited->{$cache_key});
+  };
+  my $raii = RAII->new($ref, $unref);
+  my $node = $cache->{$cache_key};
+  my @cache_keys = map {$_->{cache_key}} grep {exists($_->{cache_key})} @{$node->{child}};
+  foreach my $chd_cache_key (@cache_keys) {
+    if (exists($visited->{$chd_cache_key})) {
+      $remove_child->($node, $chd_cache_key);
+    }
+    else {
+      &remove_loop($cache, $chd_cache_key, $visited);
+    }
+  }
+}
+
+sub remove_all_loops($) {
+  my ($cache) = @_;
+  my $visited = {};
+  foreach my $cache_key (keys %$cache) {
+    remove_loop($cache, $cache_key, $visited);
   }
 }
 
@@ -1441,7 +1475,8 @@ sub format_common_tree($$\&\&) {
         my $common_idx = $node->{common_idx};
         if ($Global_isatty) {
           $entry = "\e[33;35;1m$common_idx.\e[m" . $entry;
-        } else {
+        }
+        else {
           $entry = "$common_idx." . $entry;
         }
       }
@@ -1517,6 +1552,7 @@ sub get_child_of_called_tree($) {
 sub format_called_tree($$) {
   my ($root, $verbose) = @_;
   my $enabled_prune = $Global_common_count >= 2 && $Global_common_height >= 3;
+  remove_all_loops($Global_pruned_cache);
   my @lines = format_pruned_tree($root, $verbose, $enabled_prune, &get_entry_of_called_tree, &get_child_of_called_tree);
   push @lines, format_convergent_common_tree($Global_pruned_subtrees, $verbose, &get_entry_of_called_tree, &get_child_of_called_tree);
   return map {"  $_"} ("", @lines, "");
@@ -1690,6 +1726,7 @@ sub format_calling_tree($$) {
   my ($root, $verbose) = @_;
   my $enabled_prune = $Global_common_count >= 2 && $Global_common_height >= 3;
   $root->{level} = 0;
+  remove_all_loops($Global_pruned_cache);
   my @lines = format_pruned_tree($root, $verbose, $enabled_prune, &get_entry_of_calling_tree, &get_child_of_calling_tree);
   push @lines, format_convergent_common_tree($Global_pruned_subtrees, $verbose, &get_entry_of_calling_tree, &get_child_of_calling_tree);
   return map {"  $_"} ("", @lines, "");
