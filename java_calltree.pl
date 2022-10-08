@@ -892,7 +892,7 @@ sub sub_tree($$$$$$$$) {
     $node->{height} = 1;
     $node->{count} = 1;
     $node->{cache_key} = $unique_name;
-    my $opt_node = $matched ? $node : undef;
+    my $opt_node = ($matched || $level == 1) ? $node : undef;
     if ($node->{leaf} eq "internal") {
       $pruned->{$unique_name} = $opt_node;
     }

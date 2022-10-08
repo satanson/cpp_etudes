@@ -944,7 +944,7 @@ sub sub_tree($$$$$$$$) {
     $node->{height} = 1;
     $node->{count} = 1;
     $node->{cache_key} = $unique_name;
-    my $opt_node = $matched ? $node : undef;
+    my $opt_node = ($matched || $level == 1)? $node : undef;
     if ($node->{leaf} eq "internal") {
       $pruned->{$unique_name} = $opt_node;
     }
@@ -1581,6 +1581,8 @@ sub get_entry_of_calling_tree($$$) {
   # $name = "$name(count=$count, height=$height)";
 
   if ($Global_isatty) {
+    #use Carp qw/longmess/;
+    #print(Dumper({node=>$node, stack=>longmess()}));
     if (defined($common_idx)) {
       $name = "\e[33;35;1m$name\t[common.$common_idx]\e[m";
     }
@@ -1724,6 +1726,7 @@ sub get_child_of_calling_tree($) {
 }
 sub format_calling_tree($$) {
   my ($root, $verbose) = @_;
+  die "undefined tree" unless defined($root);
   my $enabled_prune = $Global_common_count >= 2 && $Global_common_height >= 3;
   $root->{level} = 0;
   remove_all_loops($Global_pruned_cache);
@@ -1804,6 +1807,7 @@ sub show_tree() {
     get_cached_or_extract_all_funcs(%ignored, $env_trivial_threshold, $env_length_threshold);
   if ($Opt_mode == 0) {
     my $tree = unified_calling_tree($Opt_func, $Opt_func_match_rule, $Opt_file_match_rule, $Opt_depth);
+    # print (Dumper({tree=>$tree}));
     my @lines = format_calling_tree($tree, $Opt_verbose);
     return join qq//, map {"$_\n"} @lines;
   }
@@ -1831,4 +1835,4 @@ sub show_tree() {
 }
 
 print get_cache_or_run_keyed(@key, cached_sha256_file(@key), \&show_tree);
-#print show_tree();
+# print show_tree();

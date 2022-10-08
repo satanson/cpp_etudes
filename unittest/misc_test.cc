@@ -13,6 +13,7 @@
 
 #include <atomic>
 #include <cstdlib>
+#include <functional>
 #include <guard.hh>
 #include <iostream>
 #include <list>
@@ -1080,43 +1081,63 @@ struct FunctorD {
     void* f;
 };
 struct FunctorE {
-    int operator()(int a, int b) {return a+b;}
+    int operator()(int a, int b) { return a + b; }
 };
 TEST_F(MiscTest, testCallAs) {
-    FunctorD<int,int,int> f1(FunctorE(), CallAs<FunctorE>{});
-    std::cout<<f1(1,1)<<std::endl;
+    FunctorD<int, int, int> f1(FunctorE(), CallAs<FunctorE>{});
+    std::cout << f1(1, 1) << std::endl;
 }
 
 TEST_F(MiscTest, testInt128Div) {
-    int128_t a =1;
-    int128_t b =0;
-    int128_t c =a/b;
+    int128_t a = 1;
+    int128_t b = 0;
+    int128_t c = a / b;
 }
 TEST_F(MiscTest, testReduce) {
-    std::vector<std::string> xs = {"1","2","3","4","5"};
-    auto x = std::transform_reduce(xs.begin(), xs.end(), 0L, [](size_t a, size_t b){
-        return a+b;
-    }, [](const std::string& x){ return strtoul(x.c_str(), nullptr, 10);});
-    std::cout<<x<<std::endl;
+    std::vector<std::string> xs = {"1", "2", "3", "4", "5"};
+    auto x = std::transform_reduce(
+            xs.begin(), xs.end(), 0L, [](size_t a, size_t b) { return a + b; },
+            [](const std::string& x) { return strtoul(x.c_str(), nullptr, 10); });
+    std::cout << x << std::endl;
+}
+
+void fast_mul(int64_t a, int64_t b, int128_t* c) {
+    int128_t c0 = a * b;
+    *c = c0;
+}
+void fast_mul(int128_t a, int128_t b, int128_t* c) {
+    int128_t c0 = a * b;
+    *c = c0;
+}
+
+TEST_F(MiscTest, testFastMul) {
+    int64_t a = 1L << 62;
+    int64_t b = 1L << 62;
+    int128_t c0 = 0;
+    int128_t c1 = 0;
+    fast_mul(a, b, &c0);
+    fast_mul((int128_t)a, (int128_t)b, &c1);
+    print_int128_t(c0);
+    print_int128_t(c1);
+    ASSERT_EQ(c0, c1);
 }
 
 #include <shared_mutex>
 
-
-class AssertHeldShardMutex: public std::shared_mutex {
+class AssertHeldShardMutex : public std::shared_mutex {
 public:
     void lock() {}
-    bool try_lock() { }
-    void unlock() { }
+    bool try_lock() {}
+    void unlock() {}
 
     // Shared ownership
 
     void lock_shared() {}
-    bool try_lock_shared() { }
-    void unlock_shared() {};
+    bool try_lock_shared() {}
+    void unlock_shared(){};
+
 private:
     pthread_key_t _key;
-
 };
 
 int main(int argc, char** argv) {
