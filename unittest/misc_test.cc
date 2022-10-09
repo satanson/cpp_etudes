@@ -1122,19 +1122,68 @@ TEST_F(MiscTest, testFastMul) {
     ASSERT_EQ(c0, c1);
 }
 
+TEST_F(MiscTest, testI32XI32YieldsI64) {
+    int32_t a = 1 << 31;
+    int32_t b = 1 << 31;
+    int64_t c = a * b;
+    int64_t c1 = (int64_t)a * (int64_t)b;
+    std::cout << c << std::endl;
+    std::cout << c1 << std::endl;
+}
+static int64_t asm_mul32(int32_t x, int32_t y) {
+    union {
+        int64_t i64;
+        struct {
+#if __BYTE_ORDER == LITTLE_ENDIAN
+            int32_t low;
+            int32_t high;
+#else
+            int32_t high;
+            int32_t low;
+#endif
+        } s;
+    } z;
+    __asm__ __volatile__(
+            "mov %[x], %%eax\n\t"
+            "imul %[y]\n\t"
+            "mov %%edx, %[high]\n\t"
+            "mov %%eax, %[low]"
+            : [high] "=r"(z.s.high), [low] "=r"(z.s.low)
+            : [x] "r"(x), [y] "r"(y)
+            : "cc", "rax", "rdx");
+    return z.i64;
+}
+
+TEST_F(MiscTest, testMul32) {
+    std::cout << asm_mul32(1 << 31, 1 << 31) << std::endl;
+    std::cout << (1L << 31) * (1L << 31) << std::endl;
+    ASSERT_EQ((int128_t)1 * (int128_t)2, (int128_t)1 * 2);
+}
+
 #include <shared_mutex>
+
+template <typename T>
+class TlsObject {
+public:
+    TlsObject() { pthread_key_create(&_key, ::free); }
+
+private:
+    pthread_key_t _key;
+};
 
 class AssertHeldShardMutex : public std::shared_mutex {
 public:
-    void lock() {}
-    bool try_lock() {}
-    void unlock() {}
+    void lock() { shared_mutex::lock(); }
+    bool try_lock() { shared_mutex::try_lock(); }
+    void unlock() { shared_mutex::unlock(); }
 
     // Shared ownership
 
-    void lock_shared() {}
-    bool try_lock_shared() {}
-    void unlock_shared(){};
+    void lock_shared() { shared_mutex::lock_shared(); }
+
+    bool try_lock_shared() { return shared_mutex::try_lock_shared(); }
+
+    void unlock_shared() { shared_mutex::unlock_shared(); }
 
 private:
     pthread_key_t _key;
