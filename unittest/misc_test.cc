@@ -1198,7 +1198,7 @@ private:
     pthread_key_t _key;
 };
 
-class AssertHeldShardMutex : public std::shared_mutex {
+class AssertHeldSharedMutex : public std::shared_mutex {
     enum AssertHeldState {
         UNLOCKED = 0,
         SHARED_LOCK = 1,
@@ -1260,7 +1260,7 @@ private:
 
 TEST_F(MiscTest, testLockHeld0) {
     struct SharedSomething {
-        AssertHeldShardMutex mutex;
+        AssertHeldSharedMutex mutex;
         int a = 0;
     };
     std::shared_ptr<SharedSomething> sth = std::make_shared<SharedSomething>();
@@ -1271,7 +1271,7 @@ TEST_F(MiscTest, testLockHeld0) {
         write_threads.emplace_back(
                 [&stop, i](std::shared_ptr<SharedSomething> sth) {
                     while (!stop) {
-                        std::unique_lock<AssertHeldShardMutex> wlock(sth->mutex);
+                        std::unique_lock<AssertHeldSharedMutex> wlock(sth->mutex);
                         sth->mutex.assert_held_exclusive();
                         sth->a = i;
                         this_thread::sleep_for(100ms);
@@ -1284,7 +1284,7 @@ TEST_F(MiscTest, testLockHeld0) {
         read_threads.emplace_back(
                 [&stop, i](std::shared_ptr<SharedSomething> sth) {
                     while (!stop) {
-                        std::shared_lock<AssertHeldShardMutex> rlock(sth->mutex);
+                        std::shared_lock<AssertHeldSharedMutex> rlock(sth->mutex);
                         sth->mutex.assert_held_shared();
                         std::cout << sth->a << std::endl;
                         this_thread::sleep_for(100ms);
@@ -1303,9 +1303,23 @@ TEST_F(MiscTest, testLockHeld0) {
     }
 }
 TEST_F(MiscTest, testAssertLock) {
-    AssertHeldShardMutex a;
+    AssertHeldSharedMutex a;
     a.assert_held_shared();
 }
+
+TEST_F(MiscTest, testPthreadKeyCreate) {
+    for (int i = 0; i < 1000000000; ++i) {
+        pthread_key_t key;
+        int r = pthread_key_create(&key, ::free);
+        if (r != 0) {
+            std::cout <<"i="<<i<< ", r=" << r << ", error=" << strerror(r);
+            break;
+        }
+    }
+    EAGAIN;
+}
+
+
 int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
