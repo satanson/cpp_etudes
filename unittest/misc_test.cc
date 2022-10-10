@@ -19,6 +19,7 @@
 #include <list>
 #include <map>
 #include <memory>
+#include <mutex>
 #include <random>
 
 using namespace std;
@@ -401,7 +402,7 @@ TEST_F(MiscTest, testFloat2Decimal128Overflow) {
     std::cout << overflow << std::endl;
     print_int128_t(a);
     print_int128_t(b);
-    int64_t h = 9355999482096867328L;
+    int64_t h = (int64_t)9355999482096867328L;
     int128_t h128 = h;
     h128 <<= 64;
     std::cout << "<0:" << (h128 < 0) << ",   >0:" << (h128 > 0) << std::endl;
@@ -490,7 +491,10 @@ struct Foobar001 {
     Foobar001() { std::cout << "invoke ctor" << std::endl; }
     ~Foobar001() { std::cout << "invoke ~ctor" << std::endl; }
     Foobar001(const Foobar001& other) { std::cout << "invoke cpy ctor" << std::endl; }
-    Foobar001& operator=(const Foobar001& other) { std::cout << "invoke assign" << std::endl; }
+    Foobar001& operator=(const Foobar001& other) {
+        std::cout << "invoke assign" << std::endl;
+        return *this;
+    }
 };
 using Foobar001Ptr = std::unique_ptr<Foobar001>;
 using Foobar001Vector = std::vector<std::tuple<size_t, Foobar001Ptr>>;
@@ -1160,35 +1164,148 @@ TEST_F(MiscTest, testMul32) {
     ASSERT_EQ((int128_t)1 * (int128_t)2, (int128_t)1 * 2);
 }
 
-#include <shared_mutex>
+#include <glog/logging.h>
 
-template <typename T>
+#include <optional>
+#include <shared_mutex>
+#include <thread>
+#include <type_traits>
+
+template <typename T, typename = std::enable_if_t<std::is_copy_assignable<T>::value, T>>
 class TlsObject {
 public:
-    TlsObject() { pthread_key_create(&_key, ::free); }
+    TlsObject() { DCHECK(!pthread_key_create(&_key, ::free)); }
+    ~TlsObject() { DCHECK(!pthread_key_delete(_key)); }
+    template <typename... Args>
+    void set(Args&&... args) {
+        void* old = pthread_getspecific(_key);
+        if (old != nullptr) {
+            delete (T*)old;
+        }
+        auto obj = new T(std::forward<Args>(args)...);
+        DCHECK(!pthread_setspecific(_key, obj));
+    }
+
+    std::optional<T> get() const {
+        void* old = pthread_getspecific(_key);
+        if (old == nullptr) {
+            return {};
+        }
+        return *(T*)old;
+    }
 
 private:
     pthread_key_t _key;
 };
 
 class AssertHeldShardMutex : public std::shared_mutex {
+    enum AssertHeldState {
+        UNLOCKED = 0,
+        SHARED_LOCK = 1,
+        EXCLUSIVE_LOCK = 2,
+    };
+    struct AssertHeldInfo {
+        explicit AssertHeldInfo(AssertHeldState state) : state(state) {}
+        AssertHeldState state;
+    };
+
 public:
-    void lock() { shared_mutex::lock(); }
-    bool try_lock() { shared_mutex::try_lock(); }
-    void unlock() { shared_mutex::unlock(); }
+    void lock() {
+        shared_mutex::lock();
+        _held_info.set(AssertHeldState::EXCLUSIVE_LOCK);
+    }
+    bool try_lock() {
+        if (shared_mutex::try_lock()) {
+            _held_info.set(AssertHeldState::EXCLUSIVE_LOCK);
+            return true;
+        }
+        return false;
+    }
+    void unlock() {
+        shared_mutex::unlock();
+        _held_info.set(AssertHeldState::UNLOCKED);
+    }
 
     // Shared ownership
 
-    void lock_shared() { shared_mutex::lock_shared(); }
+    void lock_shared() {
+        shared_mutex::lock_shared();
+        _held_info.set(AssertHeldState::SHARED_LOCK);
+    }
 
-    bool try_lock_shared() { return shared_mutex::try_lock_shared(); }
+    bool try_lock_shared() {
+        if (shared_mutex::try_lock_shared()) {
+            _held_info.set(AssertHeldState::SHARED_LOCK);
+            return true;
+        }
+        return false;
+    }
 
-    void unlock_shared() { shared_mutex::unlock_shared(); }
+    void unlock_shared() {
+        shared_mutex::unlock_shared();
+        _held_info.set(AssertHeldState::UNLOCKED);
+    }
+    void assert_held_shared() {
+        auto info = _held_info.get();
+        DCHECK(info.has_value() && info.value().state == AssertHeldState::SHARED_LOCK);
+    }
+    void assert_held_exclusive() {
+        auto info = _held_info.get();
+        DCHECK(info.has_value() && info.value().state == AssertHeldState::EXCLUSIVE_LOCK);
+    }
 
 private:
-    pthread_key_t _key;
+    TlsObject<AssertHeldInfo> _held_info;
 };
 
+TEST_F(MiscTest, testLockHeld0) {
+    struct SharedSomething {
+        AssertHeldShardMutex mutex;
+        int a = 0;
+    };
+    std::shared_ptr<SharedSomething> sth = std::make_shared<SharedSomething>();
+    std::vector<std::thread> write_threads;
+    std::vector<std::thread> read_threads;
+    std::atomic<bool> stop = false;
+    for (int i = 0; i < 3; ++i) {
+        write_threads.emplace_back(
+                [&stop, i](std::shared_ptr<SharedSomething> sth) {
+                    while (!stop) {
+                        std::unique_lock<AssertHeldShardMutex> wlock(sth->mutex);
+                        sth->mutex.assert_held_exclusive();
+                        sth->a = i;
+                        this_thread::sleep_for(100ms);
+                    }
+                },
+                sth);
+    }
+
+    for (int i = 0; i < 3; ++i) {
+        read_threads.emplace_back(
+                [&stop, i](std::shared_ptr<SharedSomething> sth) {
+                    while (!stop) {
+                        std::shared_lock<AssertHeldShardMutex> rlock(sth->mutex);
+                        sth->mutex.assert_held_shared();
+                        std::cout << sth->a << std::endl;
+                        this_thread::sleep_for(100ms);
+                    }
+                },
+                sth);
+    }
+
+    this_thread::sleep_for(1000ms);
+    stop.store(true);
+    for (auto& thd : write_threads) {
+        thd.join();
+    }
+    for (auto& thd : read_threads) {
+        thd.join();
+    }
+}
+TEST_F(MiscTest, testAssertLock) {
+    AssertHeldShardMutex a;
+    a.assert_held_shared();
+}
 int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();

@@ -30,7 +30,7 @@ set(TESTS
 foreach (src ${TESTS})
     get_filename_component(exe ${src} NAME_WE)
     add_executable(${exe} ${src})
-    target_link_libraries(${exe} ${link_libs} gtest pthread atomic)
+    target_link_libraries(${exe} ${link_libs} gtest glog pthread atomic)
     list(APPEND unittest_deps ${exe})
 endforeach ()
 add_custom_target(unittest DEPENDS ${unittest_deps})
