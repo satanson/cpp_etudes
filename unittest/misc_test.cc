@@ -1312,13 +1312,64 @@ TEST_F(MiscTest, testPthreadKeyCreate) {
         pthread_key_t key;
         int r = pthread_key_create(&key, ::free);
         if (r != 0) {
-            std::cout <<"i="<<i<< ", r=" << r << ", error=" << strerror(r);
+            std::cout << "i=" << i << ", r=" << r << ", error=" << strerror(r);
             break;
         }
     }
     EAGAIN;
 }
 
+struct Range {
+    int from;
+    int to;
+    bool operator<(const Range& rhs) const { return this->to < rhs.to; }
+
+    bool operator==(const Range& rhs) const { return this->from == rhs.from && this->to == rhs.to; }
+};
+
+TEST_F(MiscTest, testOrderedMap) {
+    std::map<Range, Range> m;
+    std::vector<Range> ranges{{1, 1}, {2, 2}, {3, 3}, {4, 4}, {5, 5}, {6, 6}, {7, 7},
+                              {8, 8}, {9, 9}, {1, 4}, {4, 5}, {6, 9}, {1, 5}, {3, 6}};
+    for (const auto& r : ranges) {
+        m.insert(std::pair<Range, Range>(r, r));
+    }
+    for (const auto& r : ranges) {
+        auto it = m.find(r);
+        DCHECK(it != m.end());
+        DCHECK(it->first == r);
+    }
+}
+
+struct Range2 {
+    int from;
+    int to;
+    bool operator<(const Range2& rhs) const {
+        if (this->from < rhs.from) {
+            return true;
+        } else if (this->from > rhs.from) {
+            return false;
+        } else {
+            return this->to < rhs.to;
+        }
+    }
+
+    bool operator==(const Range2& rhs) const { return this->from == rhs.from && this->to == rhs.to; }
+};
+
+TEST_F(MiscTest, testOrderedMap2) {
+    std::map<Range2, Range2> m;
+    std::vector<Range2> ranges{{1, 1}, {2, 2}, {3, 3}, {4, 4}, {5, 5}, {6, 6}, {7, 7},
+                               {8, 8}, {9, 9}, {1, 4}, {4, 5}, {6, 9}, {1, 5}, {3, 6}};
+    for (const auto& r : ranges) {
+        m.insert(std::pair<Range2, Range2>(r, r));
+    }
+    for (const auto& r : ranges) {
+        auto it = m.find(r);
+        DCHECK(it != m.end());
+        DCHECK(it->first == r);
+    }
+}
 
 int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);
