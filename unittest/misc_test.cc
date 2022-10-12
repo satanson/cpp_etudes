@@ -1370,6 +1370,13 @@ TEST_F(MiscTest, testOrderedMap2) {
         DCHECK(it->first == r);
     }
 }
+#include <absl/container/flat_hash_map.h>
+TEST_F(MiscTest, flatHashMap) {
+    absl::flat_hash_map<std::string, std::string> m;
+    m.emplace(std::make_pair<std::string, std::string>("a", "b"));
+    ASSERT_TRUE(m.find("a")!=m.end());
+    std::cout<<m["a"]<<std::endl;
+}
 
 int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);

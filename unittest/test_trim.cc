@@ -22,6 +22,7 @@ TEST_F(TestTrim, TestSkipLeadingSpaces) {
   std::string s2(p, q);
   std::cout << "x" << s2 << "x" << std::endl;
 }
+
 } // namespace test
 
 int main(int argc, char **argv) {
