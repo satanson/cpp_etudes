@@ -75,7 +75,7 @@ struct DataTypeTrait {};
     template <>                            \
     struct DataTypeTrait<t> {              \
         using DataType = dt;               \
-        static constexpr char* Name = #dt; \
+        static constexpr const char* Name = #dt; \
     };
 
 DEFINE_DATATYPE_TRAIT(SimpleType::TYPE_BOOLEAN, bool);

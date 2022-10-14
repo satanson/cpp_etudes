@@ -46,6 +46,7 @@ static inline const char *utf8_reverse_per_slice(const char *src_begin,
     q -= char_size;
     std::copy(p, p + char_size, q);
   }
+  return dst_begin;
 }
 
 template <bool is_epi8>
@@ -81,6 +82,7 @@ static inline const char *ascii_reverse(const char *src_begin,
     --q;
     *q = *p;
   }
+  return dst_begin;
 }
 
 #endif // CPP_ETUDES_INCLUDE_REVERSE_HH_

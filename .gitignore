@@ -1,4 +1,9 @@
 *.bak
+*.tgz
+*.tar.gz
+*.tbz2
+*.tar.bz2
+*.tar
 *.backup
 *.back
 .*.swp
@@ -13,3 +18,4 @@ debug-build
 build_debug
 *debug*
 *build*
+third-party/jemalloc*

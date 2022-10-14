@@ -325,6 +325,7 @@ struct AAAAAA {
     }
     AAAAAA& operator=(AAAAAA&& a) {
         std::cout<<"move assign"<<std::endl;
+        return *this;
     }
 };
 TEST_F(AsyncTest, testAssignRightValueToRightValueRef){

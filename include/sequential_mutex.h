@@ -17,7 +17,7 @@ class thread_local_object {
 public:
     thread_local_object() { pthread_key_create(&_key, free); }
     ~thread_local_object() { pthread_key_delete(_key); }
-    thread_local_object<T>& operator=(T&& t) { pthread_setspecific(_key, new T(std::forward<T>(t))); }
+    thread_local_object<T>& operator=(T&& t) { pthread_setspecific(_key, new T(std::forward<T>(t))); return *this;}
     operator T() {
         auto* p = pthread_getspecific(_key);
         if (p == nullptr) {

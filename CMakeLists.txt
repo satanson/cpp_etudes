@@ -105,18 +105,24 @@ endif ()
 
 include_directories(${PROJECT_SOURCE_DIR})
 include_directories(${PROJECT_SOURCE_DIR}/include)
+include_directories(${PROJECT_SOURCE_DIR}/src/modules)
+
 include_directories(SYSTEM ${PROJECT_SOURCE_DIR}/third-party/gtest-1.7.0/fused-src)
 include_directories(SYSTEM ${PROJECT_SOURCE_DIR}/third-party/benchmark-1.5.1/include)
 include_directories(SYSTEM ${PROJECT_SOURCE_DIR}/third-party/glog-0.6.0/src)
 include_directories(SYSTEM ${PROJECT_SOURCE_DIR}/third-party/abseil-cpp-91b7cd600a34cbd/)
+
 add_subdirectory(third-party/gtest-1.7.0/fused-src/gtest)
 add_subdirectory(third-party/benchmark-1.5.1)
+set(BUILD_TESTING OFF)
 add_subdirectory(third-party/glog-0.6.0)
+
 set(ABSL_PROPAGATE_CXX_STD ON)
 set(ABSL_BUILD_TESTING OFF)
 add_subdirectory(third-party/abseil-cpp-91b7cd600a34cbd)
+set(BUILD_TESTING ON)
 
-list(APPEND link_libs gtest glog pthread atomic
+list(APPEND link_libs gtest glog::glog pthread atomic
         absl::algorithm
         absl::base
         absl::debugging
@@ -126,6 +132,8 @@ list(APPEND link_libs gtest glog pthread atomic
         absl::meta
         absl::numeric
         absl::random_random
+        absl::status
+        absl::statusor
         absl::strings
         absl::synchronization
         absl::time

@@ -9,6 +9,7 @@
 #include <atomic>
 #include <concurrent/mark_ptr_type.hh>
 #include <gtest/gtest.h>
+#include <memory>
 using std::unique_ptr;
 namespace com {
 namespace grakra {
