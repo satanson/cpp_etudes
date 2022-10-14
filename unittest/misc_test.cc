@@ -199,9 +199,15 @@ union ExtendFieldType {
             : extend({.type = (int16_t)field_type, .precision = (int8_t)precision, .scale = (int8_t)scale}) {}
     ExtendFieldType(ExtendFieldType const&) = default;
     ExtendFieldType& operator=(ExtendFieldType&) = default;
-    FieldType type() const { return extend.type; }
-    int precision() const { return extend.precision; }
-    int scale() const { return extend.scale; }
+    FieldType type() const {
+        return extend.type;
+    }
+    int precision() const {
+        return extend.precision;
+    }
+    int scale() const {
+        return extend.scale;
+    }
 };
 
 TEST_F(MiscTest, testExtendField) {
@@ -1374,8 +1380,8 @@ TEST_F(MiscTest, testOrderedMap2) {
 TEST_F(MiscTest, flatHashMap) {
     absl::flat_hash_map<std::string, std::string> m;
     m.emplace(std::make_pair<std::string, std::string>("a", "b"));
-    ASSERT_TRUE(m.find("a")!=m.end());
-    std::cout<<m["a"]<<std::endl;
+    ASSERT_TRUE(m.find("a") != m.end());
+    std::cout << m["a"] << std::endl;
 }
 
 int main(int argc, char** argv) {

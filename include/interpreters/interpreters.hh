@@ -36,5 +36,6 @@ int32_t make_instruction(Args&&... args) {
 }
 int32_t switch_dispatch(const int32_t* instructions, size_t n, int32_t* stack);
 int32_t token_threaded(const int32_t* instructions, size_t n, int32_t* stack);
-int32_t direct_threaded(const int32_t* instructions, size_t n, int32_t* stack, int32_t* operands, void**target_addresses);
+int32_t direct_threaded(const int32_t* instructions, size_t n, int32_t* stack, int32_t* operands,
+                        void** target_addresses);
 } // namespace interpreters

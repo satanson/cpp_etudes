@@ -11,9 +11,9 @@
 
 #include <iostream>
 #include <mutex>
+#include <random>
 #include <shared_mutex>
 #include <thread>
-#include <random>
 
 #include "sequential_mutex.h"
 namespace test {
@@ -41,7 +41,7 @@ TEST_F(TestSeqMutex, testMultiThread) {
         threads.emplace_back([i, &mutex, &result, &count]() {
             mutex.set_thread_id(i);
             std::random_device dev;
-            std::uniform_int_distribution<int> dist(10,500);
+            std::uniform_int_distribution<int> dist(10, 500);
             for (int k = 0; k < 4; k++) {
                 std::unique_lock lock(mutex);
                 result.emplace_back(i);
@@ -53,8 +53,8 @@ TEST_F(TestSeqMutex, testMultiThread) {
         threads[i].join();
     }
     ASSERT_TRUE(result.size() == 8);
-    for (int i=0; i < result.size(); ++i) {
-        std::cout<<"i="<<i<<": "<<orders[i]<<std::endl;
+    for (int i = 0; i < result.size(); ++i) {
+        std::cout << "i=" << i << ": " << orders[i] << std::endl;
         ASSERT_EQ(result[i], orders[i]);
     }
 }

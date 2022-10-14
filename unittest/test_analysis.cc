@@ -47,7 +47,6 @@ TEST_F(AnalysisTest, TestConstructCfg) {
     cfg.add(std::move(blk1));
     cfg.add(std::move(blk2));
     cfg.add(std::move(blk3));
-    
 }
 } // namespace analysis
 

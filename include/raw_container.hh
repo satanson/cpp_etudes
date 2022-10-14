@@ -24,28 +24,27 @@ namespace raw {
 // convert value initialization into default initialization.
 template <typename T, typename A = std::allocator<T>>
 class RawAllocator : public A {
-  typedef std::allocator_traits<A> a_t;
+    typedef std::allocator_traits<A> a_t;
 
 public:
-  template <typename U> struct rebind {
-    using other = RawAllocator<U, typename a_t::template rebind_alloc<U>>;
-  };
+    template <typename U>
+    struct rebind {
+        using other = RawAllocator<U, typename a_t::template rebind_alloc<U>>;
+    };
 
-  using A::A;
+    using A::A;
 
-  template <typename U>
-  void
-  construct(U *ptr) noexcept(std::is_nothrow_default_constructible<U>::value) {
-    ::new (static_cast<void *>(ptr)) U;
-  }
-  template <typename U, typename... Args>
-  void construct(U *ptr, Args &&...args) {
-    a_t::construct(static_cast<A &>(*this), ptr, std::forward<Args>(args)...);
-  }
+    template <typename U>
+    void construct(U* ptr) noexcept(std::is_nothrow_default_constructible<U>::value) {
+        ::new (static_cast<void*>(ptr)) U;
+    }
+    template <typename U, typename... Args>
+    void construct(U* ptr, Args&&... args) {
+        a_t::construct(static_cast<A&>(*this), ptr, std::forward<Args>(args)...);
+    }
 };
 
-using RawString =
-    std::basic_string<char, std::char_traits<char>, RawAllocator<char>>;
+using RawString = std::basic_string<char, std::char_traits<char>, RawAllocator<char>>;
 // From cpp reference: "A trivial destructor is a destructor that performs no
 // action. Objects with trivial destructors don't require a delete-expression
 // and may be disposed of by simply deallocating their storage. All data types
@@ -60,15 +59,15 @@ template <class T, std::enable_if_t<std::is_trivially_destructible_v<T>, T> = 0>
 using RawVector = std::vector<T, RawAllocator<T>>;
 
 template <class T, std::enable_if_t<std::is_trivially_destructible_v<T>, T> = 0>
-static inline void make_room(std::vector<T> &v, size_t n) {
-  RawVector<T> rv;
-  rv.resize(n);
-  v.swap(reinterpret_cast<std::vector<T> &>(rv));
+static inline void make_room(std::vector<T>& v, size_t n) {
+    RawVector<T> rv;
+    rv.resize(n);
+    v.swap(reinterpret_cast<std::vector<T>&>(rv));
 }
-static inline void make_room(std::string &v, size_t n) {
-  RawString rs;
-  rs.resize(n);
-  v.swap(reinterpret_cast<std::string &>(rs));
+static inline void make_room(std::string& v, size_t n) {
+    RawString rs;
+    rs.resize(n);
+    v.swap(reinterpret_cast<std::string&>(rs));
 }
 } // namespace raw
 

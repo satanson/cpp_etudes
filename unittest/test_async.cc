@@ -304,42 +304,37 @@ TEST_F(AsyncTest, testCallOnce) {
     std::once_flag once;
     std::atomic<int> counter{0};
     std::vector<std::thread> threads;
-    for(int i=0; i< 10; ++i){
-        threads.emplace_back([i,&once,&counter](){
-           call_once(once, [&counter](){counter++;});
-           ASSERT_EQ(counter.load(), 1);
+    for (int i = 0; i < 10; ++i) {
+        threads.emplace_back([i, &once, &counter]() {
+            call_once(once, [&counter]() { counter++; });
+            ASSERT_EQ(counter.load(), 1);
         });
     }
-    for (auto& thd: threads){
+    for (auto& thd : threads) {
         thd.join();
     }
-    std::cout<<"counter="<<counter.load()<<std::endl;
+    std::cout << "counter=" << counter.load() << std::endl;
 }
 struct AAAAAA {
-    AAAAAA()=default;
-    AAAAAA(AAAAAA &&a){
-        std::cout<<"move ctor"<<std::endl;
-    }
-    ~AAAAAA(){
-        std::cout<<"dtor"<<std::endl;
-    }
+    AAAAAA() = default;
+    AAAAAA(AAAAAA&& a) { std::cout << "move ctor" << std::endl; }
+    ~AAAAAA() { std::cout << "dtor" << std::endl; }
     AAAAAA& operator=(AAAAAA&& a) {
-        std::cout<<"move assign"<<std::endl;
+        std::cout << "move assign" << std::endl;
         return *this;
     }
 };
-TEST_F(AsyncTest, testAssignRightValueToRightValueRef){
+TEST_F(AsyncTest, testAssignRightValueToRightValueRef) {
     std::vector<std::shared_ptr<AAAAAA>> x;
     x.emplace_back(std::make_shared<AAAAAA>());
     {
         const auto& b = std::move(x.back());
-        std::cout<<"L0"<<std::endl;
+        std::cout << "L0" << std::endl;
         x.pop_back();
-        std::cout<<"L1"<<endl;
+        std::cout << "L1" << endl;
     }
-    std::atomic<int>a;
+    std::atomic<int> a;
     --a;
-
 }
 
 int main(int argc, char** argv) {

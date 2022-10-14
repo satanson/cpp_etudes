@@ -61,8 +61,8 @@ struct ArrayCopy<S, T, AssignableGuard<S, T>> {
 };
 
 template <typename S, typename T>
-constexpr int array_copy_idx =
-        (sizeof(S) << 8) | (int(std::is_unsigned_v<S>) << 15) | sizeof(T) | (int(std::is_unsigned_v<T>) << 7);
+constexpr int array_copy_idx = (sizeof(S) << 8) | (int(std::is_unsigned_v<S>) << 15) | sizeof(T) |
+                               (int(std::is_unsigned_v<T>) << 7);
 
 #define COPY_ENTRY_CTOR(S, T) \
     { array_copy_idx<S, T>, &ArrayCopy<S, T>::evaluate }

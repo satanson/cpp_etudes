@@ -13,15 +13,15 @@ namespace com {
 namespace grakra {
 namespace util {
 static inline uint32_t reverse_bits(uint32_t n) {
-  uint32_t j = 0x80000000;
-  uint32_t m = 0;
-  for (uint32_t i = 1; i != 0; i <<= 1) {
-    if (n & i) {
-      m |= j;
+    uint32_t j = 0x80000000;
+    uint32_t m = 0;
+    for (uint32_t i = 1; i != 0; i <<= 1) {
+        if (n & i) {
+            m |= j;
+        }
+        j >>= 1;
     }
-    j >>= 1;
-  }
-  return m;
+    return m;
 }
 
 } // namespace util

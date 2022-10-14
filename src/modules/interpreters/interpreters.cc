@@ -92,7 +92,8 @@ op_end:
     return sp[1];
 }
 }
-int32_t direct_threaded(const int32_t* instructions, size_t n, int32_t* stack, int32_t* operands, void**target_addresses) {
+int32_t direct_threaded(const int32_t* instructions, size_t n, int32_t* stack, int32_t* operands,
+                        void** target_addresses) {
     static void* dispatch_table[] = {&&op_literal, &&op_add, &&op_sub, &&op_mul, &&op_div, &&op_mod, &&op_end};
     size_t k = 0;
     for (auto i = 0; i < n; ++i) {
@@ -105,35 +106,35 @@ int32_t direct_threaded(const int32_t* instructions, size_t n, int32_t* stack, i
     k = 0;
     auto* sp = stack + n - 1;
     const auto* ip = target_addresses;
-    goto* (*ip++);
+    goto*(*ip++);
 op_literal:
     sp[0] = operands[k++];
     --sp;
-    goto* (*ip++);
+    goto*(*ip++);
 op_add : {
     sp[2] = sp[1] + sp[2];
     ++sp;
-    goto* (*ip++);
+    goto*(*ip++);
 }
 op_sub : {
     sp[2] = sp[1] - sp[2];
     ++sp;
-    goto* (*ip++);
+    goto*(*ip++);
 }
 op_div : {
     sp[2] = sp[1] / sp[2];
     ++sp;
-    goto* (*ip++);
+    goto*(*ip++);
 }
 op_mul : {
     sp[2] = sp[1] * sp[2];
     ++sp;
-    goto* (*ip++);
+    goto*(*ip++);
 }
 op_mod : {
     sp[2] = sp[1] % sp[2];
     ++sp;
-    goto* (*ip++);
+    goto*(*ip++);
 op_end:
     return sp[1];
 }

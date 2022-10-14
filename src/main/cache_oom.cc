@@ -23,7 +23,7 @@ int main(int argc, char** argv) {
     auto cache_mgr = new CacheManager(512 * 1024 * 1024);
     for (int i = 0; i < 10000; ++i) {
         std::string cache_key = "key_" + std::to_string(i);
-        auto status = cache_mgr->populate(cache_key, create_cache_value(8*1024 * 1024));
+        auto status = cache_mgr->populate(cache_key, create_cache_value(8 * 1024 * 1024));
         if (!status.ok()) {
             std::cout << "key=" << cache_key << ", FAIL to populate it in cache" << std::endl;
         }

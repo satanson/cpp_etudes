@@ -26,6 +26,7 @@ public:
             node->next = head.next;
         }
     }
+
 private:
     Node head;
 };

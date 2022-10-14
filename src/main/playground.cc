@@ -16,12 +16,11 @@ using std::cerr;
 using std::cout;
 using std::endl;
 
-int main(int argc, char **argv) {
-  vector<uint8_t> bytes{0b1000'0000, 0b1110'0000, 0b1111'0000};
+int main(int argc, char** argv) {
+    vector<uint8_t> bytes{0b1000'0000, 0b1110'0000, 0b1111'0000};
 
-  for (uint8_t b : bytes) {
-    int c = ~b;
-    cout << std::hex << (int)b << "," << c << std::dec << ","
-         << __builtin_clz(c) << endl;
-  }
+    for (uint8_t b : bytes) {
+        int c = ~b;
+        cout << std::hex << (int)b << "," << c << std::dec << "," << __builtin_clz(c) << endl;
+    }
 }

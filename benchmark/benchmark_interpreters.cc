@@ -34,14 +34,15 @@ void BM_token_threaded(benchmark::State& state) {
 
 void BM_direct_threaded(benchmark::State& state) {
     std::vector<int32_t> instructions{
-        make_instruction<OP_LITERAL>(10), make_instruction<OP_LITERAL>(11), make_instruction<OP_ADD>(),
-        make_instruction<OP_LITERAL>(12), make_instruction<OP_MUL>(),       make_instruction<OP_END>(),
-        };
+            make_instruction<OP_LITERAL>(10), make_instruction<OP_LITERAL>(11), make_instruction<OP_ADD>(),
+            make_instruction<OP_LITERAL>(12), make_instruction<OP_MUL>(),       make_instruction<OP_END>(),
+    };
     std::vector<int32_t> stack(instructions.size());
     std::vector<int32_t> operands(instructions.size());
     std::vector<void*> target_addresses(instructions.size());
     for (auto _ : state) {
-        direct_threaded(&instructions.front(), instructions.size(), &stack.front(), &operands.front(), &target_addresses.front());
+        direct_threaded(&instructions.front(), instructions.size(), &stack.front(), &operands.front(),
+                        &target_addresses.front());
     }
 }
 BENCHMARK(BM_switch_dispatch);
