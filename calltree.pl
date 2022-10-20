@@ -1757,7 +1757,7 @@ $Global_common_quiet = int($Opt_verbose / 1000);
 $Global_common_height = int($Opt_verbose % 1000 / 100);
 $Global_common_count = int($Opt_verbose % 100 / 10);
 $Opt_verbose = $Opt_verbose % 10;
-die "verbose should ranges [0..1], $Opt_verbose provided" unless (0 <= $Opt_verbose <= 1);
+die "verbose should ranges [0..1], $Opt_verbose provided" unless ($Opt_verbose >= 0 && $Opt_verbose <= 1);
 die "common_height should be ge 3, $Global_common_height provided" unless ($Global_common_height >= 0);
 die "common_count should be ge 2, $Global_common_count provided" unless ($Global_common_count >= 0);
 
