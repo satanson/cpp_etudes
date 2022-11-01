@@ -122,7 +122,9 @@ set(ABSL_BUILD_TESTING OFF)
 add_subdirectory(third-party/abseil-cpp-91b7cd600a34cbd)
 set(BUILD_TESTING ON)
 
-list(APPEND link_libs gtest glog::glog pthread atomic
+list(APPEND link_libs gtest
+        pthread atomic
+        glog::glog
         absl::algorithm
         absl::base
         absl::debugging

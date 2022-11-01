@@ -292,7 +292,7 @@ my $RE_CSV_TOKEN = gen_re_list(",", $RE_SCOPED_IDENTIFIER, "??");
 my $RE_NOEXCEPT_THROW = qr"(\\b(noexcept|throw)\\b)(\\s*\\(\\s*$RE_CSV_TOKEN\\s*\\))?";
 my $RE_MACRO_DEF = qr/(#define([^\n\r]*\\(\n\r?|\r\n?))*([^\n\r]*[^\n\r\\])?((\n\r?)|(\r\n?)|$))/;
 my $RE_CONDITIONAL_COMPILE_BEGIN_BRANCH = qr/^[\t ]*#(if|endif).*$/;
-my $RE_CONDITIONAL_COMPILE_MID_BRANCH = qr/(?s)(^[\t ]*#elif.*?)(?=^[\t ]*#(?:elif|else))/ms;
+my $RE_CONDITIONAL_COMPILE_MID_BRANCH = qr/(?s)(^[\t ]*#elif.*?)(?=^[\t ]*#(?:elif|else|endif))/ms;
 my $RE_CONDITIONAL_COMPILE_END_BRANCH = qr/(?s)(^[\t ]*#(?:elif|else).*?#endif)/ms;
 my $RE_ARROW_RETURN = qr/(?<=\))(\s*->\s*(::)?(\s*\w+\s*::)*\s*\w+\s*)(?={)/;
 
@@ -944,11 +944,25 @@ sub sub_tree($$$$$$$$) {
     $node->{height} = 1;
     $node->{count} = 1;
     $node->{cache_key} = $unique_name;
-    my $opt_node = ($matched || $level == 1)? $node : undef;
+    my $opt_node = ($matched || $level == 1) ? $node : undef;
     if ($node->{leaf} eq "internal") {
       $pruned->{$unique_name} = $opt_node;
     }
     return $opt_node;
+  }
+}
+
+sub eliminate_empty_children($) {
+  my ($root) = @_;
+  unless (defined($root) && exists($root->{child})) {
+    return $root;
+  }
+  $root->{child} = [ grep {defined($_) && (!exists($_->{child}) || scalar(@{$_->{child}}) > 0)} @{$root->{child}} ];
+  if (scalar(@{$root->{child}}) > 0) {
+    return $root;
+  }
+  else {
+    return undef;
   }
 }
 
@@ -1149,7 +1163,7 @@ sub called_tree($$$$$) {
     simple_name => $name,
     file_info   => "",
   };
-  return &sub_tree($called_graph, $node, 0, $depth, {}, $get_id_and_child, $install_child, $Global_pruned_cache);
+  return &eliminate_empty_children(&sub_tree($called_graph, $node, 0, $depth, {}, $get_id_and_child, $install_child, $Global_pruned_cache));
 }
 
 sub fuzzy_called_tree($$$$$$) {
@@ -1343,7 +1357,7 @@ sub calling_tree($$$$$$) {
 
   my $node = $new_callee_or_match_node->({ name => $name, call => $name, simple_name => $name });
 
-  return &sub_tree($calling_graph, $node, 0, $depth, {}, $get_id_and_child, $install_child, $Global_pruned_cache);
+  return &eliminate_empty_children(&sub_tree($calling_graph, $node, 0, $depth, {}, $get_id_and_child, $install_child, $Global_pruned_cache));
 }
 
 sub adjust_calling_tree($) {

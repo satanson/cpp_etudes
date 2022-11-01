@@ -900,6 +900,20 @@ sub sub_tree($$$$$$$$) {
   }
 }
 
+sub eliminate_empty_children($) {
+  my ($root) = @_;
+  unless (defined($root) && exists($root->{child})) {
+    return $root;
+  }
+  $root->{child} = [ grep {defined($_) && (exists($_->{child}) || scalar(@{$_->{child}}) > 0)} @{$root->{child}} ];
+  if (scalar(@{$root->{child}}) > 0) {
+    return $root;
+  }
+  else {
+    return undef;
+  }
+}
+
 sub remove_loop($$$) {
   my ($cache, $cache_key, $visited) = @_;
 
@@ -1097,7 +1111,7 @@ sub called_tree($$$$$) {
     simple_name => $name,
     file_info   => "",
   };
-  return &sub_tree($called_graph, $node, 0, $depth, {}, $get_id_and_child, $install_child, $Global_pruned_cache);
+  return &eliminate_empty_children(&sub_tree($called_graph, $node, 0, $depth, {}, $get_id_and_child, $install_child, $Global_pruned_cache));
 }
 
 sub fuzzy_called_tree($$$$$$) {
@@ -1291,7 +1305,7 @@ sub calling_tree($$$$$$) {
 
   my $node = $new_callee_or_match_node->({ name => $name, call => $name, simple_name => $name });
 
-  return &sub_tree($calling_graph, $node, 0, $depth, {}, $get_id_and_child, $install_child, $Global_pruned_cache);
+  return &eliminate_empty_children(&sub_tree($calling_graph, $node, 0, $depth, {}, $get_id_and_child, $install_child, $Global_pruned_cache));
 }
 
 sub adjust_calling_tree($) {

@@ -26,10 +26,11 @@ set(TESTS
         test_interpreters.cc
         test_seq_mutex.cc
         test_analysis.cc
+        test_memory_leak.cc
         )
 foreach (src ${TESTS})
     get_filename_component(exe ${src} NAME_WE)
-    add_executable(${exe} ${src})
+    add_executable(${exe} ${src} )
     target_link_libraries(${exe} ${link_libs})
     list(APPEND unittest_deps ${exe})
 endforeach ()
