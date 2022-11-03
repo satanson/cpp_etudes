@@ -1670,7 +1670,7 @@ sub group_by(&;@) {
   return %group;
 }
 
-sub outermost_tree($$) {
+sub outermost_tree($$$) {
   my ($name, $func_match_rule, $file_match_rule) = @_;
   my %names = map {
     $_ => 1
@@ -1708,7 +1708,7 @@ sub outermost_tree($$) {
   };
 }
 
-sub innermost_tree($$) {
+sub innermost_tree($$$) {
   my ($name, $func_match_rule, $file_match_rule) = @_;
   my %names = map {
     $_ => 1
