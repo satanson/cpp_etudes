@@ -1671,7 +1671,7 @@ sub group_by(&;@) {
 }
 
 sub outermost_tree($$) {
-  my ($name, $file_match_rule) = @_;
+  my ($name, $func_match_rule, $file_match_rule) = @_;
   my %names = map {
     $_ => 1
   } grep {
@@ -1682,7 +1682,7 @@ sub outermost_tree($$) {
 
   #my @names = grep {!exists $called->{$_}} sort {$a cmp $b} keys %names;
   my @names = sort {$a cmp $b} keys %names;
-  my @trees = grep {defined($_)} map {calling_tree($Global_calling, $_, "\\w+", $file_match_rule, 2, {})} @names;
+  my @trees = grep {defined($_)} map {calling_tree($Global_calling, $_, $func_match_rule, $file_match_rule, 2, {})} @names;
   @trees = map {
     ($_->{branch_type} eq "variants" ? @{$_->{child}} : $_);
   } @trees;
@@ -1709,7 +1709,7 @@ sub outermost_tree($$) {
 }
 
 sub innermost_tree($$) {
-  my ($name, $file_match_rule) = @_;
+  my ($name, $func_match_rule, $file_match_rule) = @_;
   my %names = map {
     $_ => 1
   } grep {
@@ -1719,7 +1719,7 @@ sub innermost_tree($$) {
   } @$Global_called_names;
 
   my @names = grep {!exists $Global_calling->{$_}} sort {$a cmp $b} keys %names;
-  my @trees = grep {defined($_)} map {called_tree($Global_called, $_, "\\w+", $file_match_rule, 1)} @names;
+  my @trees = grep {defined($_)} map {called_tree($Global_called, $_, $func_match_rule, $file_match_rule, 1)} @names;
 
   @trees = map {
     $_->{child} = [];
@@ -1831,12 +1831,12 @@ sub show_tree() {
     return join qq//, map {"$_\n"} @lines;
   }
   elsif ($Opt_mode == 2) {
-    my $tree = outermost_tree($Opt_func, $Opt_file_match_rule);
+    my $tree = outermost_tree($Opt_func, $Opt_func_match_rule, $Opt_file_match_rule);
     my @lines = format_calling_tree($tree, $Opt_verbose);
     return join qq//, map {"$_\n"} @lines;
   }
   elsif ($Opt_mode == 3) {
-    my $tree = innermost_tree($Opt_func, $Opt_file_match_rule);
+    my $tree = innermost_tree($Opt_func, $Opt_func_match_rule, $Opt_file_match_rule);
     my @lines = format_called_tree($tree, $Opt_verbose);
     return join qq//, map {"$_\n"} @lines;
   }

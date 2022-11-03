@@ -103,6 +103,22 @@ if (CCACHE_ENABLE)
     set_property(GLOBAL PROPERTY RULE_LAUNCH_LINK ccache)
 endif ()
 
+set(Boost_DEBUG FALSE)
+set(Boost_USE_MULTITHREADED ON)
+set(Boost_NO_BOOST_CMAKE ON)
+set(BOOST_ROOT "/home/grakra/workspace/boost_install/usr/local/")
+# boost suppress warning is supported on cmake 3.20
+# https://cmake.org/cmake/help/latest/module/FindBoost.html
+set(Boost_NO_WARN_NEW_VERSIONS ON)
+
+if (NOT APPLE)
+    find_package(Boost 1.81.0 REQUIRED COMPONENTS thread filesystem date_time program_options)
+else()
+    find_package(Boost 1.81.0 COMPONENTS thread regex filesystem system date_time program_options)
+endif()
+include_directories(${Boost_INCLUDE_DIRS})
+message(STATUS "boost=${Boost_LIBRARIES}")
+
 include_directories(${PROJECT_SOURCE_DIR})
 include_directories(${PROJECT_SOURCE_DIR}/include)
 include_directories(${PROJECT_SOURCE_DIR}/src/modules)
