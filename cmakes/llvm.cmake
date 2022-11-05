@@ -1,7 +1,7 @@
-set (LLVM_PATHS "/usr/local/lib/llvm")
-foreach(llvm_v 12 11 10 9 8)
+set (LLVM_PREFIX "${PROJECT_SOURCE_DIR}/llvm_install/usr/local")
+foreach(llvm_v 14 13 12)
     if (NOT LLVM_FOUND)
-        find_package (LLVM ${llvm_v} CONFIG PATHS ${LLVM_PATHS})
+        find_package (LLVM ${llvm_v} CONFIG PATHS ${LLVM_PREFIX})
     endif ()
 endforeach ()
 
@@ -30,7 +30,7 @@ LLVMRuntimeDyld
 LLVMX86CodeGen
 LLVMX86Desc
 LLVMX86Info
-LLVMX86Utils
+#LLVMX86Utils
 LLVMAsmPrinter
 LLVMDebugInfoDWARF
 LLVMGlobalISel

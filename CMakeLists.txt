@@ -15,14 +15,14 @@ include(cmakes/target.cmake)
 #include(cmakes/tools.cmake)
 include(cmakes/analysis.cmake)
 #include(cmakes/cpu_features.cmake)
-option(LLVM_ENABLE "llvm enable" OFF)
-if (LLVM_ENABLE)
+option(LLVM_ENABLE "llvm enable" ON)
+#if (LLVM_ENABLE)
     # clang: warning: argument unused during compilation: '-specs=/usr/share/dpkg/no-pie-compile.specs' [-Wunused-command-line-argument]
     set(COMMON_WARNING_FLAGS "${COMMON_WARNING_FLAGS} -Wno-unused-command-line-argument")
     # generate ranges for fast "addr2line" search
-    if (NOT CMAKE_BUILD_TYPE_UC STREQUAL "RELEASE")
-        set(COMPILER_FLAGS "${COMPILER_FLAGS} -gdwarf-aranges")
-    endif ()
+    #if (NOT CMAKE_BUILD_TYPE_UC STREQUAL "RELEASE")
+    #    set(COMPILER_FLAGS "${COMPILER_FLAGS} -gdwarf-aranges")
+    #endif ()
 
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${_CXX_STANDARD} -fsized-deallocation")
 
@@ -41,8 +41,8 @@ if (LLVM_ENABLE)
     endif ()
 
     # Display absolute paths in error messages. Otherwise KDevelop fails to navigate to correct file and opens a new file instead.
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fdiagnostics-absolute-paths")
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fdiagnostics-absolute-paths")
+    # set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fdiagnostics-absolute-paths")
+    # set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fdiagnostics-absolute-paths")
 
     if (NOT ENABLE_TESTS AND NOT SANITIZE)
         # https://clang.llvm.org/docs/ThinLTO.html
@@ -82,7 +82,10 @@ if (LLVM_ENABLE)
         message(WARNING "Cannot find llvm-ranlib. System ranlib will be used instead. It does not work with ThinLTO.")
     endif ()
     include(cmakes/llvm.cmake)
-endif ()
+    message(STATUS "LLVM include Directory: ${LLVM_INCLUDE_DIRS}")
+    message(STATUS "LLVM library Directory: ${LLVM_LIBRARY_DIRS}")
+    message(STATUS "LLVM C++ compiler flags: ${LLVM_CXXFLAGS}")
+#endif ()
 
 execute_process(COMMAND which ccache OUTPUT_VARIABLE ccache_path)
 message(STATUS "ccache: ${ccache_path}")
@@ -106,7 +109,7 @@ endif ()
 set(Boost_DEBUG FALSE)
 set(Boost_USE_MULTITHREADED ON)
 set(Boost_NO_BOOST_CMAKE ON)
-set(BOOST_ROOT "/home/grakra/workspace/boost_install/usr/local/")
+set(BOOST_ROOT "${PROJECT_SOURCE_DIR}/boost_install/usr/local/")
 # boost suppress warning is supported on cmake 3.20
 # https://cmake.org/cmake/help/latest/module/FindBoost.html
 set(Boost_NO_WARN_NEW_VERSIONS ON)
@@ -122,6 +125,8 @@ message(STATUS "boost=${Boost_LIBRARIES}")
 include_directories(${PROJECT_SOURCE_DIR})
 include_directories(${PROJECT_SOURCE_DIR}/include)
 include_directories(${PROJECT_SOURCE_DIR}/src/modules)
+include_directories(${LLVM_INCLUDE_DIRS})
+link_directories(${LLVM_LIBRARY_DIRS})
 
 include_directories(SYSTEM ${PROJECT_SOURCE_DIR}/third-party/gtest-1.7.0/fused-src)
 include_directories(SYSTEM ${PROJECT_SOURCE_DIR}/third-party/benchmark-1.5.1/include)
@@ -155,7 +160,10 @@ list(APPEND link_libs gtest
         absl::strings
         absl::synchronization
         absl::time
-        absl::utility)
+        absl::utility
+        ${Boost_LIBRARIES}
+        ${REQUIRED_LLVM_LIBRARIES}
+        )
 
 add_subdirectory(src/modules)
 message(STATUS "link_libs=${link_libs}")

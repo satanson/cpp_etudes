@@ -19,3 +19,5 @@ build_debug
 *debug*
 *build*
 third-party/jemalloc*
+llvm_install
+boost_install
