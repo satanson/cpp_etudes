@@ -616,7 +616,6 @@ sub merge_lines_multiline_break_disabled(\@) {
 sub merge_lines(\@) {
   my @lines = @{+shift};
   if (multiline_break_enabled()) {
-    print "multiline-break is enabled in ag\n";
     return merge_lines_multiline_break_enabled(@lines);
   }
   else {
@@ -713,6 +712,12 @@ sub extract_all_funcs(\%$$) {
 
   my %calling = ();
   my %called = ();
+  # When a function have no callees, we construct a dummy callee [NO_CALLEES] and add it to the
+  # called, and link this dummy node to the function. It is useful when search matched lines because
+  # the candidates nodes are picked from map{@$_}values %called.
+  my $no_callees = "[NO_CALLEES]";
+  $called{$no_callees} = [];
+
   for (my $i = 0; $i < scalar(@func_name); ++$i) {
     my $file_info = $func_file_line[$i];
     my $caller_name = $func_name[$i];
@@ -779,7 +784,11 @@ sub extract_all_funcs(\%$$) {
         $processed_callee_names{$callee_simple_name} = 1;
       }
     }
+    if (scalar(@callees) == 0) {
+      push @{$called{$no_callees}}, $caller_node;
+    }
   }
+
   my $calling_names = [ sort {$a cmp $b} keys %calling ];
   my $called_names = [ sort {$a cmp $b} keys %called ];
   return (\%calling, \%called, $calling_names, $called_names);
@@ -1183,46 +1192,93 @@ sub search_called_tree($$$$$$) {
   my ($called, $name_pattern, $match_lines, $func_match_rule, $file_match_rule, $depth) = @_;
   my %nodes = map {($_, $_)} map {@$_} values %$called;
   my %match_lines = map {($_->[0], [])} @$match_lines;
-  foreach (@$match_lines) {push @{$match_lines{$_->[0]}}, $_->[1]}
+  foreach (@$match_lines) {push @{$match_lines{$_->[0]}}, [ $_->[1], $_->[2] ]}
   my @nodes = values %nodes;
   @nodes = grep {
+    # eliminate the function definition if the name_pattern is just the proper name of the function.
+    $name_pattern ne $_->{name} && $name_pattern ne $_->{simple_name}
+  } grep {
     my $n = $_;
     if (!exists $match_lines{$n->{file}} || !$file_match_rule->($n->{file})) {
       undef;
     }
     else {
-      my @lineno = @{$match_lines{$n->{file}}};
+      my @lineno = map {$_->[0]} @{$match_lines{$n->{file}}};
       any {$n->{start_lineno} <= $_ && $_ <= $n->{end_lineno}} @lineno;
     }
   } @nodes;
+
+  my @match_and_nodes = map {
+    my $match_line = $_;
+    my ($file, $lineno) = @$match_line;
+    my @match_nodes = grep {
+      my $n = $_;
+      $n->{file} eq $file && $n->{start_lineno} <= $lineno && $lineno <= $n->{end_lineno};
+    } @nodes;
+    [ $match_line, [ @match_nodes ] ];
+  } @$match_lines;
+
+  my $create_subtree = sub($) {
+    my ($match_line, $match_nodes) = @{$_[0]};
+    my ($file, $lineno, $match) = @$match_line;
+    my @match_node = @$match_nodes;
+    my $file_info = qq/$file +$lineno/;
+
+    my $node = {
+      name        => "$match",
+      simple_name => "$match",
+      file_info   => $file_info,
+      child       => [],
+    };
+
+    my @child = map {
+      my $n = $_;
+      my $child = {
+        name        => $n->{name},
+        simple_name => $n->{simple_name},
+        file_info   => $n->{file_info},
+        leaf        => "internal",
+        child       => [],
+      };
+
+      my @grand_child = map {
+        my $subtree = $_;
+        if (exists $subtree->{child}) {(@{$subtree->{child}});}
+        else {()}
+      } &called_tree($called, $n->{name}, $func_match_rule, $file_match_rule, $depth);
+
+      $child->{child} = [ @grand_child ];
+      $child;
+    } @match_node;
+
+    $node->{child} = [ @child ];
+    return $node;
+  };
 
   my $root = { file_info => "", name => $name_pattern, leaf => undef };
   $root->{child} = [
     sort {
       $a->{name} cmp $b->{name}
-    }
-      map {
-        my $n = $_;
-        my @child = map {
-          my $subtree = $_;
-          if (exists $subtree->{child}) {
-            (@{$subtree->{child}});
-          }
-          else {
-            ();
-          }
-        } &called_tree($called, $n->{name}, $func_match_rule, $file_match_rule, $depth);
-
-        my $node = {
-          name        => $n->{name},
-          simple_name => $n->{simple_name},
-          file_info   => $n->{file_info},
-          leaf        => "internal",
-          child       => [ @child ]
-        };
-        $node;
-      } @nodes
+    } map {
+      $create_subtree->($_);
+    } @match_and_nodes
   ];
+
+  # if the root have only one child whose name is identical to the root's name, use the child
+  # instead of root to eliminate tedious, for an example(use postgres repo):
+  # cmd: calltree.pl "= llvm_compile_expr" '' 4 1 4
+  # stupid tedious output:
+  ## = llvm_compile_expr
+  ## └── = llvm_compile_expr	[vim src/backend/jit/llvm/llvmjit.c +135]
+  ##     └── _PG_jit_provider_init	[vim src/backend/jit/llvm/llvmjit.c +131]
+  #
+  # succinct output:
+  ## = llvm_compile_expr	[vim src/backend/jit/llvm/llvmjit.c +135]
+  ## └── _PG_jit_provider_init	[vim src/backend/jit/llvm/llvmjit.c +131]
+  if (exists($root->{child}) && scalar(@{$root->{child}}) == 1 && $root->{name} eq $root->{child}[0]{name}) {
+    return $root->{child}[0];
+  }
+
   return $root;
 }
 
@@ -1595,8 +1651,6 @@ sub get_entry_of_calling_tree($$$) {
   # $name = "$name(count=$count, height=$height)";
 
   if ($Global_isatty) {
-    #use Carp qw/longmess/;
-    #print(Dumper({node=>$node, stack=>longmess()}));
     if (defined($common_idx)) {
       $name = "\e[33;35;1m$name\t[common.$common_idx]\e[m";
     }
@@ -1771,7 +1825,7 @@ $Global_common_quiet = int($Opt_verbose / 1000);
 $Global_common_height = int($Opt_verbose % 1000 / 100);
 $Global_common_count = int($Opt_verbose % 100 / 10);
 $Opt_verbose = $Opt_verbose % 10;
-die "verbose should ranges [0..1], $Opt_verbose provided" unless ($Opt_verbose >= 0 && $Opt_verbose <= 1);
+die "verbose should ranges [0..1], $Opt_verbose provided" unless (0 <= $Opt_verbose && $Opt_verbose <= 1);
 die "common_height should be ge 3, $Global_common_height provided" unless ($Global_common_height >= 0);
 die "common_count should be ge 2, $Global_common_count provided" unless ($Global_common_count >= 0);
 
@@ -1805,15 +1859,19 @@ $Opt_func_match_rule = $match_rule_gen->($Opt_func_match_rule);
 
 sub search_matched_lines($) {
   my $re = shift;
-  grep {defined($_)} map {
-    if (/^([^:]+):(\d+):.*$/) {
-      [ $1, $2 ]
-    }
-    else {
-      undef
-    }
-  } map {chomp;
-    $_} qx(ag -U -G $cpp_filename_pattern $ignore_pattern '$re');
+  my $multiline_break = "";
+  if (multiline_break_enabled()) {
+    $multiline_break = "--multiline-break";
+  }
+
+  my @lines = map {chomp;
+    $_} qx(ag $multiline_break -U -G $cpp_filename_pattern $ignore_pattern '$re');
+  @lines = merge_lines(@lines);
+  @lines = grep {defined($_->[2])} map {
+    my $match = ($_->[3] =~ qr/($re)/, $1);
+    [ $_->[0], $_->[1], $match ];
+  } @lines;
+  return @lines;
 }
 
 sub show_tree() {
@@ -1821,7 +1879,6 @@ sub show_tree() {
     get_cached_or_extract_all_funcs(%ignored, $env_trivial_threshold, $env_length_threshold);
   if ($Opt_mode == 0) {
     my $tree = unified_calling_tree($Opt_func, $Opt_func_match_rule, $Opt_file_match_rule, $Opt_depth);
-    # print (Dumper({tree=>$tree}));
     my @lines = format_calling_tree($tree, $Opt_verbose);
     return join qq//, map {"$_\n"} @lines;
   }
