@@ -96,12 +96,12 @@ while(<>) {
     next;
   }
 
-  if (/\bDegreeOfParallelism:\s+(\d+)/) {
-    $plan->{$fragment}{pipelines}{$pipeline}{DegreeOfParallelism}=$1+0;
+  if (/\b(DegreeOfParallelism|TotalDegreeOfParallelism):\s+(\d+)/) {
+    $plan->{$fragment}{pipelines}{$pipeline}{$1}=$2+0;
     next;
   }
 
-  if (/\b(ActiveTime|DriverTotalTime|OverheadTime|PendingTime|InputEmptyTime|FirstInputEmptyTime|FollowupInputEmptyTime|OutputFullTime|PreconditionBlockTime):\s+(\S+)/) {
+  if (/\b(ActiveTime|DriverTotalTime|OverheadTime|ScheduleTime|PendingTime|InputEmptyTime|FirstInputEmptyTime|FollowupInputEmptyTime|OutputFullTime|PreconditionBlockTime):\s+(\S+)/) {
     $plan->{$fragment}{pipelines}{$pipeline}{$1}=norm_time($2);
     next;
   }
@@ -122,7 +122,7 @@ while(<>) {
     next;
   }
 
-  if (/\b(PullChunkNum|PushChunkNum|PullRowNum|DestID|PushRowNum):\s+(\S+)/) {
+  if (/\b(RowsRead|RawRowsRead|PullChunkNum|PushChunkNum|PullRowNum|DestID|PushRowNum):\s+(\S+)/) {
     my $operator_id = join "_", ($fragment, $pipeline, $operator);
     $plan->{$fragment}{pipelines}{$pipeline}{operators}{$operator}{$1}=norm_num($2);
     $plan->{$fragment}{pipelines}{$pipeline}{operators}{$operator}{id}=$operator_id;

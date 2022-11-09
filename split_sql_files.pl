@@ -4,7 +4,7 @@ use strict;
 use warnings;
 
 my @ignores=(qr/^\s*$/);
-my @matches=(qr/^--(\S+)/);
+my @matches=(qr/^--(?:\s*)?(\S+)/);
 
 my $file=undef;
 while(<>){

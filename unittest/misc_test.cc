@@ -1387,6 +1387,17 @@ TEST_F(MiscTest, flatHashMap) {
 TEST_F(MiscTest, testNaN) {
     std::cout<<1.0/0.0<<std::endl;
 }
+#include <variant>
+#include <any>
+TEST_F(MiscTest, testVariant) {
+    std::variant<int, float,double,std::string> v;
+    std::variant<int,short, float,double,std::string> v1;
+    std::cout<<sizeof(v)<<std::endl;
+    std::cout<<sizeof(v1)<<std::endl;
+    std::any a;
+
+    std::cout<<sizeof(a)<<std::endl;
+}
 
 int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);
