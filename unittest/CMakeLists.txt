@@ -27,6 +27,7 @@ set(TESTS
         test_seq_mutex.cc
         test_analysis.cc
         test_memory_leak.cc
+        test_llvm.cc
         )
 foreach (src ${TESTS})
     get_filename_component(exe ${src} NAME_WE)

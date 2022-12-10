@@ -235,7 +235,7 @@ my $RE_FUNC_DEFINITION_NAME = gen_re_func_def_name;
 sub gen_re_func_call() {
   my $cs_tokens = "$RE_WS* (?:(?: $RE_SCOPED_IDENTIFIER $RE_WS* , $RE_WS*)* $RE_SCOPED_IDENTIFIER $RE_WS*)?";
   #my $re_func_call = "((?:($RE_SCOPED_IDENTIFIER) $RE_WS *(?:\\($cs_tokens\\))? $RE_WS* (?: \\. | -> | :: ) $RE_WS* )? ($RE_SCOPED_IDENTIFIER)) $RE_WS* [(]";
-  my $re_func_call = "((?:($RE_SCOPED_IDENTIFIER) $RE_WS* (?: \\. | -> | :: ) $RE_WS* )? ($RE_SCOPED_IDENTIFIER)) $RE_WS* [(]";
+  my $re_func_call = "((?:($RE_SCOPED_IDENTIFIER) $RE_WS (?: \\. | -> | :: ) $RE_WS* )? ($RE_SCOPED_IDENTIFIER)) $RE_WS* [(]";
   return $re_func_call =~ s/ //gr;
 }
 
@@ -329,7 +329,7 @@ sub replace_lt($) {
 }
 
 sub replace_whitespaces($) {
-  $_[0] =~ s/(?:^\s+)|(?:\s+$)|(?:(?<=\p{IsPunct})\s+)|(?:\s+(?=\p{IsPunct}))//gr;
+  $_[0] =~ s/(?:^\s+)|(?:\s+$)|(?:(?<=\W)\s+)|(?:\s+(?=\W))//gr;
 }
 
 sub replace_template_args_1layer($) {
@@ -886,7 +886,13 @@ sub sub_tree($$$$$$$$) {
     }
   }
 
-  @child_nodes = grep {defined($_)} @child_nodes;
+  @child_nodes = grep {
+    my $real_node = $_;
+    if (exists($_->{cache_key}) && exists($pruned->{$_->{cache_key}})) {
+      $real_node = $pruned->{$_->{cache_key}};
+    }
+    (exists($real_node->{child}) && scalar(@{$real_node->{child}}) > 0) || $matched;
+  } grep {defined($_)} @child_nodes;
 
   if (@child_nodes) {
     $install_child->($node, [ @child_nodes ]);
@@ -1120,7 +1126,7 @@ sub called_tree($$$$$) {
     simple_name => $name,
     file_info   => "",
   };
-  return &eliminate_empty_children(&sub_tree($called_graph, $node, 0, $depth, {}, $get_id_and_child, $install_child, $Global_pruned_cache));
+  return &sub_tree($called_graph, $node, 0, $depth, {}, $get_id_and_child, $install_child, $Global_pruned_cache);
 }
 
 sub fuzzy_called_tree($$$$$$) {
@@ -1130,7 +1136,7 @@ sub fuzzy_called_tree($$$$$$) {
 
   $root->{child} = [
     grep {defined($_)} map {
-      &called_tree($called, $_, $func_match_rule, $file_match_rule, $depth);
+      &eliminate_empty_children(&called_tree($called, $_, $func_match_rule, $file_match_rule, $depth));
     } @names
   ];
   return $root;
@@ -1361,7 +1367,7 @@ sub calling_tree($$$$$$) {
 
   my $node = $new_callee_or_match_node->({ name => $name, call => $name, simple_name => $name });
 
-  return &eliminate_empty_children(&sub_tree($calling_graph, $node, 0, $depth, {}, $get_id_and_child, $install_child, $Global_pruned_cache));
+  return &sub_tree($calling_graph, $node, 0, $depth, {}, $get_id_and_child, $install_child, $Global_pruned_cache);
 }
 
 sub adjust_calling_tree($) {
@@ -1392,7 +1398,7 @@ sub fuzzy_calling_tree($$$$$$) {
     my $child0_name = $child0->{name};
     my $child0_unique_id = "$child0_file_info.$child0_name";
     next if exists $uniques->{$child0_unique_id};
-    my $tree = calling_tree($calling_graph, $name, $func_match_rule, $file_match_rule, $depth, $uniques);
+    my $tree = &eliminate_empty_children(&calling_tree($calling_graph, $name, $func_match_rule, $file_match_rule, $depth, {}));
     push @trees, $tree if defined($tree);
   }
   return {
@@ -1813,7 +1819,7 @@ sub search_matched_lines($) {
   }
 
   my @lines = map {chomp;
-    $_} qx(ag $multiline_break -U -G $cpp_filename_pattern $ignore_pattern '$re');
+    $_} qx(ag $multiline_break -U -G $java_filename_pattern $ignore_pattern '$re');
   @lines = merge_lines(@lines);
   @lines = grep {defined($_->[2])} map {
     my $match = ($_->[3] =~ qr/($re)/, $1);

@@ -369,7 +369,7 @@ sub replace_seastar($) {
 }
 
 sub replace_whitespaces($) {
-  $_[0] =~ s/(?:^\s+)|(?:\s+$)|(?:(?<=\p{IsPunct})\s+)|(?:\s+(?=\p{IsPunct}))//gr;
+  $_[0] =~ s/(?:^\s+)|(?:\s+$)|(?:(?<=\W)\s+)|(?:\s+(?=\W))//gr;
 }
 
 sub remove_misc($) {
@@ -938,7 +938,13 @@ sub sub_tree($$$$$$$$) {
     }
   }
 
-  @child_nodes = grep {defined($_)} @child_nodes;
+  @child_nodes = grep {
+    my $real_node = $_;
+    if (exists($_->{cache_key}) && exists($pruned->{$_->{cache_key}})) {
+      $real_node = $pruned->{$_->{cache_key}};
+    }
+    (exists($real_node->{child}) && scalar(@{$real_node->{child}}) > 0) || $matched;
+  } grep {defined($_)} @child_nodes;
 
   if (@child_nodes) {
     $install_child->($node, [ @child_nodes ]);
@@ -1172,7 +1178,7 @@ sub called_tree($$$$$) {
     simple_name => $name,
     file_info   => "",
   };
-  return &eliminate_empty_children(&sub_tree($called_graph, $node, 0, $depth, {}, $get_id_and_child, $install_child, $Global_pruned_cache));
+  return &sub_tree($called_graph, $node, 0, $depth, {}, $get_id_and_child, $install_child, $Global_pruned_cache);
 }
 
 sub fuzzy_called_tree($$$$$$) {
@@ -1182,7 +1188,7 @@ sub fuzzy_called_tree($$$$$$) {
 
   $root->{child} = [
     grep {defined($_)} map {
-      &called_tree($called, $_, $func_match_rule, $file_match_rule, $depth);
+      &eliminate_empty_children(&called_tree($called, $_, $func_match_rule, $file_match_rule, $depth));
     } @names
   ];
   return $root;
@@ -1413,7 +1419,7 @@ sub calling_tree($$$$$$) {
 
   my $node = $new_callee_or_match_node->({ name => $name, call => $name, simple_name => $name });
 
-  return &eliminate_empty_children(&sub_tree($calling_graph, $node, 0, $depth, {}, $get_id_and_child, $install_child, $Global_pruned_cache));
+  return &sub_tree($calling_graph, $node, 0, $depth, {}, $get_id_and_child, $install_child, $Global_pruned_cache);
 }
 
 sub adjust_calling_tree($) {
@@ -1444,7 +1450,7 @@ sub fuzzy_calling_tree($$$$$$) {
     my $child0_name = $child0->{name};
     my $child0_unique_id = "$child0_file_info.$child0_name";
     next if exists $uniques->{$child0_unique_id};
-    my $tree = calling_tree($calling_graph, $name, $func_match_rule, $file_match_rule, $depth, $uniques);
+    my $tree = &eliminate_empty_children(&calling_tree($calling_graph, $name, $func_match_rule, $file_match_rule, $depth, {}));
     push @trees, $tree if defined($tree);
   }
   return {
@@ -1906,4 +1912,4 @@ sub show_tree() {
 }
 
 print get_cache_or_run_keyed(@key, cached_sha256_file(@key), \&show_tree);
-# print show_tree();
+#print show_tree();
