@@ -189,9 +189,6 @@ sub ensure_safe() {
   die "Never run calltree.pl in a directory whose depth <= 2" if scalar(@comp) <= 3;
 }
 
-ensure_safe;
-ensure_ag_installed;
-
 my $ignore_pattern = join "", map {" --ignore '$_' "}
   qw(*test* *benchmark* *CMakeFiles* *contrib/* *third_party/*
     *thirdparty/* *3rd-[pP]arty/* *3rd[pP]arty/* *deps/*);
@@ -1957,6 +1954,8 @@ sub search_matched_lines($) {
 }
 
 sub show_tree() {
+  ensure_safe;
+  ensure_ag_installed;
   ($Global_calling, $Global_called, $Global_calling_names, $Global_called_names) =
     get_cached_or_extract_all_funcs(%ignored, $env_trivial_threshold, $env_length_threshold);
   if ($Opt_mode == 0) {
@@ -1992,7 +1991,7 @@ print get_cache_or_run_keyed(@key, cached_sha256_file(@key), \&show_tree);
 
 
 __DATA__
-<cs2>calltree.pl<end> - <cs2>A tool used to surf C++ code source.<end>
+<cs2>calltree.pl<end> - <cs2>A tool used to surf C++ source code.<end>
 -
 - <cs2>prerequisites<end>
 -- perl 5.10+: Most Linux distributions and MacOS have intalled perl 5.10+.
