@@ -866,7 +866,7 @@ sub sub_tree($$$$$$$$) {
 
   my @child_nodes = ();
   my $unique_name = $node->{file_info} . "::" . $node->{name};
-  if (exists $pruned->{$unique_name}) {
+  if (defined($pruned) && exists($pruned->{$unique_name})) {
     my $cached_node = $pruned->{$unique_name};
     # return undef if the current node is pruned
     if (!defined($cached_node)) {
@@ -887,29 +887,36 @@ sub sub_tree($$$$$$$$) {
   }
 
   @child_nodes = grep {
-    my $real_node = $_;
-    if (exists($_->{cache_key}) && exists($pruned->{$_->{cache_key}})) {
-      $real_node = $pruned->{$_->{cache_key}};
+    if (defined($pruned)) {
+      my $real_node = $_;
+      if (exists($_->{cache_key}) && exists($pruned->{$_->{cache_key}})) {
+        $real_node = $pruned->{$_->{cache_key}};
+      }
+      (exists($real_node->{child}) && scalar(@{$real_node->{child}}) > 0) || $matched;
     }
-    (exists($real_node->{child}) && scalar(@{$real_node->{child}}) > 0) || $matched;
+    else {
+      !undef;
+    }
   } grep {defined($_)} @child_nodes;
 
   if (@child_nodes) {
     $install_child->($node, [ @child_nodes ]);
     $node->{height} = max(map {$_->{height}} @child_nodes) + 1;
     $node->{count} = 1;
-    $node->{cache_key} = $unique_name;
-    $pruned->{$unique_name} = $node;
+    if (defined($pruned)) {
+      $node->{cache_key} = $unique_name;
+      $pruned->{$unique_name} = $node;
+    }
     return $node;
   }
   else {
     $install_child->($node, []);
     $node->{height} = 1;
     $node->{count} = 1;
-    $node->{cache_key} = $unique_name;
+    $node->{cache_key} = $unique_name if defined($pruned);
     my $opt_node = ($matched || $level == 1) ? $node : undef;
     if ($node->{leaf} eq "internal") {
-      $pruned->{$unique_name} = $opt_node;
+      $pruned->{$unique_name} = $opt_node if defined($pruned);
     }
     return $opt_node;
   }
@@ -1126,7 +1133,7 @@ sub called_tree($$$$$) {
     simple_name => $name,
     file_info   => "",
   };
-  return &sub_tree($called_graph, $node, 0, $depth, {}, $get_id_and_child, $install_child, $Global_pruned_cache);
+  return &sub_tree($called_graph, $node, 0, $depth, {}, $get_id_and_child, $install_child, undef);
 }
 
 sub fuzzy_called_tree($$$$$$) {
