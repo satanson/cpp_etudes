@@ -84,6 +84,28 @@ sub get_path_of_script() {
   }
 }
 
+sub mind(@) {
+  my ($title, @lines) = @_;
+  # [level, content, children]
+  my @stk=([0, $title, []]);
+  foreach my $ln (@lines) {
+    if ($ln =~/^([-]*)\s*(.*)/) {
+      my ($dashes, $content) = ($1, $2);
+      my $level = length($dashes);
+      while (scalar(@stk) > 0 && $stk[-1][0] + 1 != $level) {
+        pop @stk;
+      }
+      die "Ill-formed mind input" if (scalar(@stk) == 0);
+      my $top = $stk[-1];
+      my $curr = [$level, $content, []];
+      push @stk, $curr;
+      my ($top_level,$parent_content,$top_children) = @$top;
+      push @$top_children, $curr;
+    }
+  }
+  return $stk[0];
+}
+
 sub file_newer_than($$) {
   my ($file_a, $file_b) = @_;
   return 0 unless ((-f $file_a) && (-f $file_b));
@@ -918,7 +940,7 @@ sub sub_tree($$$$$$$$) {
 
   my @child_nodes = ();
   my $unique_name = $node->{file_info} . "::" . $node->{name};
-  if (exists $pruned->{$unique_name}) {
+  if (defined($pruned) && exists($pruned->{$unique_name})) {
     my $cached_node = $pruned->{$unique_name};
     # return undef if the current node is pruned
     if (!defined($cached_node)) {
@@ -939,29 +961,36 @@ sub sub_tree($$$$$$$$) {
   }
 
   @child_nodes = grep {
-    my $real_node = $_;
-    if (exists($_->{cache_key}) && exists($pruned->{$_->{cache_key}})) {
-      $real_node = $pruned->{$_->{cache_key}};
+    if (defined($pruned)) {
+      my $real_node = $_;
+      if (exists($_->{cache_key}) && exists($pruned->{$_->{cache_key}})) {
+        $real_node = $pruned->{$_->{cache_key}};
+      }
+      (exists($real_node->{child}) && scalar(@{$real_node->{child}}) > 0) || $matched;
     }
-    (exists($real_node->{child}) && scalar(@{$real_node->{child}}) > 0) || $matched;
+    else {
+      !undef;
+    }
   } grep {defined($_)} @child_nodes;
 
   if (@child_nodes) {
     $install_child->($node, [ @child_nodes ]);
     $node->{height} = max(map {$_->{height}} @child_nodes) + 1;
     $node->{count} = 1;
-    $node->{cache_key} = $unique_name;
-    $pruned->{$unique_name} = $node;
+    if (defined($pruned)) {
+      $node->{cache_key} = $unique_name;
+      $pruned->{$unique_name} = $node;
+    }
     return $node;
   }
   else {
     $install_child->($node, []);
     $node->{height} = 1;
     $node->{count} = 1;
-    $node->{cache_key} = $unique_name;
+    $node->{cache_key} = $unique_name if defined($pruned);
     my $opt_node = ($matched || $level == 1) ? $node : undef;
     if ($node->{leaf} eq "internal") {
-      $pruned->{$unique_name} = $opt_node;
+      $pruned->{$unique_name} = $opt_node if defined($pruned);
     }
     return $opt_node;
   }
@@ -1178,7 +1207,7 @@ sub called_tree($$$$$) {
     simple_name => $name,
     file_info   => "",
   };
-  return &sub_tree($called_graph, $node, 0, $depth, {}, $get_id_and_child, $install_child, $Global_pruned_cache);
+  return &sub_tree($called_graph, $node, 0, $depth, {}, $get_id_and_child, $install_child, undef);
 }
 
 sub fuzzy_called_tree($$$$$$) {
@@ -1494,6 +1523,10 @@ sub format_tree($$$$\&\&) {
 
   foreach my $chd (@child) {
     my ($first, @rest) = &format_tree($chd, $level + 1, $verbose, $enable_prune, $get_entry, $get_child);
+    if ((!defined($first) || $first =~/^\s*$/) && scalar(@rest)==0) {
+      push @result, "│";
+      next;
+    }
     push @result, "├── $first";
     push @result, map {"│   $_"} @rest;
   }
@@ -1597,6 +1630,41 @@ sub format_convergent_common_tree($$\&\&) {
   return @prev_lines;
 }
 
+sub format_mind($) {
+  my $root = shift;
+  my $get_entry = sub($$$) {
+    my $root = shift;
+    return $root->{name};
+  };
+  my $get_child = sub($) {
+    my $root = shift;
+    return map {+{level=>$_->[0], name=>$_->[1], child=>$_->[2]}} @{$root->{child}};
+  };
+  my $tree_root = {
+    level=>$root->[0],
+    name=>$root->[1],
+    child=>$root->[2],
+  };
+
+  &format_tree($tree_root, 0, 0, 0, $get_entry, $get_child);
+}
+
+sub help(){
+  my %subst_tab=(
+    "<cs1>"=>"\e[33;93;3m",
+    "<cs2>"=>"\e[31;32;1m",
+    "<cs3>"=>"\e[31;31;1m",
+    "<end>"=>"\e[m",
+  );
+  my @lines = map{
+    my $ln=$_; 
+    foreach my $pat (keys %subst_tab){
+      $ln=~s/$pat/$subst_tab{$pat}/g;
+    }
+    $ln;
+  } map{chop;$_} <DATA>;
+  print join qq//, map{"$_\n"} format_mind(mind(@lines));
+}
 
 sub get_entry_of_called_tree($$$) {
   my ($node, $verbose, $common_idx) = @_;
@@ -1818,7 +1886,8 @@ sub cached_sha256_file(@) {
 
 my @key = (@ARGV, $Global_isatty, $env_trivial_threshold, $env_length_threshold);
 
-my $Opt_func = shift || die "missing function name";
+my $Opt_func = shift || do{ help(); exit(1);};
+do {help(); exit(1);} if ("\U$Opt_func\E"=~/^[-]*H(E(L(P)?)?)?$/ && scalar(@ARGV)==0);
 my $Opt_func_match_rule = shift;
 my $Opt_mode = shift;
 my $Opt_verbose = shift;
@@ -1913,3 +1982,92 @@ sub show_tree() {
 
 print get_cache_or_run_keyed(@key, cached_sha256_file(@key), \&show_tree);
 #print show_tree();
+
+
+__DATA__
+<cs2>calltree.pl<end> - <cs2>A tool used to surf C++ code source.<end>
+-
+- <cs2>prerequisites<end>
+-- perl 5.10+: Most Linux distributions and MacOS have intalled perl 5.10+.
+-- ag(the_silver_searcher):
+--- Must be installed,
+--- Although calltree.pl can leverage official https://github.com/ggreer/the_silver_searcher, but not the best choice.
+--- Suggest to install customized https://github.com/satanson/the_silver_searcher that extract function body precisely.
+-- calltree.pl/java_calltree.pl/cpptree.pl/javatree.pl/deptree.pl are standalone scripts with no others dependencies.
+-
+- <cs2>Format: calltree.pl '<src_regex>' '[[-]<dst_regex>]' <mode(0|1|2|3|4)> <verbose> <[-]depth> [[-]path_regex]<end>
+- <cs2>REGEX in calltree.pl are perl regex, and must be enclosed by quotes.<end>
+-
+- <cs2>Arguments<end>:
+-- <cs2><src_regex>: (required)<end> Search since functions match `src_regex`, these functions will be root of subtrees.
+--- demos
+---- <cs1>calltree.pl '(\bfsync|fdatasync|sync_file_range\b)' 'Write'  1 1 3<end> # rocksdb
+---- <cs1>calltree.pl '((?i)\b\w*compaction\w*\b)' ''  1 1 3<end> # rocksdb
+-- <cs2>[[-]<dst_regex>]: (required)<end> Search till functions match `dst_regex`, these functions will be leaf of subtrees.
+--- demos
+---- <cs1>calltree.pl '(\bfsync|fdatasync|sync_file_range\b)' ''  1 1 3<end> # empty '' means match any functions
+---- <cs1>calltree.pl '(\bfsync|fdatasync|sync_file_range\b)' '-Write'  1 1 3<end> # '-<regex>' means interested in functions not match the regex
+---- <cs1>calltree.pl '(\bfsync|fdatasync|sync_file_range\b)' '(?i)compaction'  1 1 3<end> # '<regex>' means interested in functions match the regex
+--
+-- <cs2><mode>: (required)<end>
+--- <cs3>0: show calling tree(caller is parent node, callee is child node).<end>
+---- demos
+----- <cs1>calltree.pl 'parsePassPipeline' '(Pass|Analysis|Pipeline)$' 0 1 2<end> # llvm
+----- <cs1>calltree.pl 'main' 'Pipeline' 0 1 3<end> # llvm
+--- <cs3>1: show called tree(callee is parent node, caller is child node).<end>
+---- demos
+----- <cs1>calltree.pl build_hash '(?i)agg' 1 1 3<end> # StarRocks
+----- <cs1>calltree.pl calltree.pl '\bpush_chunk\b' 'thread' 1 1 4 'pipeline'<end> # StarRocks
+--- 2: show all functions that matches `src_regex` and has callees.
+---- demos
+----- <cs1>calltree.pl '^\w*txn\w*$' '' 2 1 1<end> # rocksdb
+----- <cs1>calltree.pl '^\w*compile\w*$' '' 2 1 1<end> # llvm
+--- 3: show all functions that matches `src_regex` and has no callees but have callers.
+---- demos
+----- <cs1>calltree.pl '^\w*io_uring\w*$' '' 3 1 1<end> # rocksdb
+----- <cs1>calltree.pl '^\w*compile\w*$' '' 3 1 1<end> # llvm
+--- <cs3>4: show called tree and used to find functions/files that enclosing the contents match `src_regex`.<end>
+---- demos
+----- <cs1>calltree.pl 'evalfunc_private\s*=\s*.*' '' 4 1 2<end> # postgres
+----- <cs1>calltree.pl 'evalfunc\s*=\s*.*' '' 4 1 2<end> # postgres
+----- <cs1>calltree.pl '\w+\s*=\s*llvm_compile_expr' '' 4 1 3<end> # posgres
+----- <cs1>calltree.pl '.*\b_PG_jit_provider_init\b.*' '' 4 1 3<end> #postgres
+--
+-- <cs2><verbose>: (required)<end>
+--- 0|1: 0 for not showing file-lineno infos, 1 for showing file-lineno infos, take effect on all modes.
+---- demos
+----- <cs1>calltree.pl '^\w*io_uring\w*$' '' 1 0 3<end> # rocksdb, not verbose
+----- <cs1>calltree.pl '^\w*io_uring\w*$' '' 1 1 3<end> # rocksdb, verbose
+--- <cs3>qhcv or hcv: a four-digit or three-digit number, take effect only on mode 0.<end>
+---- q: quiet, 0 for non-quiet(default) and 1 for quiet, not show common subtrees when quiet.
+---- h: height of common subtrees, >=3(default), subtrees height than `h` will be extracted as common subtrees.
+---- c: repetition count of common subtrees, >=2(default), subtrees ocurrs at least for `c` times will be considered as common subtrees.
+---- v: verbose, 0 for not showing file-lineno infos and 1 for showing file-lineno infos.
+---- <cs3>motivation: mode 0(show calling tree) leverages qhcv and hcv to speed up searching and collapse duplicate calling patterns.<end>
+---- demos:
+----- <cs1>calltree.pl "(?i)^(create|build|parse)\w*pipeline$" "(?i)^(create|build|parse)\w*pipeline$"  0 431 7<end> # llvm
+------ Prune and print common subtrees(height=4, repetition count=3)
+----- <cs1>calltree.pl "(?i)^(create|build|parse)\w*pipeline$" "(?i)^(create|build|parse)\w*pipeline$"  0 1431 7<end> # llvm
+------ Just prune the common subtrees(height=4, repetition count=3), not print common subtrees.
+----- <cs1>calltree.pl "(?i)^(create|build|parse)\w*pipeline$" "(?i)^(create|build|parse)\w*pipeline$"  0 0431 7<end> # llvm
+------ 0431 Equivalent to 431
+--
+-- <cs2>[-]<depth>: (required)<end> the depth of the tree output, a larger depth means cost more times to generate trees.
+--- depth > 0: take effect on all modes.
+--- depth < 0: only take effect on mode 1 (show called tree),
+---- It is quite similar to |depth|, but adjacent functions with the name will be collapsed to only one.
+---- It is very useful when your are reading codes that designed in Visitor or Iterator pattern.
+--- demos:
+---- <cs1>calltree.pl '^\w*io_uring\w*$' '' 1 1 3<end> # rocksdb, depth=3
+---- <cs1>calltree.pl '^\w*io_uring\w*$' '' 1 1 4<end> # rocksdb, depth=4
+---- <cs1>calltree.pl '^\w*io_uring\w*$' '' 1 1 5<end> # rocksdb, depth=5
+---- <cs1>calltree.pl 'get_next' 'open' 1 1 -4<end> # StarRocks, depth=4, minus sign means squeezing adjacent functions with the same name.
+--
+-- <cs2>[[-]<path_regex>]: (optional)<end> Sometimes, your are only interested in functions in paths that match the regex or not match.
+--- demos
+---- <cs1>calltree.pl "buildModuleOptimizationPipeline" '^main$' 1 1 7<end> # llvm
+---- <cs1>calltree.pl "buildModuleOptimizationPipeline" '^main$' 1 1 7 '-LTO'<end> # llvm, skip paths matches LTO
+---- <cs1>calltree.pl "buildModuleOptimizationPipeline" '^main$' 1 1 7 '(lib|opt)'<end> #llvm, skip paths does not match `(lib|opt)`
+-
+- <cs2>How to reach me<end>
+-- E-Mail: ranpanf@gmail.com
