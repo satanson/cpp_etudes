@@ -329,7 +329,7 @@ sub replace_lt($) {
 }
 
 sub replace_whitespaces($) {
-  $_[0] =~ s/(?:^\s+)|(?:\s+$)|(?:(?<=\W)\s+)|(?:\s+(?=\W))//gr;
+  ($_[0] =~ s/(?:^\s+)|(?:\s+$)//gr) =~ s/(?:(?<=\W)\s+)|(?:\s+(?=\W))/ /gr;
 }
 
 sub replace_template_args_1layer($) {

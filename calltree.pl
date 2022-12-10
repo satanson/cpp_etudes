@@ -369,7 +369,7 @@ sub replace_seastar($) {
 }
 
 sub replace_whitespaces($) {
-  $_[0] =~ s/(?:^\s+)|(?:\s+$)|(?:(?<=\W)\s+)|(?:\s+(?=\W))//gr;
+  ($_[0] =~ s/(?:^\s+)|(?:\s+$)//gr) =~ s/(?:(?<=\W)\s+)|(?:\s+(?=\W))/ /gr;
 }
 
 sub remove_misc($) {
