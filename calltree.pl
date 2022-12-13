@@ -957,18 +957,7 @@ sub sub_tree($$$$$$$$) {
     }
   }
 
-  @child_nodes = grep {
-    if (defined($pruned)) {
-      my $real_node = $_;
-      if (exists($_->{cache_key}) && exists($pruned->{$_->{cache_key}})) {
-        $real_node = $pruned->{$_->{cache_key}};
-      }
-      (exists($real_node->{child}) && scalar(@{$real_node->{child}}) > 0) || $matched;
-    }
-    else {
-      !undef;
-    }
-  } grep {defined($_)} @child_nodes;
+  @child_nodes = grep {defined($_)} @child_nodes;
 
   if (@child_nodes) {
     $install_child->($node, [ @child_nodes ]);
