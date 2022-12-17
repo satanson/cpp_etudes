@@ -1399,6 +1399,37 @@ TEST_F(MiscTest, testVariant) {
     std::cout<<sizeof(a)<<std::endl;
 }
 
+#include <absl/strings/str_join.h>
+
+template<typename Type>
+struct ColumnBuilder {
+    void append(const  Type& value) {
+        data.push_back(value);
+    }
+    //template<typename T, typename=std::enable_if_t<std::is_arithmetic_v<T>&&!std::is_same_v<T, Type>, T>>
+    //void append(const T& value) {
+    //    append(static_cast<Type>(value));
+    //}
+    void print() {
+        std::cout<<absl::StrJoin(data, ",")<<std::endl;
+    }
+private:
+    std::vector<Type> data;
+};
+
+TEST_F(MiscTest, testAppend){
+    ColumnBuilder<int> x;
+#pragma GCC diagnostic ignored "-Wconversion"
+#pragma GCC diagnostic ignored "-Wfloat-conversion"
+    double y = 3.1415926;
+    x.append(0.45);
+    x.append(0.3434);
+    x.append(y);
+#pragma GCC diagnostic pop
+#pragma GCC diagnostic pop
+    x.print();
+}
+
 int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
