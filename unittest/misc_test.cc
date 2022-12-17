@@ -1385,39 +1385,36 @@ TEST_F(MiscTest, flatHashMap) {
 }
 
 TEST_F(MiscTest, testNaN) {
-    std::cout<<1.0/0.0<<std::endl;
+    std::cout << 1.0 / 0.0 << std::endl;
 }
-#include <variant>
 #include <any>
+#include <variant>
 TEST_F(MiscTest, testVariant) {
-    std::variant<int, float,double,std::string> v;
-    std::variant<int,short, float,double,std::string> v1;
-    std::cout<<sizeof(v)<<std::endl;
-    std::cout<<sizeof(v1)<<std::endl;
+    std::variant<int, float, double, std::string> v;
+    std::variant<int, short, float, double, std::string> v1;
+    std::cout << sizeof(v) << std::endl;
+    std::cout << sizeof(v1) << std::endl;
     std::any a;
 
-    std::cout<<sizeof(a)<<std::endl;
+    std::cout << sizeof(a) << std::endl;
 }
 
 #include <absl/strings/str_join.h>
 
-template<typename Type>
+template <typename Type>
 struct ColumnBuilder {
-    void append(const  Type& value) {
-        data.push_back(value);
-    }
+    void append(const Type& value) { data.push_back(value); }
     //template<typename T, typename=std::enable_if_t<std::is_arithmetic_v<T>&&!std::is_same_v<T, Type>, T>>
     //void append(const T& value) {
     //    append(static_cast<Type>(value));
     //}
-    void print() {
-        std::cout<<absl::StrJoin(data, ",")<<std::endl;
-    }
+    void print() { std::cout << absl::StrJoin(data, ",") << std::endl; }
+
 private:
     std::vector<Type> data;
 };
 
-TEST_F(MiscTest, testAppend){
+TEST_F(MiscTest, testAppend) {
     ColumnBuilder<int> x;
 #pragma GCC diagnostic ignored "-Wconversion"
 #pragma GCC diagnostic ignored "-Wfloat-conversion"
