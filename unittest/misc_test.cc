@@ -13,6 +13,7 @@
 
 #include <atomic>
 #include <cstdlib>
+#include <fstream>
 #include <functional>
 #include <guard.hh>
 #include <iostream>
@@ -199,15 +200,9 @@ union ExtendFieldType {
             : extend({.type = (int16_t)field_type, .precision = (int8_t)precision, .scale = (int8_t)scale}) {}
     ExtendFieldType(ExtendFieldType const&) = default;
     ExtendFieldType& operator=(ExtendFieldType&) = default;
-    FieldType type() const {
-        return extend.type;
-    }
-    int precision() const {
-        return extend.precision;
-    }
-    int scale() const {
-        return extend.scale;
-    }
+    FieldType type() const { return extend.type; }
+    int precision() const { return extend.precision; }
+    int scale() const { return extend.scale; }
 };
 
 TEST_F(MiscTest, testExtendField) {
@@ -1425,6 +1420,46 @@ TEST_F(MiscTest, testAppend) {
 #pragma GCC diagnostic pop
 #pragma GCC diagnostic pop
     x.print();
+}
+
+const std::vector<std::string>& func_return_const_ref() {
+    return std::vector<std::string>{};
+}
+
+TEST_F(MiscTest, TestConstRef) {
+    if (func_return_const_ref().empty()) {
+        //std::cout<<func_return_const_ref().size()<<std::endl;
+    }
+}
+
+template <typename... Args>
+bool read_values(std::string path, Args&... values) {
+    std::ifstream ifs;
+    ifs.open(path);
+    if (!ifs.good() || !ifs.is_open()) {
+        return false;
+    }
+    (ifs >> ... >> values);
+    bool ok = (bool)ifs;
+    ifs.close();
+    return ok;
+}
+
+TEST_F(MiscTest, testReadValues) {
+    std::ofstream ofs;
+    ofs.open("foobar.1");
+    ofs << "10000 30000 40000 abcdefg 3.1415926";
+    ofs.flush();
+    ofs.close();
+    int64_t a = 0;
+    int32_t b = 0;
+    uint16_t c = 0;
+    std::string s = "";
+    double d = 0.0;
+    ASSERT_TRUE(read_values("foobar.1", a, b, c, s, d));
+    std::cout << a << "," << b << ", " << c << "," << s << "," << d << std::endl;
+    int e =0;
+    ASSERT_FALSE(read_values("foobar.1", a, b, c, s, d, e));
 }
 
 int main(int argc, char** argv) {
