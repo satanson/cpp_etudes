@@ -164,7 +164,7 @@ list(APPEND link_libs gtest
         ${Boost_LIBRARIES}
         ${REQUIRED_LLVM_LIBRARIES}
         )
-
+list(APPEND link_libs curses)
 add_subdirectory(src/modules)
 message(STATUS "link_libs=${link_libs}")
 add_subdirectory(unittest)

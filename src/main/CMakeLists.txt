@@ -9,6 +9,7 @@ set(MAINS
         atomic_fetch_add_strength_test.cc
         interpreter_demo.cc
         cache_oom.cc
+        simd.cc
         )
 foreach (src ${MAINS})
     get_filename_component(exe ${src} NAME_WE)

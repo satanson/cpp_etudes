@@ -8,6 +8,7 @@
 //
 #include <gtest/gtest.h>
 #include <llvm-c/Core.h>
+#include <llvm-c/TargetMachine.h>
 
 #include <memory>
 namespace test {
@@ -73,7 +74,28 @@ TEST_F(LLVMTest, testTupleReference) {
     }
     std::cout << "end" << std::endl;
 }
+TEST_F(LLVMTest, testBasic2) {
+    auto llvmCtx = LLVMContextCreate();
+    ASSERT_TRUE(LLVMInitializeNativeTarget() == 0);
+    auto module = LLVMModuleCreateWithName("m0");
+    std::string triple = LLVMNormalizeTargetTriple(LLVMGetDefaultTargetTriple());
+    auto target = LLVMGetFirstTarget();
+    ASSERT_TRUE(target != nullptr);
+    std::string hostCPU = LLVMGetHostCPUName();
+    std::string hostCPUFeatures = LLVMGetHostCPUFeatures();
+    auto targetMachine = LLVMCreateTargetMachine(target, triple.c_str(), hostCPU.c_str(), hostCPUFeatures.c_str(),
+                                                 LLVMCodeGenOptLevel::LLVMCodeGenLevelDefault,
+                                                 LLVMRelocMode::LLVMRelocPIC, LLVMCodeModel::LLVMCodeModelDefault);
+    auto targetDataLayout = LLVMCreateTargetDataLayout(targetMachine);
+    auto dataLayout = LLVMCopyStringRepOfTargetData(targetDataLayout);
+    LLVMSetTarget(module, triple.c_str());
+    LLVMSetDataLayout(module, dataLayout);
+    auto builder = LLVMCreateBuilder();
+    std::vector<LLVMTypeRef> funcParams(2, LLVMInt32Type());
+    auto funcType = LLVMFunctionType(LLVMInt32Type(),funcParams.data(), funcParams.size(), false);
+    LLVMAddFunction(module, "foobar", funcType);
 
+}
 } // namespace test
 int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);
