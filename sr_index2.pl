@@ -23,6 +23,9 @@ sub norm_time($) {
   elsif ($t=~/^(\d+)m(\d+)s$/) {
     return (($1+0)*60+$2)*1000;
   }
+  elsif($t=~/^(\d+)m$/) {
+    return ($1+0)*60*1000;
+  }
   elsif ($t=~/^-(\d+(?:\.\d+)?)(ns|us|ms)$/){
     return -($1+0.0)/$unit{$2};
   }
@@ -53,7 +56,7 @@ sub norm_bytes($) {
     if (!defined($u)) {
       $u="B";
     }
-    return ($1+0.0)*$unit{$u};
+    return ($1+0.0)*$unit{$u}/1024/1024/1024;
   } else {
     die "undefined number format! '$b'";
     return undef;
@@ -84,7 +87,7 @@ while(<>) {
     next;
   }
 
-  if (/\b(MemoryLimit|PeakMemoryUsage|InstanceNum):\s+(\S+)/) {
+  if (/\b(MemoryLimit|PeakMemoryUsage|__MAX_OF_PeakMemoryUsage|InstancePeakMemoryUsage|__MAX_OF_InstancePeakMemoryUsage|InstanceNum):\s+(.*)/) {
     $plan->{$fragment}{$1}=$2;
     $plan->{$fragment}{id}=$fragment;
     next;
@@ -115,7 +118,7 @@ while(<>) {
     next;
   }
 
-  if (/\b(PushTotalTime|PullTotalTime|CompressTime|SetFinishingTime|BuildHashTableTime|RuntimeFilterBuildTime|CopyRightTableChunkTime|OtherJoinConjunctEvaluateTime|OutputBuildColumnTimer|OutputProbeColumnTimer|OutputTupleColumnTimer|ProbeConjunctEvaluateTime|__MAX_OF_ProbeConjunctEvaluateTime|__MIN_OF_ProbeConjunctEvaluateTime|SearchHashTableTimer|WhereConjunctEvaluateTime|OperatorTotalTime|SetFinishedTime|JoinRuntimeFilterTime|CloseTime)\b:\s+(\S+)/) {
+  if (/\b(PushTotalTime|SortingTime|__MAX_OF_SortingTime|MergingTime|__MAX_OF_MergingTime|PullTotalTime|CompressTime|SetFinishingTime|BuildHashTableTime|RuntimeFilterBuildTime|CopyRightTableChunkTime|OtherJoinConjunctEvaluateTime|OutputBuildColumnTimer|OutputProbeColumnTimer|OutputTupleColumnTimer|ProbeConjunctEvaluateTime|__MAX_OF_ProbeConjunctEvaluateTime|__MIN_OF_ProbeConjunctEvaluateTime|SearchHashTableTimer|WhereConjunctEvaluateTime|OperatorTotalTime|SetFinishedTime|JoinRuntimeFilterTime|CloseTime)\b:\s+(\S+)/) {
     my $operator_id = join "_", ($fragment, $pipeline, $operator);
     $plan->{$fragment}{pipelines}{$pipeline}{operators}{$operator}{$1}=norm_time($2);
     $plan->{$fragment}{pipelines}{$pipeline}{operators}{$operator}{id}=$operator_id;
@@ -128,7 +131,7 @@ while(<>) {
     $plan->{$fragment}{pipelines}{$pipeline}{operators}{$operator}{id}=$operator_id;
     next;
   }
-  if (/\b(BytesPassThrough|BytesSent|UpcompressedBytes):\s+(.*)/) {
+  if (/\b(BytesPassThrough|BytesSent|InputRequiredMemory|__MAX_OF_InputRequiredMemory|MergeUnsortedPeakMemoryUsage|__MAX_OF_MergeUnsortedPeakMemoryUsage|MergeSortedPeakMemoryUsage|__MAX_OF_MergeSortedPeakMemoryUsage|SortPartialPeakMemoryUsage|__MAX_OF_SortPartialPeakMemoryUsage|UpcompressedBytes|OperatorPeakMemoryUsage|__MAX_OF_OperatorPeakMemoryUsage):\s+(.*)/) {
     my $operator_id = join "_", ($fragment, $pipeline, $operator);
     $plan->{$fragment}{pipelines}{$pipeline}{operators}{$operator}{$1}=$2;
     $plan->{$fragment}{pipelines}{$pipeline}{operators}{$operator}{id}=$operator_id;
@@ -154,5 +157,5 @@ if (exists $ENV{index}){
 my @fragments = grep {exists $_->{$index}} @$fragments;
 my @pipelines = grep {exists $_->{$index}} @$pipelines;
 my @ops= grep {exists $_->{$index}} @$ops;
-print join "\n", map {sprintf "%s\t%s\t%s", "".$_->{$index}, $index, $_->{id}} sort{$a->{$index} <=> $b->{$index}} (@fragments, @pipelines, @ops);
+print join "\n", map {sprintf "%s\t%s\t%s", "".$_->{$index}, $index, $_->{id}} sort{$a->{$index} cmp $b->{$index}} (@fragments, @pipelines, @ops);
 print "\n";

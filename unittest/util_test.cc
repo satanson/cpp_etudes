@@ -10,6 +10,7 @@
 
 #include <random>
 #include <util/bits_op.hh>
+#include <absl/container/flat_hash_map.h>
 namespace com {
 namespace grakra {
 namespace util {
@@ -104,7 +105,49 @@ TEST_F(TestUtil, testTerityExprReferenceAssignment) {
     std::cout << &b << std::endl;
     std::cout << &c << std::endl;
 }
+#include<list>
+TEST_F(TestUtil, testFlatHashMap) {
+    absl::flat_hash_map<int, int> abc;
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<int8_t> r;
+    std::uniform_int_distribution<size_t> rsize(1, 1000);
+    for (int i = 0; i < 100000; ++i) {
+        const auto size = rsize(gen);
+        for (int k = 0; k < size; ++k) {
+            abc[r(gen)] = r(gen);
+        }
+        for (const auto& [a, b] : abc) {
+            std::cout << "k=" << a << ", v=" << b << std::endl;
+        }
+    }
+}
 
+TEST_F(TestUtil, testVectorResize){
+    std::vector<int> data;
+    for(int i=0;i < 100; i++){
+        data.resize(i*100);
+        std::cout<<"size="<<i*100 <<", cap="<<data.capacity()<<std::endl;
+    }
+}
+
+TEST_F(TestUtil, TestUnsignedIntegerOverflow){
+    uint32_t a = 4294967295;
+    int32_t c = a;
+    int64_t b =  c;
+    std::cout<<b<<std::endl;
+}
+
+TEST_F(TestUtil,TestListTransform){
+    std::list<int> l0{1,2,3,4,5};
+    std::list<int> l1;
+    l1.resize(10);
+    std::transform(l0.begin(), l0.end(), l1.begin(), [](int x){return x*2;});
+    std::cout<<"size="<<l1.size()<<std::endl;
+    for (auto it = l1.begin(); it!=l1.end(); ++it) {
+        std::cout<<*it<<std::endl;
+    }
+}
 } // namespace util
 } // namespace grakra
 } // namespace com

@@ -1461,6 +1461,21 @@ TEST_F(MiscTest, testReadValues) {
     int e =0;
     ASSERT_FALSE(read_values("foobar.1", a, b, c, s, d, e));
 }
+void* func(void*){
+    std::cout<<"ok"<<std::endl;
+}
+TEST_F(MiscTest, testPthread) {
+    pthread_t pid;
+    pthread_attr_t pattr;
+    pthread_attr_init(&pattr);
+    pthread_attr_setstack(&pattr, (void*)static_cast<intptr_t>(1), 100);
+    auto res = pthread_create(&pid, &pattr, func, NULL);
+    if (res!=0) {
+        std::cout<<"pthread_create: ERROR";
+    }
+    pthread_join(pid,NULL);
+
+}
 
 int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);

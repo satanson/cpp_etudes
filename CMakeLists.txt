@@ -6,10 +6,12 @@ project(cpp_etudes)
 #enable_language(C)
 #enable_language(ASM)
 
-set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS} -static-libstdc++  -msse4.1 -msse4.2 -mavx2 -mpopcnt -O3 -std=c++17")
-set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS} -static-libstdc++ -msse4.1 -msse4.2 -mavx2 -g -O0 -std=c++17")
+#set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS} -static-libstdc++  -msse4.1 -msse4.2 -mavx2 -mpopcnt -O3 -std=c++17")
+#set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS} -static-libstdc++ -msse4.1 -msse4.2 -mavx2 -g -O0 -std=c++17")
+set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS}  -static-libstdc++  -O3 -std=c++17")
+set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS}  -static-libstdc++ -g -O0 -std=c++17")
 #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17")
-
+message(STATUS "abc")
 include(cmakes/arch.cmake)
 include(cmakes/target.cmake)
 #include(cmakes/tools.cmake)
@@ -143,6 +145,20 @@ set(ABSL_BUILD_TESTING OFF)
 add_subdirectory(third-party/abseil-cpp-91b7cd600a34cbd)
 set(BUILD_TESTING ON)
 
+include (CheckCXXSourceCompiles)
+check_cxx_source_compiles("
+	#include <iostream>
+	int main() {
+#if !_GLIBCXX_USE_CXX11_ABI
+#error _GLIBCXX_USE_CXX11_ABI must be non-zero
+#endif
+	   return 0;
+	}
+" HAVE_GLIBCXX_USE_CXX11_ABI)
+if (NOT HAVE_GLIBCXX_USE_CXX11_ABI)
+    MESSAGE(FATAL_ERROR "_GLIBCXX_USE_CXX11_ABI should not be 0")
+endif()
+
 list(APPEND link_libs gtest
         pthread atomic
         glog::glog
@@ -170,3 +186,14 @@ message(STATUS "link_libs=${link_libs}")
 add_subdirectory(unittest)
 add_subdirectory(benchmark)
 add_subdirectory(src/main)
+
+SET(IN_DOCKER_ENV OFF)
+FIND_FILE(DOCKER_ENV NAMES ".dockerenv" PATHS "/" NO_CACHE)
+if (NOT (DOCKER_ENV STREQUAL "DOCKER_ENV-NOTFOUND"))
+    SET(IN_DOCKER_ENV ON)
+endif()
+
+
+if (IN_DOCKER_ENV)
+MESSAGE(STATUS "IN_DOCKER_ENV=${IN_DOCKER_ENV}")
+endif()
