@@ -66,11 +66,15 @@ sub norm_bytes($) {
 while(<>) {
   if (/Fragment\s+(\d+)/){
     $fragment = "Fragment($1)";
+    $pipeline = undef;
+    $operator = undef;
     next;
   }
 
+
   if (/Pipeline\s+\(id=(\d+)\)/) {
     $pipeline = "Pipeline($1)";
+    $operator = undef;
     $plan->{$fragment}{pipelines}{$pipeline}{id}=join "_", ($fragment, $pipeline);
     next;
   }
@@ -87,11 +91,26 @@ while(<>) {
     next;
   }
 
-  if (/\b(MemoryLimit|PeakMemoryUsage|__MAX_OF_PeakMemoryUsage|InstancePeakMemoryUsage|__MAX_OF_InstancePeakMemoryUsage|InstanceNum):\s+(.*)/) {
+  if (/\b(InstancePeakMemoryUsage|__MAX_OF_InstancePeakMemoryUsage|InstanceNum):\s+(.*)/) {
     $plan->{$fragment}{$1}=$2;
     $plan->{$fragment}{id}=$fragment;
     next;
   }
+
+  if (/\b(MemoryLimit|PeakMemoryUsage|__MAX_OF_PeakMemoryUsage):\s+(.*)/) {
+    if (defined($operator)){
+      my $operator_id = join "_", ($fragment, $pipeline, $operator);
+      $plan->{$fragment}{pipelines}{$pipeline}{operators}{$operator}{$1}=$2;
+      $plan->{$fragment}{pipelines}{$pipeline}{operators}{$operator}{id}=$operator_id;
+    } elsif(defined($pipeline)) {
+      $plan->{$fragment}{pipelines}{$pipeline}{$1}=$2;
+    } else {
+      $plan->{$fragment}{$1}=$2;
+      $plan->{$fragment}{id}=$fragment;
+    }
+    next;
+  }
+
 
   if (/\b(InstanceNum):\s+(\S+)/) {
     $plan->{$fragment}{$1}=$2+0;
@@ -99,8 +118,8 @@ while(<>) {
     next;
   }
 
-  if (/\b(DegreeOfParallelism|TotalDegreeOfParallelism):\s+(\d+)/) {
-    $plan->{$fragment}{pipelines}{$pipeline}{$1}=$2+0;
+  if (/\b(DegreeOfParallelism|TotalDegreeOfParallelism):\s+(\d+(?:(?:\.\d+)\w+)?)/) {
+    $plan->{$fragment}{pipelines}{$pipeline}{$1}=norm_num($2);
     next;
   }
 
@@ -118,20 +137,20 @@ while(<>) {
     next;
   }
 
-  if (/\b(PushTotalTime|SortingTime|__MAX_OF_SortingTime|MergingTime|__MAX_OF_MergingTime|PullTotalTime|CompressTime|SetFinishingTime|BuildHashTableTime|RuntimeFilterBuildTime|CopyRightTableChunkTime|OtherJoinConjunctEvaluateTime|OutputBuildColumnTimer|OutputProbeColumnTimer|OutputTupleColumnTimer|ProbeConjunctEvaluateTime|__MAX_OF_ProbeConjunctEvaluateTime|__MIN_OF_ProbeConjunctEvaluateTime|SearchHashTableTimer|WhereConjunctEvaluateTime|OperatorTotalTime|SetFinishedTime|JoinRuntimeFilterTime|CloseTime)\b:\s+(\S+)/) {
+  if (/\b(PushTotalTime|SortingTime|__MAX_OF_SortingTime|MergingTime|IOTaskExecTime|__MAX_OF_IOTaskExecTime|IOTaskWaitTime|__MAX_OF_IOTaskWaitTime|ScanTime|__MAX_OF_ScanTime|__MAX_OF_MergingTime|PullTotalTime|CompressTime|SetFinishingTime|BuildHashTableTime|RuntimeFilterBuildTime|CopyRightTableChunkTime|OtherJoinConjunctEvaluateTime|OutputBuildColumnTimer|OutputProbeColumnTimer|OutputTupleColumnTimer|ProbeConjunctEvaluateTime|__MAX_OF_ProbeConjunctEvaluateTime|__MIN_OF_ProbeConjunctEvaluateTime|SearchHashTableTimer|WhereConjunctEvaluateTime|OperatorTotalTime|SetFinishedTime|JoinRuntimeFilterTime|CloseTime)\b:\s+(\S+)/) {
     my $operator_id = join "_", ($fragment, $pipeline, $operator);
     $plan->{$fragment}{pipelines}{$pipeline}{operators}{$operator}{$1}=norm_time($2);
     $plan->{$fragment}{pipelines}{$pipeline}{operators}{$operator}{id}=$operator_id;
     next;
   }
 
-  if (/\b(RowsRead|RawRowsRead|PullChunkNum|PushChunkNum|PullRowNum|DestID|PushRowNum):\s+(\S+)/) {
+  if (/\b(RowsRead|SubmitTaskCount|__MAX_OF_SubmitTaskCount|MorselsCount|__MAX_OF_MorselsCount|IOCounter|__MAX_OF_IOCounter|RawRowsRead|PullChunkNum|PushChunkNum|PullRowNum|DestID|PushRowNum|BlockCacheReadCounter|__MAX_OF_BlockCacheReadCounter|BlockCacheWriteCounter|__MAX_OF_BlockCacheWriteCounter):\s+(\S+)/) {
     my $operator_id = join "_", ($fragment, $pipeline, $operator);
     $plan->{$fragment}{pipelines}{$pipeline}{operators}{$operator}{$1}=norm_num($2);
     $plan->{$fragment}{pipelines}{$pipeline}{operators}{$operator}{id}=$operator_id;
     next;
   }
-  if (/\b(BytesPassThrough|BytesSent|InputRequiredMemory|__MAX_OF_InputRequiredMemory|MergeUnsortedPeakMemoryUsage|__MAX_OF_MergeUnsortedPeakMemoryUsage|MergeSortedPeakMemoryUsage|__MAX_OF_MergeSortedPeakMemoryUsage|SortPartialPeakMemoryUsage|__MAX_OF_SortPartialPeakMemoryUsage|UpcompressedBytes|OperatorPeakMemoryUsage|__MAX_OF_OperatorPeakMemoryUsage):\s+(.*)/) {
+  if (/\b(BytesPassThrough|BytesSent|BlockCacheWriteBytes|__MAX_OF_BlockCacheWriteBytes|BlockCacheReadBytes|__MAX_OF_BlockCacheReadBytes|InputRequiredMemory|__MAX_OF_InputRequiredMemory|MergeUnsortedPeakMemoryUsage|__MAX_OF_MergeUnsortedPeakMemoryUsage|MergeSortedPeakMemoryUsage|__MAX_OF_MergeSortedPeakMemoryUsage|SortPartialPeakMemoryUsage|__MAX_OF_SortPartialPeakMemoryUsage|UpcompressedBytes|OperatorPeakMemoryUsage|__MAX_OF_OperatorPeakMemoryUsage):\s+(.*)/) {
     my $operator_id = join "_", ($fragment, $pipeline, $operator);
     $plan->{$fragment}{pipelines}{$pipeline}{operators}{$operator}{$1}=$2;
     $plan->{$fragment}{pipelines}{$pipeline}{operators}{$operator}{id}=$operator_id;
@@ -157,5 +176,5 @@ if (exists $ENV{index}){
 my @fragments = grep {exists $_->{$index}} @$fragments;
 my @pipelines = grep {exists $_->{$index}} @$pipelines;
 my @ops= grep {exists $_->{$index}} @$ops;
-print join "\n", map {sprintf "%s\t%s\t%s", "".$_->{$index}, $index, $_->{id}} sort{$a->{$index} cmp $b->{$index}} (@fragments, @pipelines, @ops);
+print join "\n", map {sprintf "%s\t\t%s\t%s", "".$_->{$index}, $index, $_->{id}} sort{$a->{$index} cmp $b->{$index}} (@fragments, @pipelines, @ops);
 print "\n";

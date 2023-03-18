@@ -148,6 +148,34 @@ TEST_F(TestUtil,TestListTransform){
         std::cout<<*it<<std::endl;
     }
 }
+
+struct VectorWrapper{
+    VectorWrapper(std::vector<std::string>&& s):_s(std::move(s)){
+        std::cout<<"VectorWrapper ctor: size="<<_s.size()<<std::endl;
+    }
+    ~VectorWrapper(){
+        std::cout<<"VectorWrapper dtor: size="<<_s.size()<<std::endl;
+    }
+private:
+    std::vector<std::string> _s;
+};
+TEST_F(TestUtil, testVectorWrapper){
+    {
+        std::vector<std::string> s{"abc", "def"};
+        auto a = std::make_tuple(std::make_shared<std::vector<std::string>>(std::move(s)), std::make_shared<VectorWrapper>(std::move(s)));
+    }
+    {
+        std::vector<std::string> s{"abc", "def"};
+        auto a = std::make_tuple( std::make_shared<VectorWrapper>(std::move(s)),std::make_shared<std::vector<std::string>>(std::move(s)));
+    }
+    {
+        std::vector<std::string> s{"abc", "def"};
+        auto a = std::make_tuple(std::make_shared<VectorWrapper>(std::move(s)), std::make_shared<VectorWrapper>(std::move(s)));
+    }
+}
+
+
+
 } // namespace util
 } // namespace grakra
 } // namespace com
