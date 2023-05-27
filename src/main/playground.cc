@@ -12,15 +12,27 @@ using std::vector;
 #include <string>
 using std::string;
 #include <iostream>
+#include <random>
 using std::cerr;
 using std::cout;
 using std::endl;
 
 int main(int argc, char** argv) {
-    vector<uint8_t> bytes{0b1000'0000, 0b1110'0000, 0b1111'0000};
+    std::vector<int> v1;
+    std::vector<int> v2;
 
-    for (uint8_t b : bytes) {
-        int c = ~b;
-        cout << std::hex << (int)b << "," << c << std::dec << "," << __builtin_clz(c) << endl;
+    std::random_device rd;
+    std::uniform_int_distribution<int> rand;
+    v1.reserve(100);
+    for (int i=0; i < 100; ++i) {
+        v1.push_back(rand(rd));
     }
+    v2.reserve(1000);
+    for (int i=0; i <10; ++i) {
+        v2.insert(v2.end(), v1.begin(), v1.end());
+    }
+    for (auto v: v2) {
+        std::cout<<v<<std::endl;
+    }
+
 }

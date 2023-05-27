@@ -10,6 +10,7 @@ set(MAINS
         interpreter_demo.cc
         cache_oom.cc
         simd.cc
+        jit_demo.cc
         )
 foreach (src ${MAINS})
     get_filename_component(exe ${src} NAME_WE)

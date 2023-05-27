@@ -1,0 +1,20 @@
+products
+- NoSQL(Key-Value)
+-- NewSQL
+-- Multi-Model Database
+- OLTP Database
+-- HTAP
+- Streaming System
+-- Materialized View
+-- Support SQL
+- TSDB
+-- Multi-table query
+-- MPP
+- legacy Big Data
+-- Federated query
+-- new Analytic Engine
+-- EMR
+- Query Engine
+-- Cloud Native
+-- External storage
+-- Share-Disk

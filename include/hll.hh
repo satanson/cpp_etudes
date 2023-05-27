@@ -33,7 +33,7 @@ std::pair<float, int> calc_harmonic_mean1(int8_t* data, size_t n) {
     harmonic_mean = 1.0f / harmonic_mean;
     return std::make_pair(harmonic_mean, num_zeros);
 }
-
+#if defined(__AVX2__)
 __m256 exp256_ps(__m256 x) {
     /* Modified code. The original code is here: https://github.com/reyoung/avx_mathfun
 
@@ -121,13 +121,14 @@ __m256 exp256_ps(__m256 x) {
     y = _mm256_mul_ps(y, pow2n);
     return y;
 }
+#endif
 
 std::pair<float, int> calc_harmonic_mean2(int8_t* data, size_t n) {
     float harmonic_mean = 0;
     int num_zeros = 0;
-#if defined(__AVX2__)
     auto* p = data;
     const auto end = data + n;
+#if defined(__AVX2__)
     constexpr auto BLOCK_SIZE = sizeof(__m256i);
     const auto end0 = data + (n & ~(BLOCK_SIZE - 1));
     const auto ln2 = _mm256_set1_ps(0.69314718055995f);

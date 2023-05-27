@@ -1,10 +1,12 @@
-set (LLVM_PREFIX "${PROJECT_SOURCE_DIR}/llvm_install/usr/local")
-foreach(llvm_v 14 13 12)
-    if (NOT LLVM_FOUND)
-        find_package (LLVM ${llvm_v} CONFIG PATHS ${LLVM_PREFIX})
-    endif ()
-endforeach ()
+#foreach(llvm_v 14 13 12)
+#    if (NOT LLVM_FOUND)
+#    endif ()
+#endforeach ()
+set(LLVM_DIR "${PROJECT_SOURCE_DIR}/llvm_install/usr/local/lib/cmake/llvm/")
+find_package(LLVM 14.0.6 REQUIRED CONFIG)
 
+message(STATUS "LLVM_FOUND=${LLVM_FOUND}")
+message(STATUS "LLVM library Directory: ${LLVM_LIBRARY_DIRS}")
 if (LLVM_FOUND)
     # Remove dynamically-linked zlib and libedit from LLVM's dependencies:
     set_target_properties(LLVMSupport PROPERTIES INTERFACE_LINK_LIBRARIES "-lpthread;LLVMDemangle;${ZLIB_LIBRARIES}")
