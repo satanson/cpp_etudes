@@ -1,0 +1,11 @@
+#!/bin/bash
+set -e -o pipefail
+fileGlob=${1:?"undefined 'fileGlob'"};shift
+dryRun=${1:-"dryRun"}
+if [ "x${dryRun}x" = "xdryRunx" ];then
+  dryRun=""
+else
+  dryRun="-i.bak"
+fi
+
+ls ${fileGlob} |xargs -i{} perl ${dryRun} -lpe 'BEGIN{$/=undef} chop;$_=~s/;*$/;/g' '{}'
