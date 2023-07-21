@@ -173,6 +173,29 @@ TEST_F(TestUtil, testVectorWrapper){
         auto a = std::make_tuple(std::make_shared<VectorWrapper>(std::move(s)), std::make_shared<VectorWrapper>(std::move(s)));
     }
 }
+char urlDecode(const char* a) {
+    auto l = a[0];
+    auto r = a[1];
+    auto mask = (l - 'A') >> 8;
+    auto ch = ((l - 'A' + 10) & (~mask)) + ((l - '0') & mask);
+    mask = (r - 'A') >> 8;
+    ch = (ch << 4) + ((r - 'A' + 10) & (~mask)) + ((r - '0') & mask);
+    return ch;
+}
+TEST_F(TestUtil, testUrlDecode) {
+
+    std::string s = "%21\t%23\t%24\t%26\t%27\t%28\t%29\t%2A\t%2B\t%2C\t%2F\t%3A\t%3B\t%3D\t%3F\t%40\t%5B\t%5D";
+    const char* p = s.data();
+    while(p < s.data()+s.size()) {
+        if (*p=='%' || *p == '\t') {
+            ++p;
+            continue;
+        }
+
+        std::cout<<urlDecode(p)<<std::endl;
+        p+=2;
+    }
+}
 
 
 
