@@ -9,6 +9,7 @@
 #include <gtest/gtest.h>
 
 #include <guard.hh>
+#include <cstdint>
 
 class TestGuard : public ::testing::Test {};
 

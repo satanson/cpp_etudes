@@ -13,6 +13,7 @@
 #include <unordered_map>
 
 #include "pred_guard.hh"
+#include <cstdint>
 
 namespace test {
 class PredGuardTest : public ::testing::Test {};

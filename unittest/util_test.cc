@@ -6,11 +6,14 @@
 //
 // Created by grakra on 2020/7/2.
 //
+#include <absl/container/flat_hash_map.h>
 #include <gtest/gtest.h>
+#include <immintrin.h>
+#include <mmintrin.h>
 
 #include <random>
 #include <util/bits_op.hh>
-#include <absl/container/flat_hash_map.h>
+
 namespace com {
 namespace grakra {
 namespace util {
@@ -105,7 +108,7 @@ TEST_F(TestUtil, testTerityExprReferenceAssignment) {
     std::cout << &b << std::endl;
     std::cout << &c << std::endl;
 }
-#include<list>
+#include <list>
 TEST_F(TestUtil, testFlatHashMap) {
     absl::flat_hash_map<int, int> abc;
     std::random_device rd;
@@ -123,54 +126,56 @@ TEST_F(TestUtil, testFlatHashMap) {
     }
 }
 
-TEST_F(TestUtil, testVectorResize){
+TEST_F(TestUtil, testVectorResize) {
     std::vector<int> data;
-    for(int i=0;i < 100; i++){
-        data.resize(i*100);
-        std::cout<<"size="<<i*100 <<", cap="<<data.capacity()<<std::endl;
+    for (int i = 0; i < 100; i++) {
+        data.resize(i * 100);
+        std::cout << "size=" << i * 100 << ", cap=" << data.capacity() << std::endl;
     }
 }
 
-TEST_F(TestUtil, TestUnsignedIntegerOverflow){
+TEST_F(TestUtil, TestUnsignedIntegerOverflow) {
     uint32_t a = 4294967295;
     int32_t c = a;
-    int64_t b =  c;
-    std::cout<<b<<std::endl;
+    int64_t b = c;
+    std::cout << b << std::endl;
 }
 
-TEST_F(TestUtil,TestListTransform){
-    std::list<int> l0{1,2,3,4,5};
+TEST_F(TestUtil, TestListTransform) {
+    std::list<int> l0{1, 2, 3, 4, 5};
     std::list<int> l1;
     l1.resize(10);
-    std::transform(l0.begin(), l0.end(), l1.begin(), [](int x){return x*2;});
-    std::cout<<"size="<<l1.size()<<std::endl;
-    for (auto it = l1.begin(); it!=l1.end(); ++it) {
-        std::cout<<*it<<std::endl;
+    std::transform(l0.begin(), l0.end(), l1.begin(), [](int x) { return x * 2; });
+    std::cout << "size=" << l1.size() << std::endl;
+    for (auto it = l1.begin(); it != l1.end(); ++it) {
+        std::cout << *it << std::endl;
     }
 }
 
-struct VectorWrapper{
-    VectorWrapper(std::vector<std::string>&& s):_s(std::move(s)){
-        std::cout<<"VectorWrapper ctor: size="<<_s.size()<<std::endl;
+struct VectorWrapper {
+    VectorWrapper(std::vector<std::string>&& s) : _s(std::move(s)) {
+        std::cout << "VectorWrapper ctor: size=" << _s.size() << std::endl;
     }
-    ~VectorWrapper(){
-        std::cout<<"VectorWrapper dtor: size="<<_s.size()<<std::endl;
-    }
+    ~VectorWrapper() { std::cout << "VectorWrapper dtor: size=" << _s.size() << std::endl; }
+
 private:
     std::vector<std::string> _s;
 };
-TEST_F(TestUtil, testVectorWrapper){
+TEST_F(TestUtil, testVectorWrapper) {
     {
         std::vector<std::string> s{"abc", "def"};
-        auto a = std::make_tuple(std::make_shared<std::vector<std::string>>(std::move(s)), std::make_shared<VectorWrapper>(std::move(s)));
+        auto a = std::make_tuple(std::make_shared<std::vector<std::string>>(std::move(s)),
+                                 std::make_shared<VectorWrapper>(std::move(s)));
     }
     {
         std::vector<std::string> s{"abc", "def"};
-        auto a = std::make_tuple( std::make_shared<VectorWrapper>(std::move(s)),std::make_shared<std::vector<std::string>>(std::move(s)));
+        auto a = std::make_tuple(std::make_shared<VectorWrapper>(std::move(s)),
+                                 std::make_shared<std::vector<std::string>>(std::move(s)));
     }
     {
         std::vector<std::string> s{"abc", "def"};
-        auto a = std::make_tuple(std::make_shared<VectorWrapper>(std::move(s)), std::make_shared<VectorWrapper>(std::move(s)));
+        auto a = std::make_tuple(std::make_shared<VectorWrapper>(std::move(s)),
+                                 std::make_shared<VectorWrapper>(std::move(s)));
     }
 }
 char urlDecode(const char* a) {
@@ -183,21 +188,33 @@ char urlDecode(const char* a) {
     return ch;
 }
 TEST_F(TestUtil, testUrlDecode) {
-
     std::string s = "%21\t%23\t%24\t%26\t%27\t%28\t%29\t%2A\t%2B\t%2C\t%2F\t%3A\t%3B\t%3D\t%3F\t%40\t%5B\t%5D";
     const char* p = s.data();
-    while(p < s.data()+s.size()) {
-        if (*p=='%' || *p == '\t') {
+    while (p < s.data() + s.size()) {
+        if (*p == '%' || *p == '\t') {
             ++p;
             continue;
         }
 
-        std::cout<<urlDecode(p)<<std::endl;
-        p+=2;
+        std::cout << urlDecode(p) << std::endl;
+        p += 2;
     }
 }
 
-
+#include "hexdigit.hh"
+TEST_F(TestUtil, testHexDecode) {
+    std::string s={"61626364"};
+    //PrepareData prepareData(s, 64);
+    std::cout<<s<<std::endl;
+    auto r0=unhex0(s);
+    auto r1=unhex1(s);
+    auto r2=unhex2(s);
+    std::cout<<"r0="<<r0<<std::endl;
+    std::cout<<"r1="<<r1<<std::endl;
+    std::cout<<"r2="<<r2<<std::endl;
+    ASSERT_EQ(r1, r0);
+    ASSERT_EQ(r0, r2);
+}
 
 } // namespace util
 } // namespace grakra

@@ -12,6 +12,7 @@
 #include <unordered_map>
 
 #include "meta_macro.hh"
+#include <cstdint>
 
 #define M_DEF_STMT_1(type, a) type a = 1;
 
