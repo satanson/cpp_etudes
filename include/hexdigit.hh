@@ -36,13 +36,11 @@ char hexdigit_ord(char ch) {
 bool hexdigit_ord4(char ch0, char ch1, char ch2, char ch3, char* ret0, char* ret1) {
     const auto bs = _mm256_set_epi64x(0x6660'4640'392f'0000, 0x6660'4640'392f'0000, 0x6660'4640'392f'0000,
                                       0x6660'4640'392f'0000);
-    auto chs =
-            _mm256_set_epi8(ch3, ch3, ch3, ch3, ch3, ch3, '\1', '\1', ch2, ch2, ch2, ch2, ch2, ch2, '\1', '\1',
-                            ch1, ch1, ch1, ch1, ch1, ch1, '\1', '\1', ch0, ch0, ch0, ch0, ch0, ch0, '\1', '\1');
+    auto chs = _mm256_set_epi8(ch3, ch3, ch3, ch3, ch3, ch3, '\1', '\1', ch2, ch2, ch2, ch2, ch2, ch2, '\1', '\1', ch1,
+                               ch1, ch1, ch1, ch1, ch1, '\1', '\1', ch0, ch0, ch0, ch0, ch0, ch0, '\1', '\1');
 
     auto x = _mm256_sub_epi8(bs, chs);
     auto mask = _mm256_movemask_epi8(x);
-    auto mask0 = mask & 0xff;
     // x         legal  bits  range
     // 11111111   N  6    'z' < ch
     // 01111111   Y  5    'a' <= ch <= 'z'
@@ -51,46 +49,31 @@ bool hexdigit_ord4(char ch0, char ch1, char ch2, char ch3, char* ret0, char* ret
     // 00001111   N  2    '9' < ch < 'A'
     // 00000111   Y  1    '0' <= ch <= '9'
     // 00000011   N  0     ch < '0'
-    auto bits = 30 - __builtin_clz(mask0);
-    if ((bits & 0x1) == 0) {
-        return false;
-    }
+
     // if bits == 0x1; then t = -1;otherwise t = 9;
     // ch in 0..9; 1st byte is ('0' - 1 - ch), so obtain (ch - '0') from -1 - ('0' - 1 - ch)
     // ch in A..F; 3st byte is ('A' - 1 - ch), so obtain (ch - 'A' + 10) from -9 - ('A' - 1 - ch)
     // ch in a..f; 5st byte is ('a' - 1 - ch), so obtain (ch - 'a' + 10) from -9 - ('a' - 1 - ch)
-    auto t = (10 & (0xff << ((bits == 0b1) << 3))) - 1;
-    auto delta = static_cast<char>(_mm256_cvtsi256_si32(_mm256_srli_epi64(_mm256_permute4x64_epi64(x, 0), (bits + 1) << 3)) & 0xff);
-    *ret0 = static_cast<char>((t-delta)<<4);
-    mask >>= 8;
-    mask0 = mask & 0xff;
-    bits = 30 - __builtin_clz(mask0);
-    if ((bits & 0x1) == 0) {
-        return false;
-    }
-    t = (10 & (0xff << ((bits == 0b1) << 3))) - 1;
-    delta = static_cast<char>(_mm256_cvtsi256_si32(_mm256_srli_epi64(_mm256_permute4x64_epi64(x, 1), (bits + 1) << 3)) & 0xff);
-    *ret0 += static_cast<char>(t - delta);
+#define PROCESS_CH(i, stmt)                                                                           \
+    do {                                                                                              \
+        auto mask0 = mask & 0xff;                                                                     \
+        auto bits = 30 - __builtin_clz(mask0);                                                        \
+        if ((bits & 0x1) == 0) {                                                                      \
+            return false;                                                                             \
+        }                                                                                             \
+        auto t = (10 & (0xff << ((bits == 0b1) << 3))) - 1;                                           \
+        auto bytes32 = (__v32qi)_mm256_srli_epi64(_mm256_permute4x64_epi64(x, (i)), (bits + 1) << 3); \
+        auto delta = bytes32[0];                                                                      \
+        stmt;                                                                                         \
+    } while (0);
 
+    PROCESS_CH(0, (*ret0 = static_cast<char>((t - delta) << 4)));
     mask >>= 8;
-    mask0 = mask & 0xff;
-    bits = 30 - __builtin_clz(mask0);
-    if ((bits & 0x1) == 0) {
-        return false;
-    }
-    t = (10 & (0xff << ((bits == 0b1) << 3))) - 1;
-    delta = static_cast<char>(_mm256_cvtsi256_si32(_mm256_srli_epi64(_mm256_permute4x64_epi64(x, 2), (bits + 1) << 3)) & 0xff);
-    *ret1 = static_cast<char>((t - delta) << 4);
-
+    PROCESS_CH(1, (*ret0 += static_cast<char>(t - delta)));
     mask >>= 8;
-    mask0 = mask & 0xff;
-    bits = 30 - __builtin_clz(mask0);
-    if ((bits & 0x1) == 0) {
-        return false;
-    }
-    t = (10 & (0xff << ((bits == 0b1) << 3))) - 1;
-    delta = static_cast<char>(_mm256_cvtsi256_si32(_mm256_srli_epi64(_mm256_permute4x64_epi64(x, 3), (bits + 1) << 3)) & 0xff);
-    *ret1 += static_cast<char>(t - delta);
+    PROCESS_CH(2, (*ret1 = static_cast<char>((t - delta) << 4)));
+    mask >>= 8;
+    PROCESS_CH(3, (*ret1 += static_cast<char>(t - delta)));
     return true;
 }
 
@@ -120,7 +103,7 @@ std::string unhex0(const std::string& s) {
         if ((ch0 & 0xff) == 0xff) {
             return {};
         }
-        auto ch1 = hexdigit_ord_nonsimd(s[i+1]);
+        auto ch1 = hexdigit_ord_nonsimd(s[i + 1]);
         if ((ch1 & 0xff) == 0xff) {
             return {};
         }
@@ -141,7 +124,7 @@ std::string unhex1(const std::string& s) {
         if ((ch0 & 0xff) == 0xff) {
             return {};
         }
-        auto ch1 = hexdigit_ord(s[i+1]);
+        auto ch1 = hexdigit_ord(s[i + 1]);
         if ((ch1 & 0xff) == 0xff) {
             return {};
         }
