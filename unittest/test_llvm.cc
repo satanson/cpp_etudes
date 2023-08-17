@@ -337,6 +337,12 @@ TEST_F(LLVMTest, testBasic4) {
     std::cout << "result=" << f(100, 20) << std::endl;
 }
 
+TEST_F(LLVMTest, testRoundToPowerTwo) {
+    ASSERT_EQ(RoundToPowerTwo<0b00001111>::value, 0b00010000);
+    ASSERT_EQ(RoundToPowerTwo<0b01001111>::value, 0b10000000);
+    ASSERT_EQ(RoundToPowerTwo<0b01000000>::value, 0b01000000);
+}
+
 } // namespace test
 int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);

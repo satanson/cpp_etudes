@@ -165,3 +165,18 @@ public:
         return reinterpret_cast<uintptr_t>(symbol.getAddress());
     }
 };
+
+template <int N, int M>
+struct RoundToPowerTwoTemp {
+    static constexpr int value = RoundToPowerTwoTemp<(N >> 1), (M + 1)>::value;
+};
+
+template <int M>
+struct RoundToPowerTwoTemp<0, M> {
+    static constexpr int value = 1 << (M);
+};
+
+template <int N>
+struct RoundToPowerTwo {
+    static constexpr int value = RoundToPowerTwoTemp<N, 0>::value;
+};
