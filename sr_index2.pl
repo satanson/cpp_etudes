@@ -118,8 +118,19 @@ while(<>) {
     next;
   }
 
+  if (/\b(FragmentInstancePrepareTime|__MAX_OF_FragmentInstancePrepareTime):\s+(\S+)/) {
+    $plan->{$fragment}{$1}=norm_time($2);
+    $plan->{$fragment}{id}=$fragment;
+    next;
+  }
+
   if (/\b(DegreeOfParallelism|TotalDegreeOfParallelism):\s+(\d+(?:(?:\.\d+)\w+)?)/) {
     $plan->{$fragment}{pipelines}{$pipeline}{$1}=norm_num($2);
+    next;
+  }
+
+  if (/\b(PendingTime|__MAX_OF_PendingTime):\s+(\S+)/) {
+    $plan->{$fragment}{pipelines}{$pipeline}{$1}=norm_time($2);
     next;
   }
 
