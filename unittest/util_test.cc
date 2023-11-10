@@ -10,6 +10,7 @@
 #include <gtest/gtest.h>
 #include <immintrin.h>
 #include <mmintrin.h>
+#include <glog/logging.h>
 
 #include <random>
 #include <util/bits_op.hh>
@@ -214,6 +215,39 @@ TEST_F(TestUtil, testHexDecode) {
     std::cout<<"r2="<<r2<<std::endl;
     ASSERT_EQ(r1, r0);
     ASSERT_EQ(r0, r2);
+}
+template<typename  Func>
+struct WithArg0 {
+    template<int N>
+    struct Functor {
+        void operator()(int m) {
+            std::cout<<Func()(m,N)<<std::endl;
+        }
+    };
+};
+template<template<int> typename F,  typename ... Args>
+void dispatch(int n, Args&&...args){
+    switch(n){
+    case 0:
+        return F<0>()(std::forward<Args>(args)...);
+    case 1:
+        return F<1>()(std::forward<Args>(args)...);
+    case 2:
+        return F<2>()(std::forward<Args>(args)...);
+    default:
+        CHECK(false) << "Unknown type: " << n;
+        __builtin_unreachable();
+    }
+}
+struct Add{
+    int operator()(int n, int m) {return n+m;}
+};
+struct Multiply{
+    int operator()(int n, int m) {return n*m;}
+};
+TEST_F(TestUtil, testCurrying) {
+    dispatch<WithArg0<Add>::Functor>(2, 10);
+    dispatch<WithArg0<Multiply>::Functor>(2, 10);
 }
 
 } // namespace util

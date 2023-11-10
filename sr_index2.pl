@@ -134,7 +134,7 @@ while(<>) {
     next;
   }
 
-  if (/\b(ActiveTime|DriverTotalTime|OverheadTime|ScheduleTime|PendingTime|InputEmptyTime|FirstInputEmptyTime|FollowupInputEmptyTime|OutputFullTime|PreconditionBlockTime):\s+(\S+)/) {
+  if (/\b(ActiveTime|__MAX_OF_DriverPrepareTime|DriverPrepareTime|DriverTotalTime|OverheadTime|ScheduleTime|PendingTime|InputEmptyTime|FirstInputEmptyTime|FollowupInputEmptyTime|OutputFullTime|PreconditionBlockTime):\s+(\S+)/) {
     $plan->{$fragment}{pipelines}{$pipeline}{$1}=norm_time($2);
     next;
   }

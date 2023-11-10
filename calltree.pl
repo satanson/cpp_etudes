@@ -307,6 +307,7 @@ my $RE_NESTED_CHARS_IN_SINGLE_QUOTES = qr/'[{}<>()]'/;
 my $RE_SINGLE_LINE_COMMENT = qr'/[/\\].*';
 my $RE_LEFT_ANGLES = qr'<[<=]+';
 my $RE_TEMPLATE_ARGS_1LAYER = qr'(<\s*(((::)?(\w+::)*\w+\s*,\s*)*(::)?(\w+::)*\w+\s*)>)';
+my $RE_STD_FUNCTION = qr'(?:::\s*)?\b(?:\w+\s*::\s*)*(\w+)\s*<\s*\w+\s*\(\)\s*\>';
 my $RE_CSV_TOKEN = gen_re_list(",", $RE_SCOPED_IDENTIFIER, "??");
 my $RE_NOEXCEPT_THROW = qr"(\\b(noexcept|throw)\\b)(\\s*\\(\\s*$RE_CSV_TOKEN\\s*\\))?";
 my $RE_MACRO_DEF = qr/(#define([^\n\r]*\\(\n\r?|\r\n?))*([^\n\r]*[^\n\r\\])?((\n\r?)|(\r\n?)|$))/;
@@ -383,6 +384,10 @@ sub replace_template_args_1layer($) {
   ($_[0] =~ s/$RE_TEMPLATE_ARGS_1LAYER/&blank_lines($1)/gemr, $1);
 }
 
+sub replace_std_function($) {
+  $_[0] =~ s/$RE_STD_FUNCTION/$1/gr;
+}
+
 sub replace_seastar($) {
   $_[0] =~ s/^[\n ]*SEASTAR_CONCEPT.*$/ /gr;
 }
@@ -453,6 +458,7 @@ sub preprocess_one_cpp_file($) {
   $content = remove_keywords_and_attributes($content);
   $content = remove_gcc_attributes($content);
   $content = replace_template_args_4layers($content);
+  $content = replace_std_function($content);
   $content = remove_noexcept_and_throw($content);
   $content = remove_noexcept($content);
   $content = replace_macro_defs($content);
