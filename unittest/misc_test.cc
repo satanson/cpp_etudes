@@ -1475,6 +1475,8 @@ TEST_F(MiscTest, testPthread) {
     }
     pthread_join(pid,NULL);
 
+    std::set<int64_t> a;
+    a.upper_bound(10);
 }
 
 int main(int argc, char** argv) {
