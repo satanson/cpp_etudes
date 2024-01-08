@@ -532,17 +532,21 @@ sub all_sub_classes() {
       next;
     }
     for my $e (@parent_matches) {
-      my ($fileline, $child, $parent) = @$e;
-      if (!defined($tree->{$parent})) {
-        $tree->{$parent} = [];
-      }
-      
-      if (!exists $table{$parent}) {
-        $table{$parent} = [ "out-of-tree" ];
-      } 
+      my ($fileline, $child, $parent0) = @$e;
+      my $parent1 = [split /\s*\.\s*/,$parent0]->[-1];
+      my @parents = keys %{+{$parent0 => 1, $parent1 => 2}};
+      for my $parent (@parents) {
+        if (!defined($tree->{$parent})) {
+          $tree->{$parent} = [];
+        }
 
-      if ($child ne $parent) {
-        push @{$tree->{$parent}}, $e;
+        if (!exists $table{$parent}) {
+          $table{$parent} = [ "out-of-tree" ];
+        } 
+
+        if ($child ne $parent) {
+          push @{$tree->{$parent}}, $e;
+        }
       }
     }
   }
