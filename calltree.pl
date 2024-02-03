@@ -2018,7 +2018,7 @@ __DATA__
 --- <cs3>1: show called tree(callee is parent node, caller is child node).<end>
 ---- demos
 ----- <cs1>calltree.pl build_hash '(?i)agg' 1 1 3<end> # StarRocks
------ <cs1>calltree.pl calltree.pl '\bpush_chunk\b' 'thread' 1 1 4 'pipeline'<end> # StarRocks
+----- <cs1>calltree.pl '\bpush_chunk\b' 'thread' 1 1 4 'pipeline'<end> # StarRocks
 --- 2: show all functions that matches `src_regex` and has callees.
 ---- demos
 ----- <cs1>calltree.pl '^\w*txn\w*$' '' 2 1 1<end> # rocksdb
