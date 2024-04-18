@@ -1403,7 +1403,7 @@ sub calling_tree($$$$$$) {
           } map {
             my %d = (
               prefix   => $prefix,
-              scope    =>, $_->{scope},
+              scope    => $_->{scope},
               filename => $_->{filename},
             );
             [ default_score(%d), $_ ]
@@ -1471,7 +1471,7 @@ sub fuzzy_calling_tree($$$$$$) {
     my $child0_name = $child0->{name};
     my $child0_unique_id = "$child0_file_info.$child0_name";
     next if exists $uniques->{$child0_unique_id};
-    my $tree = &eliminate_empty_children(&calling_tree($calling_graph, $name, $func_match_rule, $file_match_rule, $depth, {}));
+    my $tree = &eliminate_empty_children(&calling_tree($calling_graph, $name, $func_match_rule, $file_match_rule, $depth, $uniques));
     push @trees, $tree if defined($tree);
   }
   return {
