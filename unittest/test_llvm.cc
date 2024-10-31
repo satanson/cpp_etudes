@@ -128,12 +128,12 @@ static LLVMErrorRef definitionGeneratorFn(LLVMOrcDefinitionGeneratorRef G, void*
                                           LLVMOrcCLookupSet Names, size_t NamesCount) {
     for (size_t I = 0; I < NamesCount; I++) {
         LLVMOrcCLookupSetElement Element = Names[I];
-        LLVMOrcJITTargetAddress Addr = (LLVMOrcJITTargetAddress)(&materializationUnitFn);
+        auto Addr = (LLVMOrcJITTargetAddress)(&materializationUnitFn);
         LLVMJITSymbolFlags Flags = {LLVMJITSymbolGenericFlagsWeak, 0};
         LLVMJITEvaluatedSymbol Sym = {Addr, Flags};
         LLVMOrcRetainSymbolStringPoolEntry(Element.Name);
-        LLVMJITCSymbolMapPair Pair = {Element.Name, Sym};
-        LLVMJITCSymbolMapPair Pairs[] = {Pair};
+        LLVMOrcCSymbolMapPair Pair = {Element.Name, Sym};
+        LLVMOrcCSymbolMapPair Pairs[] = {Pair};
         LLVMOrcMaterializationUnitRef MU = LLVMOrcAbsoluteSymbols(Pairs, 1);
         LLVMErrorRef Err = LLVMOrcJITDylibDefine(JD, MU);
         if (Err) return Err;
@@ -202,7 +202,7 @@ TEST_F(LLVMTest, testBasic2) {
     }
     LLVMOrcJITDylibAddGenerator(LLVMOrcLLJITGetMainJITDylib(lljit), main_gen);
 
-    ref_gen = LLVMOrcCreateCustomCAPIDefinitionGenerator(definitionGeneratorFn, NULL);
+    ref_gen = LLVMOrcCreateCustomCAPIDefinitionGenerator(definitionGeneratorFn, nullptr, nullptr);
     LLVMOrcJITDylibAddGenerator(LLVMOrcLLJITGetMainJITDylib(lljit), ref_gen);
 
     auto orcTsModule = LLVMOrcCreateNewThreadSafeModule(module, orcTsCtx);
@@ -295,7 +295,7 @@ TEST_F(LLVMTest, testBasic3) {
 
     // Get the symbol's address and cast it to the right type (takes no
     // arguments, returns a double) so we can call it as a native function.
-    auto f = (int (*)(int, int))(intptr_t)ExprSymbol.getAddress();
+    auto f = (int (*)(int, int))static_cast<intptr_t>(ExprSymbol.getAddress().getValue());
     std::cout << "result=" << f(100, 20) << std::endl;
 
     // Delete the anonymous expression module from the JIT.

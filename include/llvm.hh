@@ -162,7 +162,7 @@ public:
         auto symbol = cantFail(_es->lookup({&_main_jd}, _mangling(fn_name)));
         // Get the symbol's address and cast it to the right type (takes no
         // arguments, returns a double) so we can call it as a native function.
-        return reinterpret_cast<uintptr_t>(symbol.getAddress());
+        return reinterpret_cast<uintptr_t>(symbol.getAddress().getValue());
     }
 };
 
