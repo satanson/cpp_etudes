@@ -3,14 +3,14 @@
 #    endif ()
 #endforeach ()
 set(LLVM_DIR "${PROJECT_SOURCE_DIR}/llvm_install/usr/local/lib/cmake/llvm/")
-find_package(LLVM 14.0.6 REQUIRED CONFIG)
+find_package(LLVM 20.0.0 REQUIRED CONFIG)
 
 message(STATUS "LLVM_FOUND=${LLVM_FOUND}")
 message(STATUS "LLVM library Directory: ${LLVM_LIBRARY_DIRS}")
 if (LLVM_FOUND)
     # Remove dynamically-linked zlib and libedit from LLVM's dependencies:
     set_target_properties(LLVMSupport PROPERTIES INTERFACE_LINK_LIBRARIES "-lpthread;LLVMDemangle;${ZLIB_LIBRARIES}")
-    set_target_properties(LLVMLineEditor PROPERTIES INTERFACE_LINK_LIBRARIES "LLVMSupport")
+    #set_target_properties(LLVMLineEditor PROPERTIES INTERFACE_LINK_LIBRARIES "LLVMSupport")
     option(LLVM_HAS_RTTI "Enable if LLVM was build with RTTI enabled" ON)
 else ()
     message(FATAL_ERROR "Can't find system LLVM")
@@ -62,6 +62,6 @@ set(REQUIRED_LLVM_LIBRARIES
         LLVMDebugInfoCodeView
         LLVMSupport
         LLVMDemangle
-        LLVMOrcError
+        #LLVMOrcError
         )
 

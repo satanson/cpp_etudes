@@ -250,6 +250,25 @@ TEST_F(TestUtil, testCurrying) {
     dispatch<WithArg0<Multiply>::Functor>(2, 10);
 }
 
+TEST_F(TestUtil, testBinMode) {
+    std::stringstream s;//(std::ios_base::binary);
+    int a = 0x35353535;
+    s<<a;
+    std::string s0 = s.str();
+    std::cout<<"#"<<s0<<"#"<<std::endl;
+}
+TEST_F(TestUtil, testStod) {
+    const std::string a = ".12456";
+    double d = std::stod(a);
+    std::cout<<"d="<<d<<std::endl;
+}
+void f(std::function<void()> cb) {
+    cb();
+}
+TEST_F(TestUtil, testF) {
+
+}
+
 } // namespace util
 } // namespace grakra
 } // namespace com

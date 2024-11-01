@@ -91,8 +91,14 @@ while(<>) {
     next;
   }
 
-  if (/\b(InstancePeakMemoryUsage|__MAX_OF_InstancePeakMemoryUsage|InstanceNum):\s+(.*)/) {
+  if (/\b(InstanceNum):\s+(.*)/) {
     $plan->{$fragment}{$1}=$2;
+    $plan->{$fragment}{id}=$fragment;
+    next;
+  }
+
+  if (/\b(InstancePeakMemoryUsage|__MAX_OF_InstancePeakMemoryUsage|InstanceNum):\s+(.*)/) {
+    $plan->{$fragment}{$1}=norm_bytes($2);
     $plan->{$fragment}{id}=$fragment;
     next;
   }
@@ -100,12 +106,12 @@ while(<>) {
   if (/\b(MemoryLimit|PeakMemoryUsage|__MAX_OF_PeakMemoryUsage):\s+(.*)/) {
     if (defined($operator)){
       my $operator_id = join "_", ($fragment, $pipeline, $operator);
-      $plan->{$fragment}{pipelines}{$pipeline}{operators}{$operator}{$1}=$2;
+      $plan->{$fragment}{pipelines}{$pipeline}{operators}{$operator}{$1}=norm_bytes($2);
       $plan->{$fragment}{pipelines}{$pipeline}{operators}{$operator}{id}=$operator_id;
     } elsif(defined($pipeline)) {
-      $plan->{$fragment}{pipelines}{$pipeline}{$1}=$2;
+      $plan->{$fragment}{pipelines}{$pipeline}{$1}=norm_bytes($2);
     } else {
-      $plan->{$fragment}{$1}=$2;
+      $plan->{$fragment}{$1}=norm_bytes($2);
       $plan->{$fragment}{id}=$fragment;
     }
     next;
@@ -124,7 +130,7 @@ while(<>) {
     next;
   }
 
-  if (/\b(DegreeOfParallelism|TotalDegreeOfParallelism):\s+(\d+(?:(?:\.\d+)\w+)?)/) {
+  if (/\b(DegreeOfParallelism|TotalDegreeOfParallelism|PeakDriverQueueSize|__MAX_OF_PeakDriverQueueSize):\s+(\d+(?:(?:\.\d+)\w+)?)/) {
     $plan->{$fragment}{pipelines}{$pipeline}{$1}=norm_num($2);
     next;
   }
@@ -163,7 +169,7 @@ while(<>) {
   }
   if (/\b(BytesPassThrough|BytesSent|BlockCacheWriteBytes|__MAX_OF_BlockCacheWriteBytes|BlockCacheReadBytes|__MAX_OF_BlockCacheReadBytes|InputRequiredMemory|__MAX_OF_InputRequiredMemory|MergeUnsortedPeakMemoryUsage|__MAX_OF_MergeUnsortedPeakMemoryUsage|MergeSortedPeakMemoryUsage|__MAX_OF_MergeSortedPeakMemoryUsage|SortPartialPeakMemoryUsage|__MAX_OF_SortPartialPeakMemoryUsage|UpcompressedBytes|OperatorPeakMemoryUsage|__MAX_OF_OperatorPeakMemoryUsage):\s+(.*)/) {
     my $operator_id = join "_", ($fragment, $pipeline, $operator);
-    $plan->{$fragment}{pipelines}{$pipeline}{operators}{$operator}{$1}=$2;
+    $plan->{$fragment}{pipelines}{$pipeline}{operators}{$operator}{$1}=norm_bytes($2);
     $plan->{$fragment}{pipelines}{$pipeline}{operators}{$operator}{id}=$operator_id;
     next;
   }
@@ -187,5 +193,6 @@ if (exists $ENV{index}){
 my @fragments = grep {exists $_->{$index}} @$fragments;
 my @pipelines = grep {exists $_->{$index}} @$pipelines;
 my @ops= grep {exists $_->{$index}} @$ops;
+#print Dumper([@fragments, @pipelines, @ops]);
 print join "\n", map {sprintf "%s\t\t%s\t%s", "".$_->{$index}, $index, $_->{id}} sort{$a->{$index} <=> $b->{$index}} (@fragments, @pipelines, @ops);
 print "\n";

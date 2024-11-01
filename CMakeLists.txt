@@ -1,5 +1,7 @@
-cmake_minimum_required(VERSION 2.8.12)
+cmake_minimum_required(VERSION 3.5)
 set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmakes ${CMAKE_MODULE_PATH})
+cmake_policy(SET CMP0079 NEW)
+cmake_policy(SET CMP0167 OLD)
 
 project(cpp_etudes)
 #enable_language(CXX)
@@ -128,16 +130,28 @@ include_directories(${PROJECT_SOURCE_DIR}/include)
 include_directories(${PROJECT_SOURCE_DIR}/src/modules)
 include_directories(${LLVM_INCLUDE_DIRS})
 link_directories(${LLVM_LIBRARY_DIRS})
-
+message(STATUS "build path=${CMAKE_BINARY_DIR}/third-party/glog")
 include_directories(SYSTEM ${PROJECT_SOURCE_DIR}/third-party/gtest-1.7.0/fused-src)
 include_directories(SYSTEM ${PROJECT_SOURCE_DIR}/third-party/benchmark-1.5.1/include)
-include_directories(SYSTEM ${PROJECT_SOURCE_DIR}/third-party/glog-0.6.0/src)
+include_directories(SYSTEM ${CMAKE_BINARY_DIR}/third-party/gflags/include)
+include_directories(SYSTEM ${PROJECT_SOURCE_DIR}/third-party/glog/src)
 include_directories(SYSTEM ${PROJECT_SOURCE_DIR}/third-party/abseil-cpp-91b7cd600a34cbd/)
 
 add_subdirectory(third-party/gtest-1.7.0/fused-src/gtest)
 add_subdirectory(third-party/benchmark-1.5.1)
 set(BUILD_TESTING OFF)
-add_subdirectory(third-party/glog-0.6.0)
+add_subdirectory(third-party/gflags)
+set(GFLAGS_NAMESPACE "google" CACHE STRING "Namespace for gflags")
+add_definitions(-DGFLAGS_IS_A_DEPENDENCY)
+set(WITH_GFLAGS OFF)
+add_definitions(-DGLOG_EXPORT=)
+add_definitions(-DGLOG_NO_EXPORT=)
+add_definitions(-DGLOG_DEPRECATED=)
+set(WITH_GFLAGS OFF CACHE BOOL "Disable gflags support")
+set(WITH_UNWIND OFF CACHE BOOL "Disable libunwind support")
+add_definitions(-DGOOGLE_STRIP_LOG=0)
+set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build static libraries")
+add_subdirectory(third-party/glog)
 
 set(ABSL_PROPAGATE_CXX_STD ON)
 set(ABSL_BUILD_TESTING OFF)
@@ -157,10 +171,12 @@ check_cxx_source_compiles("
 if (NOT HAVE_GLIBCXX_USE_CXX11_ABI)
     MESSAGE(FATAL_ERROR "_GLIBCXX_USE_CXX11_ABI should not be 0")
 endif()
-
+find_package(zstd REQUIRED)
 list(APPEND link_libs gtest
         pthread atomic
+        gflags
         glog::glog
+        zstd
         absl::algorithm
         absl::base
         absl::debugging
